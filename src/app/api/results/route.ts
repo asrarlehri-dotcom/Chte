@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 // Exact Percentage-to-GP lookup based on provided grading policy
 // Percentage-to-GP lookup based on new linear grading policy:
 // 50% = 1.0, 51% = 1.1, ..., 79% = 3.9, 80%+ = 4.0
-export function calcGPA(obtained: number, total: number): number {
+function calcGPA(obtained: number, total: number): number {
   if (total <= 0) return 0.00;
   const pct = (obtained / total) * 100;
   const rounded = Math.round(pct);

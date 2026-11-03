@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
     if (status !== undefined) {
       try {
         await prisma.$executeRawUnsafe(
-          `UPDATE "Marks" SET "status" = ? WHERE "id" = ?`,
+          `UPDATE "Marks" SET "status" = $1 WHERE "id" = $2`,
           String(status),
           marksRecord.id
         );

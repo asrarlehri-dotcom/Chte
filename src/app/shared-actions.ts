@@ -18,15 +18,18 @@ export async function toggleCourseStatus(id: string, isActive: boolean) {
   revalidatePath("/bs/courses");
 }
 
-export async function getDashboardStats() {
-  const syllabusCourses = await prisma.course.count();
-  const autoTimetables = await prisma.timetable.count({ where: { generationMode: "AUTO" } });
-  const manualTimetables = await prisma.timetable.count({ where: { generationMode: "MANUAL" } });
+export async function getDashboardStats(collegeId?: string | null) {
+  const collegeFilter = collegeId ? { collegeId } : {};
+  const syllabusCourses = await prisma.course.count({
+    where: collegeId ? { program: { collegeId } } : {}
+  });
+  const autoTimetables = await prisma.timetable.count({ where: { generationMode: "AUTO", ...collegeFilter } });
+  const manualTimetables = await prisma.timetable.count({ where: { generationMode: "MANUAL", ...collegeFilter } });
   const totalTimetables = autoTimetables + manualTimetables;
   
-  const autoDatesheets = await prisma.datesheet.count({ where: { generationMode: "AUTO" } });
-  const manualDatesheets = await prisma.datesheet.count({ where: { generationMode: "MANUAL" } });
-  const publishedDatesheets = await prisma.datesheet.count({ where: { status: "PUBLISHED" } });
+  const autoDatesheets = await prisma.datesheet.count({ where: { generationMode: "AUTO", ...collegeFilter } });
+  const manualDatesheets = await prisma.datesheet.count({ where: { generationMode: "MANUAL", ...collegeFilter } });
+  const publishedDatesheets = await prisma.datesheet.count({ where: { status: "PUBLISHED", ...collegeFilter } });
   const totalDatesheets = autoDatesheets + manualDatesheets;
 
   return {
@@ -41,49 +44,101 @@ export async function getDashboardStats() {
   };
 }
 
-export async function getCompleteDashboardData(educationLevel: string = "ALL", sessionFilter: string = "ALL") {
+export async function getCompleteDashboardData(
+  educationLevel: string = "ALL",
+  sessionFilter: string = "ALL",
+  collegeId?: string | null
+) {
   // Education Level filter condition
-  const levelFilter = educationLevel === "ALL" ? {} : { educationLevel };
+  const levelFilter: Record<string, any> = {};
+  if (educationLevel !== "ALL") {
+    levelFilter.educationLevel = educationLevel;
+  }
+  if (sessionFilter !== "ALL") {
+    levelFilter.session = sessionFilter;
+  }
+
+  const collegeFilter = collegeId ? { collegeId } : {};
 
   // 1. Top Bar Metrics
-  const totalStudents = await prisma.student.count({ where: levelFilter });
-  const activePrograms = await prisma.program.count({ where: { isActive: true, ...(educationLevel !== "ALL" ? { educationLevel } : {}) } });
-  const totalFaculty = await prisma.faculty.count({ where: { isActive: true } });
-  const totalCourses = await prisma.course.count({ where: { isActive: true } });
+  const totalStudents = await prisma.student.count({
+    where: { ...levelFilter, ...collegeFilter }
+  });
+  const activePrograms = await prisma.program.count({
+    where: {
+      isActive: true,
+      ...collegeFilter,
+      ...(educationLevel !== "ALL" ? { educationLevel } : {})
+    }
+  });
+  const totalFaculty = await prisma.faculty.count({
+    where: { isActive: true, ...collegeFilter }
+  });
+  const totalCourses = await prisma.course.count({
+    where: {
+      isActive: true,
+      ...(collegeId ? { program: { collegeId } } : {})
+    }
+  });
   
   const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const todayDayName = daysOfWeek[new Date().getDay()];
   const todaysClasses = await prisma.timetable.count({
     where: {
       dayOfWeek: todayDayName,
+      ...collegeFilter,
       ...(educationLevel !== "ALL" ? { educationLevel } : {})
     }
   });
 
   // 2. Student Status Distribution
-  const activeStudentsCount = await prisma.student.count({ where: { ...levelFilter, isActive: true } });
-  const graduatedCount = await prisma.studentStatus.count({ where: { statusType: "GRADUATION" } });
-  const dropoutCount = await prisma.studentStatus.count({ where: { statusType: "QUIT" } });
-  const migrationCount = await prisma.studentStatus.count({ where: { statusType: "MIGRATION" } });
-  const freezeCount = await prisma.studentStatus.count({ where: { statusType: "FREEZE" } });
+  const activeStudentsCount = await prisma.student.count({
+    where: { ...levelFilter, ...collegeFilter, isActive: true }
+  });
+  const graduatedCount = await prisma.studentStatus.count({
+    where: {
+      statusType: "GRADUATION",
+      ...(collegeId ? { student: { collegeId } } : {})
+    }
+  });
+  const dropoutCount = await prisma.studentStatus.count({
+    where: {
+      statusType: "QUIT",
+      ...(collegeId ? { student: { collegeId } } : {})
+    }
+  });
+  const migrationCount = await prisma.studentStatus.count({
+    where: {
+      statusType: "MIGRATION",
+      ...(collegeId ? { student: { collegeId } } : {})
+    }
+  });
+  const freezeCount = await prisma.studentStatus.count({
+    where: {
+      statusType: "FREEZE",
+      ...(collegeId ? { student: { collegeId } } : {})
+    }
+  });
   
   const totalStatusRecorded = activeStudentsCount + graduatedCount + dropoutCount + migrationCount + freezeCount;
 
   // 3. Fee Collection Summary
   const feeSum = await prisma.fee.aggregate({
-    _sum: { amount: true }
+    _sum: { amount: true },
+    where: collegeFilter
   });
   const challanSum = await prisma.challan.aggregate({
-    _sum: { amount: true }
+    _sum: { amount: true },
+    where: collegeFilter
   });
   
   const paidFeeSum = await prisma.fee.aggregate({
     _sum: { amount: true },
-    where: { status: "PAID" }
+    where: { ...collegeFilter, status: "PAID" }
   });
   const paidChallanSum = await prisma.challan.aggregate({
     _sum: { amount: true },
-    where: { status: "PAID" }
+    where: { ...collegeFilter, status: "PAID" }
   });
 
   const totalExpected = (feeSum._sum.amount || 0) + (challanSum._sum.amount || 0);
@@ -93,7 +148,11 @@ export async function getCompleteDashboardData(educationLevel: string = "ALL", s
 
   // 4. Program-Wise Enrollment
   const programsWithCount = await prisma.program.findMany({
-    where: { isActive: true, ...(educationLevel !== "ALL" ? { educationLevel } : {}) },
+    where: {
+      isActive: true,
+      ...collegeFilter,
+      ...(educationLevel !== "ALL" ? { educationLevel } : {})
+    },
     include: {
       _count: { select: { students: true } }
     },
@@ -108,6 +167,7 @@ export async function getCompleteDashboardData(educationLevel: string = "ALL", s
 
   // 5. Recent Notices (Datesheets / Announcements)
   const recentDatesheets = await prisma.datesheet.findMany({
+    where: collegeFilter,
     take: 4,
     orderBy: { createdAt: "desc" },
     include: { course: true, program: true }
@@ -123,6 +183,7 @@ export async function getCompleteDashboardData(educationLevel: string = "ALL", s
 
   // 6. Academic Activity Logs
   const recentAuditLogs = await prisma.auditLog.findMany({
+    where: collegeFilter,
     take: 5,
     orderBy: { createdAt: "desc" }
   });
@@ -137,8 +198,11 @@ export async function getCompleteDashboardData(educationLevel: string = "ALL", s
 
   // 7. Upcoming Schedule
   const upcomingDatesheets = await prisma.datesheet.findMany({
+    where: {
+      ...collegeFilter,
+      date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+    },
     take: 5,
-    where: { date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
     orderBy: { date: "asc" },
     include: { course: true, program: true }
   });
@@ -178,7 +242,7 @@ export async function getCompleteDashboardData(educationLevel: string = "ALL", s
       totalFaculty,
       totalCourses,
       todaysClasses,
-      studentGrowth: "+8.4%"
+      studentGrowth: totalStudents > 0 ? "+8.4%" : "0%"
     },
     statusOverview: {
       active: activeStudentsCount,

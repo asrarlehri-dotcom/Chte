@@ -36,13 +36,60 @@ datasource db {
 //   ADMIN.SETTINGS, ADMIN.EXPENSES
 // ─────────────────────────────────────────────
 
+// ─────────────────────────────────────────────
+// CHTE & MULTI-TENANT COLLEGE MODEL
+// ─────────────────────────────────────────────
+model College {
+  id              String      @id @default(uuid())
+  code            String      @unique // e.g. "GPGCQ", "GSCQ"
+  slug            String      @unique // e.g. "gpgc-quetta", "gsc-quetta"
+  name            String      // e.g. "Government Post Graduate College Quetta"
+  tagline         String?     // e.g. "Center of Excellence & Quality Education"
+  logoUrl         String?     // URL or upload path e.g. "/logos/gpgcq.png"
+  district        String?     // e.g. "Quetta"
+  division        String?     // e.g. "Quetta Division"
+  address         String?
+  contactEmail    String?
+  contactPhone    String?
+  principalName   String?
+  isActive        Boolean     @default(true) // CHTE can suspend or activate
+
+  // Custom College Banking Details (for Challans)
+  bankName        String?     @default("Habib Bank Limited (HBL)")
+  bankAccount     String?
+  branchCode      String?
+  accountTitle    String?
+
+  users           User[]
+  departments     Department[]
+  programs        Program[]
+  students        Student[]
+  faculty         Faculty[]
+  admissions      Admission[]
+  challans        Challan[]
+  fees            Fee[]
+  feeSettings     FeeSettings[]
+  timetables      Timetable[]
+  datesheets      Datesheet[]
+  systemSettings  SystemSetting[]
+  expenses        Expense[]
+  auditLogs       AuditLog[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
   name      String
   role      String   @default("STUDENT")
-  // Roles: SUPER_ADMIN | BS_CONTROLLER | BS_FACULTY | INTER_FACULTY | PRINCIPAL | STUDENT
+  // Roles: CHTE_ADMIN | COLLEGE_ADMIN | SUPER_ADMIN | BS_CONTROLLER | BS_FACULTY | INTER_FACULTY | PRINCIPAL | STUDENT
+  
+  collegeId String?
+  college   College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isActive  Boolean  @default(true)
@@ -79,6 +126,10 @@ model Department {
   code      String    @unique
   hodName   String?
   isActive  Boolean   @default(true)
+  
+  collegeId String?
+  college   College?  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
   programs  Program[]
   faculty   Faculty[]
   courses   Course[]
@@ -101,6 +152,10 @@ model Faculty {
   department      Department?    @relation(fields: [departmentId], references: [id])
   educationLevel  String?        // "INTERMEDIATE" | "BS" | null (both)
   isActive        Boolean        @default(true)
+
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
   courses         Course[]
   timetables      Timetable[]
   examDuties      ExamDuty[]
@@ -117,6 +172,10 @@ model Program {
   isActive        Boolean        @default(true)
   departmentId    String?
   department      Department?    @relation(fields: [departmentId], references: [id])
+
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
   groups          Group[]
   courses         Course[]
   timetables      Timetable[]
@@ -197,6 +256,9 @@ model Student {
   promotions      Promotion[]
   isActive        Boolean        @default(true)
   
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
@@ -282,6 +344,8 @@ model Admission {
   previousMarksJson String?      // JSON array of previous semester marks: [{"courseId":"...", "obtainedMarks":85, "totalMarks":100}]
 
   isActive        Boolean        @default(true)
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   challans        Challan[]
@@ -317,6 +381,8 @@ model Challan {
   student        Student?   @relation(fields: [studentId], references: [id])
 
   isActive       Boolean   @default(true)
+  collegeId      String?
+  college        College?  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }
@@ -325,6 +391,8 @@ model SystemSetting {
   id        String   @id @default(uuid())
   key       String   @unique
   value     String
+  collegeId String?
+  college   College? @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -341,6 +409,8 @@ model FeeSettings {
   isActive    Boolean  @default(true)  // Active/inactive status
   description String?           // Optional note
   category    String?           // "BS" | "INTERMEDIATE" | "EXAM" | "OTHER"
+  collegeId   String?
+  college     College? @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -359,6 +429,8 @@ model Fee {
   semester        Int?
   educationLevel  String?        // "INTERMEDIATE" or "BS"
   paidAt          DateTime?
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -398,6 +470,9 @@ model Timetable {
   
   classSectionId  String?        // Intermediate
   subjectId       String?        // Intermediate
+
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
 
   datesheets      Datesheet[]
   isActive        Boolean        @default(true)
@@ -505,6 +580,8 @@ model Datesheet {
   department      Department?    @relation(fields: [departmentId], references: [id])
   
   examId          String?
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   duties          ExamDuty[]
 
   isActive        Boolean        @default(true)
@@ -583,6 +660,8 @@ model AuditLog {
   entityId        String?
   description     String
   ipAddress       String?
+  collegeId       String?
+  college         College?       @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   createdAt       DateTime       @default(now())
 }
 
@@ -624,6 +703,8 @@ model Expense {
   status        String   @default("PAID") // PAID, PENDING, CANCELLED
   createdBy     String?
   updatedBy     String?
+  collegeId     String?
+  college       College? @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   isActive      Boolean  @default(true) // For soft delete
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

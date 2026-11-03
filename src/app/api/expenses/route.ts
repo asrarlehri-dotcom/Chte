@@ -16,10 +16,20 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
     const departmentId = searchParams.get("departmentId");
+    const requestedCollegeId = searchParams.get("collegeId");
+
+    const sessionCollegeId = (session.user as any)?.collegeId;
+    let collegeFilter: string | undefined = undefined;
+    if (sessionCollegeId && role !== "CHTE_ADMIN" && role !== "SUPER_ADMIN") {
+      collegeFilter = sessionCollegeId;
+    } else if (requestedCollegeId) {
+      collegeFilter = requestedCollegeId;
+    }
     
     const where: any = { isActive: true };
     if (category) where.category = category;
     if (departmentId) where.departmentId = departmentId;
+    if (collegeFilter) where.collegeId = collegeFilter;
 
     const expenses = await prisma.expense.findMany({
       where,
@@ -61,6 +71,7 @@ export async function POST(request: Request) {
         receipt,
         status: status || "PAID",
         createdBy: session.user?.email || "unknown",
+        collegeId: (session.user as any)?.collegeId || body.collegeId || null,
       }
     });
 

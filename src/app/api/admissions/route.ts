@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +14,7 @@ export async function POST(request: Request) {
       contactNumber, 
       email, 
       residentAddress,
+      customFields,
       educationLevel,
       programId,
       groupId,
@@ -34,6 +37,8 @@ export async function POST(request: Request) {
       bscTotal,
       bscYear,
       bscBoard,
+      previousMarksJson,
+      collegeId,
     } = data;
 
     // Fetch system settings for validation
@@ -79,8 +84,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const { customFields, previousMarksJson } = data;
-
     if (!studentName || !fatherName || !dateOfBirth || !contactNumber || !educationLevel) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -92,6 +95,17 @@ export async function POST(request: Request) {
       if (existingAdmissionByEmail) {
         return NextResponse.json({ error: "Admission with this Email address already exists" }, { status: 400 });
       }
+    }
+
+    // Resolve target College ID
+    let targetCollegeId: string | null = collegeId || null;
+    if (!targetCollegeId && programId) {
+      const prog = await prisma.program.findUnique({ where: { id: programId }, select: { collegeId: true } });
+      if (prog?.collegeId) targetCollegeId = prog.collegeId;
+    }
+    if (!targetCollegeId) {
+      const defaultCollege = await prisma.college.findFirst({ where: { isActive: true }, select: { id: true } });
+      targetCollegeId = defaultCollege?.id || null;
     }
 
     // Ensure session is strictly a 4-year or 2-year span, never a single year
@@ -114,29 +128,30 @@ export async function POST(request: Request) {
           email: email || null,
           residentAddress: residentAddress || null,
           customFields: customFields || null,
-        educationLevel,
-        programId: programId || null,
-        groupId: groupId || null,
-        bsAdmissionType: bsAdmissionType || null,
-        migrationSemester: bsAdmissionType === "MIGRATION" ? (migrationSemester ?? null) : null,
-        session: computedSession || null,
-        gender: gender || null,
-        sscGroup: sscGroup || null,
-        sscObtained: sscObtained ? Number(sscObtained) : null,
-        sscTotal: sscTotal ? Number(sscTotal) : null,
-        sscYear: sscYear ? Number(sscYear) : null,
-        sscBoard: sscBoard || "BBISE QUETTA",
-        hsscGroup: hsscGroup || null,
-        hsscObtained: hsscObtained ? Number(hsscObtained) : null,
-        hsscTotal: hsscTotal ? Number(hsscTotal) : null,
-        hsscYear: hsscYear ? Number(hsscYear) : null,
-        hsscBoard: hsscBoard || "BBISE QUETTA",
-        bscGroup: bsAdmissionType === "BRIDGING_5TH" ? (bscGroup || null) : null,
-        bscObtained: bsAdmissionType === "BRIDGING_5TH" ? (bscObtained ? Number(bscObtained) : null) : null,
-        bscTotal: bsAdmissionType === "BRIDGING_5TH" ? (bscTotal ? Number(bscTotal) : null) : null,
-        bscYear: bsAdmissionType === "BRIDGING_5TH" ? (bscYear ? Number(bscYear) : null) : null,
+          educationLevel,
+          programId: programId || null,
+          groupId: groupId || null,
+          bsAdmissionType: bsAdmissionType || null,
+          migrationSemester: bsAdmissionType === "MIGRATION" ? (migrationSemester ?? null) : null,
+          session: computedSession || null,
+          gender: gender || null,
+          sscGroup: sscGroup || null,
+          sscObtained: sscObtained ? Number(sscObtained) : null,
+          sscTotal: sscTotal ? Number(sscTotal) : null,
+          sscYear: sscYear ? Number(sscYear) : null,
+          sscBoard: sscBoard || "BBISE QUETTA",
+          hsscGroup: hsscGroup || null,
+          hsscObtained: hsscObtained ? Number(hsscObtained) : null,
+          hsscTotal: hsscTotal ? Number(hsscTotal) : null,
+          hsscYear: hsscYear ? Number(hsscYear) : null,
+          hsscBoard: hsscBoard || "BBISE QUETTA",
+          bscGroup: bsAdmissionType === "BRIDGING_5TH" ? (bscGroup || null) : null,
+          bscObtained: bsAdmissionType === "BRIDGING_5TH" ? (bscObtained ? Number(bscObtained) : null) : null,
+          bscTotal: bsAdmissionType === "BRIDGING_5TH" ? (bscTotal ? Number(bscTotal) : null) : null,
+          bscYear: bsAdmissionType === "BRIDGING_5TH" ? (bscYear ? Number(bscYear) : null) : null,
           bscBoard: bsAdmissionType === "BRIDGING_5TH" ? (bscBoard || "UNIVERSITY OF BALOCHISTAN") : null,
           previousMarksJson: previousMarksJson || null,
+          collegeId: targetCollegeId,
         },
       });
 
@@ -192,6 +207,7 @@ export async function POST(request: Request) {
           gender: admission.gender,
           programId: admission.programId,
           admissionId: admission.id,
+          collegeId: targetCollegeId,
         }
       });
 
@@ -207,14 +223,30 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+    const sessionRole = (session?.user as any)?.role;
+
     const { searchParams } = new URL(request.url);
     const educationLevel = searchParams.get("educationLevel");
+    const requestedCollegeId = searchParams.get("collegeId");
+
+    let collegeFilter: string | undefined = undefined;
+    if (sessionCollegeId && sessionRole !== "CHTE_ADMIN" && sessionRole !== "SUPER_ADMIN") {
+      collegeFilter = sessionCollegeId;
+    } else if (requestedCollegeId) {
+      collegeFilter = requestedCollegeId;
+    }
 
     const admissions = await prisma.admission.findMany({
-      where: educationLevel ? { educationLevel } : undefined,
+      where: {
+        ...(educationLevel ? { educationLevel } : {}),
+        ...(collegeFilter ? { collegeId: collegeFilter } : {}),
+      },
       include: {
         program: { select: { name: true } },
         group:   { select: { name: true } },
+        college: { select: { name: true, code: true } },
       },
       orderBy: { createdAt: "desc" },
     });

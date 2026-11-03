@@ -12,6 +12,7 @@ export default function ExamsResultsPage() {
     courseId: "",
     progType: "ALL",
   });
+  const [sharedAttendance, setSharedAttendance] = useState<Record<string, "PRESENT" | "ABSENT">>({});
 
   return (
     <div className="space-y-6">
@@ -77,6 +78,8 @@ export default function ExamsResultsPage() {
             <PaperAttendanceModule
               sharedFilters={sharedFilters}
               setSharedFilters={setSharedFilters}
+              sharedAttendance={sharedAttendance}
+              setSharedAttendance={setSharedAttendance}
               onProceedToMarks={() => setActiveTab('marks')}
             />
           )}
@@ -85,6 +88,8 @@ export default function ExamsResultsPage() {
             <MarksEntryTable
               sharedFilters={sharedFilters}
               setSharedFilters={setSharedFilters}
+              sharedAttendance={sharedAttendance}
+              setSharedAttendance={setSharedAttendance}
               onEditAttendance={() => setActiveTab('paper_attendance')}
             />
           )}
@@ -152,10 +157,14 @@ function getGrade(obtained: number, total: number): string {
 function PaperAttendanceModule({
   sharedFilters,
   setSharedFilters,
+  sharedAttendance,
+  setSharedAttendance,
   onProceedToMarks,
 }: {
   sharedFilters: { session: string; programId: string; semester: string; courseId: string; progType: string };
   setSharedFilters: React.Dispatch<React.SetStateAction<{ session: string; programId: string; semester: string; courseId: string; progType: string }>>;
+  sharedAttendance: Record<string, "PRESENT" | "ABSENT">;
+  setSharedAttendance: React.Dispatch<React.SetStateAction<Record<string, "PRESENT" | "ABSENT">>>;
   onProceedToMarks: () => void;
 }) {
   const { data: session } = useSession();
@@ -277,7 +286,10 @@ function PaperAttendanceModule({
 
       const mapped = studentList.map((st: any) => {
         const existing = marksArr.find((m: any) => m.studentId === st.id);
-        const isAbsent = existing?.status === "ABSENT" || existing?.status === "A";
+        const inMemory = sharedAttendance[st.id];
+        const isAbsent = inMemory !== undefined
+          ? inMemory === "ABSENT"
+          : (existing?.status === "ABSENT" || existing?.status === "A");
         return {
           id: st.id,
           name: st.user?.name || st.name || "Student",
@@ -296,17 +308,31 @@ function PaperAttendanceModule({
   }, [selectedCourse, selectedProgram, selectedSession, selectedSemester]);
 
   const toggleStudentAttendance = (id: string, newStatus: "PRESENT" | "ABSENT") => {
-    setStudents(students.map(s => (s.id === id ? { ...s, attendance: newStatus } : s)));
+    setStudents(prev => prev.map(s => (s.id === id ? { ...s, attendance: newStatus } : s)));
+    setSharedAttendance(prev => ({ ...prev, [id]: newStatus }));
   };
 
   const markAllAttendance = (status: "PRESENT" | "ABSENT") => {
-    setStudents(students.map(s => ({ ...s, attendance: status })));
+    setStudents(prev => prev.map(s => ({ ...s, attendance: status })));
+    setSharedAttendance(prev => {
+      const copy = { ...prev };
+      students.forEach(s => {
+        copy[s.id] = status;
+      });
+      return copy;
+    });
   };
 
   // Save Attendance & Sync Absent status to Marks table
-  const handleSaveAttendance = async () => {
-    if (!selectedCourse) return alert("Please select a course first.");
-    if (students.length === 0) return alert("No students found to save attendance.");
+  const handleSaveAttendance = async (silent = false): Promise<boolean> => {
+    if (!selectedCourse) {
+      if (!silent) alert("Please select a course first.");
+      return false;
+    }
+    if (students.length === 0) {
+      if (!silent) alert("No students found to save attendance.");
+      return false;
+    }
 
     setSaving(true);
     setSuccessMsg("");
@@ -317,6 +343,10 @@ function PaperAttendanceModule({
 
     for (const s of students) {
       const isAbsent = s.attendance === "ABSENT";
+      const targetStatus = isAbsent
+        ? "ABSENT"
+        : (s.marksRecord?.status === "ABSENT" || s.marksRecord?.status === "A" ? "SAVED" : (s.marksRecord?.status || "SAVED"));
+
       try {
         const res = await fetch("/api/marks", {
           method: "POST",
@@ -330,7 +360,7 @@ function PaperAttendanceModule({
             midtermMarks: isAbsent ? 0 : (s.marksRecord?.midtermMarks || 0),
             finalMarks: isAbsent ? 0 : (s.marksRecord?.finalMarks || 0),
             totalMarks: s.marksRecord?.totalMarks || 100,
-            status: isAbsent ? "ABSENT" : (s.marksRecord?.status || "SAVED"),
+            status: targetStatus,
           })
         });
         if (res.ok) {
@@ -346,10 +376,23 @@ function PaperAttendanceModule({
 
     setSaving(false);
     if (successCount > 0) {
-      setSuccessMsg(`✅ Exam Paper Attendance saved successfully (${students.filter(s => s.attendance === "ABSENT").length} Absent, ${students.filter(s => s.attendance !== "ABSENT").length} Present)!`);
+      if (!silent) {
+        setSuccessMsg(`✅ Exam Paper Attendance saved successfully (${students.filter(s => s.attendance === "ABSENT").length} Absent, ${students.filter(s => s.attendance !== "ABSENT").length} Present)!`);
+      }
+      return true;
     } else {
-      setErrorMsg(lastError ? `Failed to save attendance: ${lastError}` : "Error saving attendance.");
+      if (!silent) {
+        setErrorMsg(lastError ? `Failed to save attendance: ${lastError}` : "Error saving attendance.");
+      }
+      return false;
     }
+  };
+
+  const handleProceedToMarksEntry = async () => {
+    if (selectedCourse && students.length > 0) {
+      await handleSaveAttendance(true);
+    }
+    onProceedToMarks();
   };
 
   // Filter student list by search & type & session
@@ -390,10 +433,11 @@ function PaperAttendanceModule({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onProceedToMarks}
-            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-2"
+            disabled={saving}
+            onClick={handleProceedToMarksEntry}
+            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-60"
           >
-            <span>📝 Proceed to Marks Entry (Step 2)</span>
+            <span>{saving ? "⏳ Saving..." : "📝 Proceed to Marks Entry (Step 2)"}</span>
             <span>➡️</span>
           </button>
         </div>
@@ -630,7 +674,7 @@ function PaperAttendanceModule({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={handleSaveAttendance}
+              onClick={() => handleSaveAttendance(false)}
               disabled={saving || students.length === 0}
               className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
             >
@@ -639,10 +683,11 @@ function PaperAttendanceModule({
 
             <button
               type="button"
-              onClick={onProceedToMarks}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2"
+              disabled={saving}
+              onClick={handleProceedToMarksEntry}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-60"
             >
-              <span>➡️ Proceed to Marks Entry</span>
+              <span>{saving ? "⏳ Saving..." : "➡️ Proceed to Marks Entry"}</span>
             </button>
           </div>
         </div>
@@ -654,10 +699,14 @@ function PaperAttendanceModule({
 function MarksEntryTable({
   sharedFilters,
   setSharedFilters,
+  sharedAttendance,
+  setSharedAttendance,
   onEditAttendance,
 }: {
   sharedFilters: { session: string; programId: string; semester: string; courseId: string; progType: string };
   setSharedFilters: React.Dispatch<React.SetStateAction<{ session: string; programId: string; semester: string; courseId: string; progType: string }>>;
+  sharedAttendance: Record<string, "PRESENT" | "ABSENT">;
+  setSharedAttendance: React.Dispatch<React.SetStateAction<Record<string, "PRESENT" | "ABSENT">>>;
   onEditAttendance: () => void;
 }) {
   const { data: session } = useSession();
@@ -852,7 +901,10 @@ function MarksEntryTable({
 
       const mapped = studentList.map((st: any) => {
         const existing = marksArr.find((m: any) => m.studentId === st.id);
-        const isAbsent = existing?.status === "ABSENT" || existing?.status === "A";
+        const inMemory = sharedAttendance[st.id];
+        const isAbsent = inMemory !== undefined
+          ? inMemory === "ABSENT"
+          : (existing?.status === "ABSENT" || existing?.status === "A");
         return {
           id: st.id,
           name: st.user?.name || st.name || "Student",
@@ -877,7 +929,7 @@ function MarksEntryTable({
 
   const toggleStudentAttendance = (id: string, newStatus: "PRESENT" | "ABSENT") => {
     if (isFacultyLocked) return;
-    setStudents(students.map(s => {
+    setStudents(prev => prev.map(s => {
       if (s.id !== id) return s;
       if (newStatus === "ABSENT") {
         return {
@@ -893,11 +945,12 @@ function MarksEntryTable({
       }
       return { ...s, attendance: "PRESENT" };
     }));
+    setSharedAttendance(prev => ({ ...prev, [id]: newStatus }));
   };
 
   const markAllAttendance = (status: "PRESENT" | "ABSENT") => {
     if (isFacultyLocked) return;
-    setStudents(students.map(s => {
+    setStudents(prev => prev.map(s => {
       if (status === "ABSENT") {
         return {
           ...s,
@@ -912,6 +965,11 @@ function MarksEntryTable({
       }
       return { ...s, attendance: "PRESENT" };
     }));
+    setSharedAttendance(prev => {
+      const copy = { ...prev };
+      students.forEach(s => { copy[s.id] = status; });
+      return copy;
+    });
   };
 
   const currentSelectedCourse = courses.find((c: any) => c.id === selectedCourse);
@@ -1417,7 +1475,7 @@ function MarksEntryTable({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-bold">
+            <div className="flex items-center gap-2 flex-wrap text-xs font-bold">
               <span className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-gray-700 shadow-sm">
                 Total: <strong>{students.length}</strong>
               </span>
@@ -1427,6 +1485,36 @@ function MarksEntryTable({
               <span className="px-3 py-1.5 bg-red-100 border border-red-300 rounded-xl text-red-800 shadow-sm font-black">
                 Absent (A): <strong>{students.filter(s => s.attendance === "ABSENT").length}</strong>
               </span>
+
+              <div className="flex items-center gap-1.5 sm:ml-2">
+                <button
+                  type="button"
+                  disabled={isFacultyLocked}
+                  onClick={() => markAllAttendance("PRESENT")}
+                  className="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-sm text-xs font-bold transition-all disabled:opacity-50"
+                  title="Mark all as Present"
+                >
+                  Mark All P
+                </button>
+                <button
+                  type="button"
+                  disabled={isFacultyLocked}
+                  onClick={() => markAllAttendance("ABSENT")}
+                  className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm text-xs font-bold transition-all disabled:opacity-50"
+                  title="Mark all as Absent"
+                >
+                  Mark All A
+                </button>
+                <button
+                  type="button"
+                  onClick={onEditAttendance}
+                  className="px-2.5 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1"
+                  title="Return to Step 1: Paper Attendance Sheet"
+                >
+                  <span>📋</span>
+                  <span>Step 1 Sheet</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1435,6 +1523,7 @@ function MarksEntryTable({
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                  <th className="px-3 py-3 text-center text-xs font-bold text-gray-700 uppercase bg-slate-100/70 border-r border-slate-200 w-28">Attendance</th>
                   {entryType === "detailed" ? (
                     <>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignment (Limit {examScheme === "TERMINAL" ? (isPracticalCourse ? '5' : '30') : (isPracticalCourse ? '15' : '30')})</th>
@@ -1465,7 +1554,7 @@ function MarksEntryTable({
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredStudentsList.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={14} className="px-6 py-12 text-center text-gray-500">
                       <div className="text-3xl mb-2">🚫</div>
                       <p className="font-semibold text-gray-700">No students found matching search & filter criteria.</p>
                       <p className="text-xs text-gray-400 mt-1">Try clearing search query or changing filters.</p>
@@ -1497,6 +1586,37 @@ function MarksEntryTable({
                             )}
                           </div>
                           <div className="text-xs text-gray-500">{s.roll}</div>
+                        </td>
+
+                        <td className="px-3 py-3 text-center border-r border-gray-100">
+                          <div className="inline-flex rounded-xl border border-gray-200 p-0.5 bg-gray-100 shadow-sm">
+                            <button
+                              type="button"
+                              disabled={isFacultyLocked}
+                              onClick={() => toggleStudentAttendance(s.id, "PRESENT")}
+                              title="Mark Present (P)"
+                              className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all ${
+                                !isAbsent
+                                  ? "bg-green-600 text-white shadow-sm"
+                                  : "text-gray-500 hover:text-gray-900"
+                              }`}
+                            >
+                              🟢 P
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isFacultyLocked}
+                              onClick={() => toggleStudentAttendance(s.id, "ABSENT")}
+                              title="Mark Absent (A) - locks mark inputs to 0"
+                              className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all ${
+                                isAbsent
+                                  ? "bg-red-600 text-white shadow-sm"
+                                  : "text-gray-500 hover:text-gray-900"
+                              }`}
+                            >
+                              🔴 A
+                            </button>
+                          </div>
                         </td>
 
                         {entryType === "detailed" ? (

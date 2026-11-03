@@ -41,7 +41,10 @@ export default function DashboardPage() {
   const [dashData, setDashData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const userName = session?.user?.name || "Super Admin";
+  const userName = session?.user?.name || "Admin";
+  const userCollegeId = (session?.user as any)?.collegeId || null;
+  const userCollegeName = (session?.user as any)?.collegeName || null;
+  const userRole = (session?.user as any)?.role || "User";
 
   useEffect(() => {
     fetch("/api/settings")
@@ -59,84 +62,104 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setLoading(true);
-    getCompleteDashboardData(level, selectedSession)
+    getCompleteDashboardData(level, selectedSession, userCollegeId)
       .then((data) => {
         setDashData(data);
       })
       .finally(() => setLoading(false));
-  }, [level, selectedSession]);
+  }, [level, selectedSession, userCollegeId]);
 
   const topMetrics = dashData?.topMetrics || {
-    totalStudents: 2451,
-    activePrograms: 17,
-    totalFaculty: 182,
-    totalCourses: 326,
-    todaysClasses: 86,
-    studentGrowth: "+8.4%"
+    totalStudents: 0,
+    activePrograms: 0,
+    totalFaculty: 0,
+    totalCourses: 0,
+    todaysClasses: 0,
+    studentGrowth: "0%"
   };
 
   const statusOverview = dashData?.statusOverview || {
-    active: 2026,
-    graduated: 186,
-    dropout: 142,
-    migration: 61,
-    other: 36,
-    total: 2451
+    active: 0,
+    graduated: 0,
+    dropout: 0,
+    migration: 0,
+    other: 0,
+    total: 0
   };
 
   const feeSummary = dashData?.feeSummary || {
-    totalExpected: 12450000,
-    totalCollected: 8750000,
-    pendingAmount: 3700000,
-    collectionRate: "70.3"
+    totalExpected: 0,
+    totalCollected: 0,
+    pendingAmount: 0,
+    collectionRate: "0.0"
   };
 
-  const programWise = dashData?.programWiseEnrollment?.length
-    ? dashData.programWiseEnrollment
-    : [
-        { name: "BS Computer Science", count: 612 },
-        { name: "BS Chemistry", count: 428 },
-        { name: "BS Mathematics", count: 386 },
-        { name: "BS English", count: 312 },
-        { name: "BS Physics", count: 298 }
-      ];
+  const programWise = dashData?.programWiseEnrollment || [];
+  const recentNotices = dashData?.recentNotices || [];
+  const academicActivities = dashData?.academicActivities || [];
+  const upcomingSchedule = dashData?.upcomingSchedule || [];
+  const monthlyData = dashData?.monthlyEnrollment || [];
 
-  const recentNotices = dashData?.recentNotices?.length
-    ? dashData.recentNotices
-    : [
-        { id: "1", title: "Final Term Exams Schedule", target: "7th Semester (2022-2026)", date: "May 21, 2026", type: "rose" },
-        { id: "2", title: "Mid Term Exams Schedule", target: "1st Semester (2025-2029)", date: "May 21, 2026", type: "indigo" },
-        { id: "3", title: "Paper Submission Reminder", target: "For All Faculty Members", date: "May 18, 2026", type: "purple" }
-      ];
+  // Donut chart calculations
+  const totalSt = statusOverview.total || 0;
+  const cCircumference = 238.76;
+  const activePct = totalSt > 0 ? statusOverview.active / totalSt : 0;
+  const gradPct = totalSt > 0 ? statusOverview.graduated / totalSt : 0;
+  const dropPct = totalSt > 0 ? statusOverview.dropout / totalSt : 0;
+  const migPct = totalSt > 0 ? statusOverview.migration / totalSt : 0;
+  const otherPct = totalSt > 0 ? statusOverview.other / totalSt : 0;
 
-  const academicActivities = dashData?.academicActivities?.length
-    ? dashData.academicActivities
-    : [
-        { id: "1", activity: "New Admission", program: "BS Computer Science", details: "Ali Raza (S-25/CS:101)", time: "10:30 AM" },
-        { id: "2", activity: "Result Published", program: "BS Chemistry", details: "5th Semester Final Term", time: "09:15 AM" },
-        { id: "3", activity: "Fee Payment", program: "BS Mathematics", details: "Online Payment - PKR 25,000", time: "Yesterday" },
-        { id: "4", activity: "Exam Scheduled", program: "BS English", details: "Mid Term - 1st Semester", time: "Yesterday" },
-        { id: "5", activity: "Timetable Updated", program: "BS Physics", details: "New timetable for 2nd Semester", time: "May 19, 2026" }
-      ];
+  const activeDash = activePct * cCircumference;
+  const gradDash = gradPct * cCircumference;
+  const dropDash = dropPct * cCircumference;
+  const migDash = migPct * cCircumference;
 
-  const upcomingSchedule = dashData?.upcomingSchedule?.length
-    ? dashData.upcomingSchedule
-    : [
-        { id: "1", month: "MAY", day: 25, title: "Paper Submission", sub: "Last date for paper submission", time: "All Faculty" },
-        { id: "2", month: "JUN", day: "04", title: "Final Term Exams Start", sub: "7th Semester (2022-2026)", time: "All Departments" },
-        { id: "3", month: "JUN", day: 12, title: "Final Term Exams End", sub: "7th Semester (2022-2026)", time: "All Departments" },
-        { id: "4", month: "JUN", day: 15, title: "Result Declaration", sub: "7th Semester Final Term", time: "All Departments" },
-        { id: "5", month: "JUN", day: 20, title: "Mid Term Exams Start", sub: "1st Semester (2025-2029)", time: "All Departments" }
-      ];
+  const gradOffset = -activeDash;
+  const dropOffset = -(activeDash + gradDash);
+  const migOffset = -(activeDash + gradDash + dropDash);
+
+  // Line chart calculations
+  const maxEnroll = Math.max(
+    ...monthlyData.map((d: any) => Math.max(d.current || 0, d.previous || 0)),
+    topMetrics.totalStudents > 0 ? topMetrics.totalStudents : 10
+  );
+
+  const getPolylinePoints = (key: "current" | "previous") => {
+    if (monthlyData.length === 0 || topMetrics.totalStudents === 0) {
+      return "30,140 480,140";
+    }
+    return monthlyData.map((d: any, idx: number) => {
+      const x = 30 + idx * ((480 - 30) / (monthlyData.length - 1));
+      const val = d[key] || 0;
+      const y = 140 - (val / (maxEnroll * 1.15)) * 115;
+      return `${Math.round(x)},${Math.round(y)}`;
+    }).join(" ");
+  };
+
+  const getAreaPath = () => {
+    if (monthlyData.length === 0 || topMetrics.totalStudents === 0) {
+      return "M 30 140 L 480 140 L 480 140 L 30 140 Z";
+    }
+    const points = monthlyData.map((d: any, idx: number) => {
+      const x = 30 + idx * ((480 - 30) / (monthlyData.length - 1));
+      const val = d.current || 0;
+      const y = 140 - (val / (maxEnroll * 1.15)) * 115;
+      return `${idx === 0 ? "M" : "L"} ${Math.round(x)} ${Math.round(y)}`;
+    }).join(" ");
+    return `${points} L 480 140 L 30 140 Z`;
+  };
 
   return (
     <div className="space-y-6 pb-12 font-sans text-slate-800 animate-fadeIn">
       {/* ── TOP NAV / HEADER ── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            {userCollegeName || "Institutional Dashboard"}
+          </h1>
           <p className="text-slate-500 text-xs font-semibold mt-0.5">
             Welcome back, <span className="font-bold text-slate-700">{userName}</span>
+            {userCollegeName ? <span className="text-indigo-600 font-bold"> • {userCollegeName}</span> : ""}
           </p>
         </div>
 
@@ -191,12 +214,12 @@ export default function DashboardPage() {
 
           {/* User Profile Tag */}
           <div className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-xl border border-slate-800 shadow-xs">
-            <div className="w-6 h-6 rounded-lg bg-indigo-500 text-white font-bold text-[10px] flex items-center justify-center">
-              SA
+            <div className="w-6 h-6 rounded-lg bg-indigo-500 text-white font-bold text-[10px] flex items-center justify-center uppercase">
+              {userName.slice(0, 2)}
             </div>
             <div className="text-left hidden sm:block">
               <div className="text-[11px] font-bold leading-none">{userName}</div>
-              <div className="text-[9px] text-indigo-300 font-medium">Super Admin</div>
+              <div className="text-[9px] text-indigo-300 font-medium">{userRole.replace(/_/g, " ")}</div>
             </div>
           </div>
         </div>
@@ -213,13 +236,13 @@ export default function DashboardPage() {
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Students</div>
               <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.totalStudents?.toLocaleString() || "2,451"}
+                {topMetrics.totalStudents?.toLocaleString() ?? 0}
               </div>
             </div>
           </div>
           <div className="mt-3 text-[11px] font-bold text-emerald-600 flex items-center gap-1">
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>8.4% this session</span>
+            <span>{topMetrics.studentGrowth ?? "0%"} this session</span>
           </div>
         </div>
 
@@ -232,7 +255,7 @@ export default function DashboardPage() {
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Active Programs</div>
               <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.activePrograms || 17}
+                {topMetrics.activePrograms ?? 0}
               </div>
             </div>
           </div>
@@ -250,7 +273,7 @@ export default function DashboardPage() {
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Faculty Members</div>
               <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.totalFaculty || 182}
+                {topMetrics.totalFaculty ?? 0}
               </div>
             </div>
           </div>
@@ -268,7 +291,7 @@ export default function DashboardPage() {
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Courses</div>
               <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.totalCourses || 326}
+                {topMetrics.totalCourses ?? 0}
               </div>
             </div>
           </div>
@@ -286,7 +309,7 @@ export default function DashboardPage() {
             <div className="min-w-0">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Today's Classes</div>
               <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.todaysClasses || 86}
+                {topMetrics.todaysClasses ?? 0}
               </div>
             </div>
           </div>
@@ -338,14 +361,20 @@ export default function DashboardPage() {
               <line x1="30" y1="140" x2="480" y2="140" stroke="#F1F5F9" strokeWidth="1" />
 
               {/* Y Axis Labels */}
-              <text x="0" y="24" fill="#94A3B8" fontSize="9" fontWeight="bold">3K</text>
-              <text x="0" y="64" fill="#94A3B8" fontSize="9" fontWeight="bold">2K</text>
-              <text x="0" y="104" fill="#94A3B8" fontSize="9" fontWeight="bold">1K</text>
+              <text x="0" y="24" fill="#94A3B8" fontSize="9" fontWeight="bold">
+                {topMetrics.totalStudents > 0 ? Math.round(maxEnroll) : 0}
+              </text>
+              <text x="0" y="64" fill="#94A3B8" fontSize="9" fontWeight="bold">
+                {topMetrics.totalStudents > 0 ? Math.round(maxEnroll * 0.66) : 0}
+              </text>
+              <text x="0" y="104" fill="#94A3B8" fontSize="9" fontWeight="bold">
+                {topMetrics.totalStudents > 0 ? Math.round(maxEnroll * 0.33) : 0}
+              </text>
               <text x="0" y="144" fill="#94A3B8" fontSize="9" fontWeight="bold">0</text>
 
               {/* Last Session (Dashed Line) */}
-              <path
-                d="M 30 140 Q 90 120 130 110 T 230 80 T 330 60 T 430 50 T 480 40"
+              <polyline
+                points={getPolylinePoints("previous")}
                 fill="none"
                 stroke="#CBD5E1"
                 strokeWidth="2"
@@ -354,21 +383,24 @@ export default function DashboardPage() {
 
               {/* This Session Fill Area */}
               <path
-                d="M 30 140 Q 90 110 130 90 T 230 65 T 330 55 T 430 40 T 480 30 L 480 140 L 30 140 Z"
+                d={getAreaPath()}
                 fill="url(#purpleGrad)"
               />
 
               {/* This Session (Solid Line) */}
-              <path
-                d="M 30 140 Q 90 110 130 90 T 230 65 T 330 55 T 430 40 T 480 30"
+              <polyline
+                points={getPolylinePoints("current")}
                 fill="none"
                 stroke="#6366F1"
                 strokeWidth="3"
                 strokeLinecap="round"
+                strokeLinejoin="round"
               />
 
               {/* Active Dot */}
-              <circle cx="480" cy="30" r="4" fill="#6366F1" stroke="#FFFFFF" strokeWidth="2" />
+              {topMetrics.totalStudents > 0 && (
+                <circle cx="480" cy={140 - (topMetrics.totalStudents / (maxEnroll * 1.15)) * 115} r="4" fill="#6366F1" stroke="#FFFFFF" strokeWidth="2" />
+              )}
 
               {/* X Axis Month Labels */}
               <text x="30" y="165" fill="#94A3B8" fontSize="9" fontWeight="bold" textAnchor="middle">Jul</text>
@@ -399,7 +431,7 @@ export default function DashboardPage() {
               <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
                 {/* Background Ring */}
                 <circle cx="50" cy="50" r="38" fill="none" stroke="#F1F5F9" strokeWidth="12" />
-                {/* Active (Green - 82.7%) */}
+                {/* Active (Green) */}
                 <circle
                   cx="50"
                   cy="50"
@@ -407,10 +439,10 @@ export default function DashboardPage() {
                   fill="none"
                   stroke="#10B981"
                   strokeWidth="12"
-                  strokeDasharray="197 41"
+                  strokeDasharray={`${activeDash} ${cCircumference}`}
                   strokeDashoffset="0"
                 />
-                {/* Graduated (Blue - 7.6%) */}
+                {/* Graduated (Blue) */}
                 <circle
                   cx="50"
                   cy="50"
@@ -418,10 +450,10 @@ export default function DashboardPage() {
                   fill="none"
                   stroke="#3B82F6"
                   strokeWidth="12"
-                  strokeDasharray="18 220"
-                  strokeDashoffset="-197"
+                  strokeDasharray={`${gradDash} ${cCircumference}`}
+                  strokeDashoffset={gradOffset}
                 />
-                {/* Dropout (Orange - 5.8%) */}
+                {/* Dropout (Orange) */}
                 <circle
                   cx="50"
                   cy="50"
@@ -429,10 +461,10 @@ export default function DashboardPage() {
                   fill="none"
                   stroke="#F97316"
                   strokeWidth="12"
-                  strokeDasharray="14 224"
-                  strokeDashoffset="-215"
+                  strokeDasharray={`${dropDash} ${cCircumference}`}
+                  strokeDashoffset={dropOffset}
                 />
-                {/* Migration Out (Red - 2.5%) */}
+                {/* Migration Out (Red) */}
                 <circle
                   cx="50"
                   cy="50"
@@ -440,14 +472,14 @@ export default function DashboardPage() {
                   fill="none"
                   stroke="#EF4444"
                   strokeWidth="12"
-                  strokeDasharray="6 232"
-                  strokeDashoffset="-229"
+                  strokeDasharray={`${migDash} ${cCircumference}`}
+                  strokeDashoffset={migOffset}
                 />
               </svg>
               {/* Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                 <span className="text-base font-black text-slate-900 leading-tight">
-                  {statusOverview.total?.toLocaleString() || "2,451"}
+                  {statusOverview.total?.toLocaleString() ?? 0}
                 </span>
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Students</span>
               </div>
@@ -460,7 +492,9 @@ export default function DashboardPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                   <span>Active</span>
                 </div>
-                <span className="font-bold text-slate-900">{statusOverview.active} (82.7%)</span>
+                <span className="font-bold text-slate-900">
+                  {statusOverview.active} ({(activePct * 100).toFixed(1)}%)
+                </span>
               </div>
 
               <div className="flex items-center justify-between gap-2">
@@ -468,7 +502,9 @@ export default function DashboardPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
                   <span>Graduated</span>
                 </div>
-                <span className="font-bold text-slate-900">{statusOverview.graduated} (7.6%)</span>
+                <span className="font-bold text-slate-900">
+                  {statusOverview.graduated} ({(gradPct * 100).toFixed(1)}%)
+                </span>
               </div>
 
               <div className="flex items-center justify-between gap-2">
@@ -476,7 +512,9 @@ export default function DashboardPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
                   <span>Dropout</span>
                 </div>
-                <span className="font-bold text-slate-900">{statusOverview.dropout} (5.8%)</span>
+                <span className="font-bold text-slate-900">
+                  {statusOverview.dropout} ({(dropPct * 100).toFixed(1)}%)
+                </span>
               </div>
 
               <div className="flex items-center justify-between gap-2">
@@ -484,7 +522,9 @@ export default function DashboardPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
                   <span>Migration (Out)</span>
                 </div>
-                <span className="font-bold text-slate-900">{statusOverview.migration} (2.5%)</span>
+                <span className="font-bold text-slate-900">
+                  {statusOverview.migration} ({(migPct * 100).toFixed(1)}%)
+                </span>
               </div>
 
               <div className="flex items-center justify-between gap-2">
@@ -492,7 +532,9 @@ export default function DashboardPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
                   <span>Other / Inactive</span>
                 </div>
-                <span className="font-bold text-slate-900">{statusOverview.other} (1.4%)</span>
+                <span className="font-bold text-slate-900">
+                  {statusOverview.other} ({(otherPct * 100).toFixed(1)}%)
+                </span>
               </div>
             </div>
           </div>
@@ -546,20 +588,26 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-2.5">
-              {recentNotices.map((n: any) => (
-                <div key={n.id} className="p-2.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-xs flex justify-between items-start">
-                  <div className="flex gap-2 min-w-0">
-                    <span className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${
-                      n.type === "rose" ? "bg-rose-500" : n.type === "indigo" ? "bg-indigo-500" : "bg-purple-500"
-                    }`}></span>
-                    <div className="min-w-0">
-                      <strong className="block font-bold text-slate-900 leading-snug truncate">{n.title}</strong>
-                      <span className="text-[10px] text-slate-500 font-medium">{n.target}</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 flex-shrink-0 ml-2">{n.date}</span>
+              {recentNotices.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                  No notices or datesheets posted
                 </div>
-              ))}
+              ) : (
+                recentNotices.map((n: any) => (
+                  <div key={n.id} className="p-2.5 bg-slate-50/80 border border-slate-200/60 rounded-xl text-xs flex justify-between items-start">
+                    <div className="flex gap-2 min-w-0">
+                      <span className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${
+                        n.type === "rose" ? "bg-rose-500" : n.type === "indigo" ? "bg-indigo-500" : "bg-purple-500"
+                      }`}></span>
+                      <div className="min-w-0">
+                        <strong className="block font-bold text-slate-900 leading-snug truncate">{n.title}</strong>
+                        <span className="text-[10px] text-slate-500 font-medium">{n.target}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 flex-shrink-0 ml-2">{n.date}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -577,23 +625,29 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
-            {academicActivities.map((act: any) => (
-              <div key={act.id} className="p-3 bg-slate-50/80 border border-slate-200/60 rounded-xl text-xs flex justify-between items-center">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <strong className="font-bold text-slate-900">{act.activity}</strong>
-                      <span className="text-[10px] font-bold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-md truncate">
-                        {act.program}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">{act.details}</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400 flex-shrink-0 ml-2">{act.time}</span>
+            {academicActivities.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                No recent academic activity recorded
               </div>
-            ))}
+            ) : (
+              academicActivities.map((act: any) => (
+                <div key={act.id} className="p-3 bg-slate-50/80 border border-slate-200/60 rounded-xl text-xs flex justify-between items-center">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <strong className="font-bold text-slate-900">{act.activity}</strong>
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-md truncate">
+                          {act.program}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">{act.details}</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 flex-shrink-0 ml-2">{act.time}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -610,29 +664,29 @@ export default function DashboardPage() {
           <div className="space-y-3 text-xs">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-500">Total Expected</span>
-              <span className="font-bold text-slate-900">PKR {feeSummary.totalExpected?.toLocaleString() || "12,450,000"}</span>
+              <span className="font-bold text-slate-900">PKR {(feeSummary.totalExpected || 0).toLocaleString()}</span>
             </div>
 
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-500">Total Collected</span>
-              <span className="font-bold text-emerald-600">PKR {feeSummary.totalCollected?.toLocaleString() || "8,750,000"}</span>
+              <span className="font-bold text-emerald-600">PKR {(feeSummary.totalCollected || 0).toLocaleString()}</span>
             </div>
 
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-500">Pending Amount</span>
-              <span className="font-bold text-rose-600">PKR {feeSummary.pendingAmount?.toLocaleString() || "3,700,000"}</span>
+              <span className="font-bold text-rose-600">PKR {(feeSummary.pendingAmount || 0).toLocaleString()}</span>
             </div>
           </div>
 
           <div className="space-y-1.5 pt-2 border-t border-slate-100">
             <div className="flex justify-between items-center text-xs">
               <span className="font-bold text-slate-700">Collection Rate</span>
-              <span className="font-black text-indigo-600">{feeSummary.collectionRate || "70.3"}%</span>
+              <span className="font-black text-indigo-600">{feeSummary.collectionRate || "0.0"}%</span>
             </div>
             <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, parseFloat(feeSummary.collectionRate || 70.3))}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, parseFloat(feeSummary.collectionRate || "0")))}%` }}
               ></div>
             </div>
           </div>
@@ -648,25 +702,31 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {programWise.map((p: any, i: number) => {
-              const maxCount = 700;
-              const percentage = Math.min(100, (p.count / maxCount) * 100);
-              const barColors = ["bg-indigo-600", "bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500"];
-              return (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between items-center text-xs font-semibold">
-                    <span className="text-slate-700 truncate">{p.name}</span>
-                    <span className="font-bold text-slate-900">{p.count}</span>
+            {programWise.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                No programs or enrolled students found
+              </div>
+            ) : (
+              programWise.map((p: any, i: number) => {
+                const maxCount = Math.max(...programWise.map((x: any) => x.count), 1);
+                const percentage = Math.min(100, (p.count / maxCount) * 100);
+                const barColors = ["bg-indigo-600", "bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500"];
+                return (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <span className="text-slate-700 truncate">{p.name}</span>
+                      <span className="font-bold text-slate-900">{p.count}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barColors[i % barColors.length]}`}
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${barColors[i % barColors.length]}`}
-                      style={{ width: `${percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </div>
@@ -681,34 +741,37 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {upcomingSchedule.map((sched: any) => (
-            <div key={sched.id} className="p-3 bg-slate-50/80 border border-slate-200/70 rounded-xl flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 text-purple-700 flex flex-col items-center justify-center flex-shrink-0">
-                <span className="text-[9px] font-black tracking-widest">{sched.month}</span>
-                <span className="text-base font-black leading-none">{sched.day}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <strong className="block text-xs font-bold text-slate-900 leading-snug truncate">{sched.title}</strong>
-                <span className="text-[10px] text-slate-500 font-medium block truncate">{sched.sub}</span>
-                <span className="text-[9px] text-slate-400 font-bold block mt-0.5">{sched.time}</span>
-              </div>
+          {upcomingSchedule.length === 0 ? (
+            <div className="col-span-full py-8 text-center text-xs text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+              No upcoming classes or exams scheduled
             </div>
-          ))}
+          ) : (
+            upcomingSchedule.map((sched: any) => (
+              <div key={sched.id} className="p-3 bg-slate-50/80 border border-slate-200/70 rounded-xl flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 text-purple-700 flex flex-col items-center justify-center flex-shrink-0">
+                  <span className="text-[9px] font-black tracking-widest">{sched.month}</span>
+                  <span className="text-base font-black leading-none">{sched.day}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <strong className="block text-xs font-bold text-slate-900 leading-snug truncate">{sched.title}</strong>
+                  <span className="text-[10px] text-slate-500 font-medium block truncate">{sched.sub}</span>
+                  <span className="text-[9px] text-slate-400 font-bold block mt-0.5">{sched.time}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
       {/* ── FOOTER ── */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs font-medium text-slate-400 pt-4 border-t border-slate-200/60">
         <div>
-          © 2026 Govt. Postgraduate College. All rights reserved.
+          © {new Date().getFullYear()} {userCollegeName || "Higher & Technical Education Department Balochistan"}. All rights reserved.
         </div>
         <div>
-          Version 2.0.0 | Built with <span className="text-rose-500">❤️</span> for education
+          Unified Colleges Cloud ERP | Government of Balochistan
         </div>
       </div>
     </div>
   );
 }
-
-
-

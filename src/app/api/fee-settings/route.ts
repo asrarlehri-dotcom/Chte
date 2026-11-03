@@ -36,7 +36,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== "SUPER_ADMIN") {
+    if (!session || !["SUPER_ADMIN", "CHTE_ADMIN", "COLLEGE_ADMIN"].includes((session.user as any).role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -80,7 +80,7 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== "SUPER_ADMIN") {
+    if (!session || !["SUPER_ADMIN", "CHTE_ADMIN", "COLLEGE_ADMIN"].includes((session.user as any).role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -117,7 +117,8 @@ export async function POST(request: Request) {
         category: category || "OTHER",
         description: description || null,
         isLocked: false,
-        isActive: true
+        isActive: true,
+        collegeId: (session.user as any)?.collegeId || null,
       }
     });
 
@@ -131,7 +132,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== "SUPER_ADMIN") {
+    if (!session || !["SUPER_ADMIN", "CHTE_ADMIN", "COLLEGE_ADMIN"].includes((session.user as any).role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

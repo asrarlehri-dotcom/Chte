@@ -8,7 +8,8 @@ import { MODULES, ACTIONS } from "@/lib/permissions";
 export async function GET(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if ((session?.user as any)?.role !== "SUPER_ADMIN")
+    const role = (session?.user as any)?.role;
+    if (!["SUPER_ADMIN", "CHTE_ADMIN"].includes(role))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const rolePerms = await prisma.rolePermission.findMany({
@@ -30,7 +31,8 @@ export async function GET(_req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if ((session?.user as any)?.role !== "SUPER_ADMIN")
+    const userRole = (session?.user as any)?.role;
+    if (!["SUPER_ADMIN", "CHTE_ADMIN"].includes(userRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { role, updates } = await req.json();

@@ -22,6 +22,7 @@ async function autoRegisterStudent(admissionId: string) {
         name: admission.studentName,
         password: "password123", // default password
         role: "STUDENT",
+        collegeId: admission.collegeId || null,
       }
     });
 
@@ -57,6 +58,7 @@ async function autoRegisterStudent(admissionId: string) {
         bscTotal: admission.bscTotal,
         bscYear: admission.bscYear,
         bscBoard: admission.bscBoard,
+        collegeId: admission.collegeId || null,
       }
     });
 
@@ -129,6 +131,7 @@ async function autoRegisterStudent(admissionId: string) {
           admissionId: admission.id,
           studentId: student.id,
           status: "PENDING",
+          collegeId: admission.collegeId || null,
         }
       });
     }
@@ -176,7 +179,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY"].includes((session.user as any).role)) {
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY"].includes((session.user as any).role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -207,7 +210,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY"].includes((session.user as any).role)) {
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY"].includes((session.user as any).role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

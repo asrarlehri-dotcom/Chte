@@ -10,9 +10,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    const { searchParams } = new URL(request.url);
+    const requestedCollegeId = searchParams.get("collegeId");
+
+    let collegeFilter: string | undefined = undefined;
+    if (sessionCollegeId && sessionRole !== "CHTE_ADMIN" && sessionRole !== "SUPER_ADMIN") {
+      collegeFilter = sessionCollegeId;
+    } else if (requestedCollegeId) {
+      collegeFilter = requestedCollegeId;
+    }
+
     const programs = await prisma.program.findMany({
+      where: collegeFilter ? { collegeId: collegeFilter } : undefined,
       include: {
         department: true,
+        college: { select: { id: true, name: true, code: true } },
         groups: {
           include: {
             subjects: true,
@@ -32,15 +47,21 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== "SUPER_ADMIN") {
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, code, educationLevel, departmentId } = await request.json();
+    const body = await request.json();
+    const { name, code, educationLevel, departmentId, collegeId } = body;
 
     if (!name || !code || !educationLevel) {
       return NextResponse.json({ error: "Name, Code, and Education Level are required" }, { status: 400 });
     }
+
+    const targetCollegeId = sessionCollegeId || collegeId || null;
 
     const program = await prisma.program.create({
       data: {
@@ -48,6 +69,7 @@ export async function POST(request: Request) {
         code,
         educationLevel,
         departmentId: departmentId || null,
+        collegeId: targetCollegeId,
       },
     });
     

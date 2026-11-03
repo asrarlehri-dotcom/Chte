@@ -7,7 +7,10 @@ import { generateRollNumber } from "@/app/shared-actions";
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN"].includes((session.user as any).role)) {
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN"].includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -38,6 +41,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Student is already registered" }, { status: 400 });
     }
 
+    const targetCollegeId = admission.collegeId || sessionCollegeId || null;
+
     // Wrap in a transaction to ensure both user, student, and fee are created
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create User account for student
@@ -47,6 +52,7 @@ export async function POST(request: Request) {
           name: admission.studentName,
           password: "password123", // default password
           role: "STUDENT",
+          collegeId: targetCollegeId,
         }
       });
 
@@ -75,6 +81,7 @@ export async function POST(request: Request) {
           bscTotal: admission.bscTotal,
           bscYear: admission.bscYear,
           bscBoard: admission.bscBoard,
+          collegeId: targetCollegeId,
         }
       });
 

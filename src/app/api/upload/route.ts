@@ -21,10 +21,22 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create uploads directory inside public if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    // Determine correct public directory whether running from root or cms folder
+    let publicDir = fs.existsSync(path.join(process.cwd(), "cms", "public"))
+      ? path.join(process.cwd(), "cms", "public")
+      : path.join(process.cwd(), "public");
+
+    const uploadsDir = path.join(publicDir, "uploads");
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Also sync to root public if running from root so both locations have it
+    const rootUploadsDir = path.join(process.cwd(), "public", "uploads");
+    if (rootUploadsDir !== uploadsDir && fs.existsSync(path.join(process.cwd(), "public"))) {
+      if (!fs.existsSync(rootUploadsDir)) {
+        fs.mkdirSync(rootUploadsDir, { recursive: true });
+      }
     }
 
     // Generate safe filename with timestamp
@@ -35,8 +47,22 @@ export async function POST(request: Request) {
     // Write file to disk
     await fs.promises.writeFile(filePath, buffer);
 
+    if (rootUploadsDir !== uploadsDir && fs.existsSync(rootUploadsDir)) {
+      try {
+        await fs.promises.writeFile(path.join(rootUploadsDir, filename), buffer);
+      } catch (e) {
+        // Non-critical mirror write
+      }
+    }
+
     const publicUrl = `/uploads/${filename}`;
-    return NextResponse.json({ success: true, url: publicUrl });
+    return NextResponse.json({ 
+      success: true, 
+      url: publicUrl,
+      fileName: file.name,
+      size: file.size,
+      mimeType: file.type
+    });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "File upload failed" }, { status: 500 });

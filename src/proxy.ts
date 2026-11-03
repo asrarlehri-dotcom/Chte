@@ -4,17 +4,18 @@ import type { NextRequest } from "next/server";
 
 // Route prefix → allowed roles (empty array = all authenticated users)
 const ROUTE_ROLES: Record<string, string[]> = {
-  "/admin":                 ["SUPER_ADMIN"],
-  "/intermediate":          ["SUPER_ADMIN", "INTER_FACULTY", "PRINCIPAL"],
-  "/bs":                    ["SUPER_ADMIN", "BS_CONTROLLER", "BS_FACULTY", "PRINCIPAL", "STUDENT"],
-  "/faculty":               ["SUPER_ADMIN", "BS_FACULTY", "INTER_FACULTY"],
+  "/chte":                  ["CHTE_ADMIN", "SUPER_ADMIN"],
+  "/admin":                 ["CHTE_ADMIN", "SUPER_ADMIN", "COLLEGE_ADMIN"],
+  "/intermediate":          ["CHTE_ADMIN", "SUPER_ADMIN", "COLLEGE_ADMIN", "INTER_FACULTY", "PRINCIPAL"],
+  "/bs":                    ["CHTE_ADMIN", "SUPER_ADMIN", "COLLEGE_ADMIN", "BS_CONTROLLER", "BS_FACULTY", "PRINCIPAL", "STUDENT"],
+  "/faculty":               ["CHTE_ADMIN", "SUPER_ADMIN", "COLLEGE_ADMIN", "BS_FACULTY", "INTER_FACULTY"],
   "/student":               ["STUDENT"],
   "/dashboard":             [], // all authenticated
 };
 
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  const protectedPrefixes = ["/admin", "/intermediate", "/bs", "/faculty", "/student", "/dashboard"];
+  const protectedPrefixes = ["/chte", "/admin", "/intermediate", "/bs", "/faculty", "/student", "/dashboard"];
   const isProtected = protectedPrefixes.some((p) => path.startsWith(p));
 
   if (!isProtected) {
@@ -31,8 +32,8 @@ export async function proxy(req: NextRequest) {
 
   const userRole = (token.role as string) || "";
 
-  // Super admin has unrestricted access
-  if (userRole === "SUPER_ADMIN") return NextResponse.next();
+  // Super admins and CHTE master admins have unrestricted access
+  if (userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN") return NextResponse.next();
 
   // Check route restrictions
   for (const [route, allowedRoles] of Object.entries(ROUTE_ROLES)) {
@@ -50,6 +51,7 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/chte/:path*",
     "/admin/:path*",
     "/intermediate/:path*",
     "/bs/:path*",

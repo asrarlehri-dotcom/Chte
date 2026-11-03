@@ -3,24 +3,63 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function GET() {
-  const departments = await prisma.department.findMany({
-    include: { programs: true, _count: { select: { faculty: true } } },
-    orderBy: { name: "asc" },
-  });
-  return NextResponse.json(departments);
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    const { searchParams } = new URL(req.url);
+    const requestedCollegeId = searchParams.get("collegeId");
+
+    let collegeFilter: string | undefined = undefined;
+    if (sessionCollegeId && sessionRole !== "CHTE_ADMIN" && sessionRole !== "SUPER_ADMIN") {
+      collegeFilter = sessionCollegeId;
+    } else if (requestedCollegeId) {
+      collegeFilter = requestedCollegeId;
+    }
+
+    const departments = await prisma.department.findMany({
+      where: {
+        isActive: true,
+        ...(collegeFilter ? { collegeId: collegeFilter } : {}),
+      },
+      include: {
+        programs: true,
+        college: { select: { id: true, name: true, code: true } },
+        _count: { select: { faculty: true } }
+      },
+      orderBy: { name: "asc" },
+    });
+    return NextResponse.json(departments);
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to fetch departments" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== "SUPER_ADMIN")
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { name, code, hodName } = await req.json();
+    const body = await req.json();
+    const { name, code, hodName, collegeId } = body;
     if (!name || !code || !hodName) return NextResponse.json({ error: "Name, code, and HOD name are required" }, { status: 400 });
 
-    const dept = await prisma.department.create({ data: { name, code, hodName } });
+    const targetCollegeId = sessionCollegeId || collegeId || null;
+
+    const dept = await prisma.department.create({
+      data: {
+        name,
+        code,
+        hodName,
+        collegeId: targetCollegeId,
+      }
+    });
     return NextResponse.json(dept, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to create department" }, { status: 500 });
@@ -30,7 +69,9 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== "SUPER_ADMIN")
+    const sessionRole = (session?.user as any)?.role;
+
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id, name, code, hodName } = await req.json();
@@ -57,7 +98,9 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== "SUPER_ADMIN")
+    const sessionRole = (session?.user as any)?.role;
+
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(req.url);

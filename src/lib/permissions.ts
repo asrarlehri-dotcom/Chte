@@ -55,6 +55,8 @@ export type ActionKey = typeof ACTIONS[keyof typeof ACTIONS];
 
 // ─── All roles ────────────────────────────────────────────────────────────────
 export const ROLES = {
+  CHTE_ADMIN:    "CHTE_ADMIN",
+  COLLEGE_ADMIN: "COLLEGE_ADMIN",
   SUPER_ADMIN:   "SUPER_ADMIN",
   BS_CONTROLLER: "BS_CONTROLLER",
   BS_FACULTY:    "BS_FACULTY",
@@ -71,14 +73,14 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * Check if a role has a specific permission.
- * SUPER_ADMIN always returns true without DB lookup.
+ * CHTE_ADMIN, SUPER_ADMIN, and COLLEGE_ADMIN always return true without DB lookup.
  */
 export async function checkPermission(
   role: string,
   module: ModuleKey,
   action: ActionKey
 ): Promise<boolean> {
-  if (role === ROLES.SUPER_ADMIN) return true;
+  if (role === ROLES.SUPER_ADMIN || role === ROLES.CHTE_ADMIN || role === ROLES.COLLEGE_ADMIN) return true;
 
   try {
     const rp = await prisma.rolePermission.findFirst({
@@ -101,8 +103,8 @@ export async function checkPermission(
 export async function getPermissionsForRole(
   role: string
 ): Promise<Record<string, boolean>> {
-  if (role === ROLES.SUPER_ADMIN) {
-    // Super admin has everything
+  if (role === ROLES.SUPER_ADMIN || role === ROLES.CHTE_ADMIN || role === ROLES.COLLEGE_ADMIN) {
+    // Admins have everything
     const all: Record<string, boolean> = {};
     for (const mod of Object.values(MODULES)) {
       for (const act of Object.values(ACTIONS)) {

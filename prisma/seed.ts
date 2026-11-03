@@ -142,21 +142,87 @@ async function main() {
   await prisma.rolePermission.deleteMany({});
   await prisma.permission.deleteMany({});
   await prisma.user.deleteMany({});
+  await prisma.college.deleteMany({});
 
   const hashedAdminPw = await bcrypt.hash("admin123", 10);
   const hashedDemoPw = await bcrypt.hash("demo123", 10);
   const hashedFacultyPw = await bcrypt.hash("faculty123", 10);
   const hashedStudentPw = await bcrypt.hash("student123", 10);
+  const hashedChtePw = await bcrypt.hash("chte123", 10);
 
-  // ─── 1. USERS & PERMISSIONS ──────────────────────────────────────────────
-  console.log("👤 Creating Core System Users & Permissions...");
-  
+  // ─── 1. COLLEGES & CHTE USERS ────────────────────────────────────────────
+  console.log("🏢 Creating CHTE Central Master & Multi-Tenant Colleges...");
+
+  const chteAdmin = await prisma.user.create({
+    data: {
+      email: "chte@balochistan.gov.pk",
+      name: "CHTE Central Super Admin",
+      password: hashedChtePw,
+      role: "CHTE_ADMIN",
+      isActive: true
+    }
+  });
+
+  const gpgcqCollege = await prisma.college.create({
+    data: {
+      name: "Govt. Post Graduate College Quetta",
+      code: "GPGCQ",
+      slug: "gpgc-quetta",
+      tagline: "Center of Excellence & Quality Education",
+      logoUrl: "",
+      district: "Quetta",
+      division: "Quetta Division",
+      address: "Zarghoon Road, Quetta, Balochistan, Pakistan",
+      contactEmail: "info@gpgcquetta.edu.pk",
+      contactPhone: "+92 81 9201234",
+      principalName: "Prof. Dr. Zahid Mengal",
+      bankName: "Habib Bank Limited (HBL)",
+      bankAccount: "08730001324203",
+      branchCode: "0873",
+      accountTitle: "Principal Govt Post Graduate College Quetta",
+      isActive: true
+    }
+  });
+
+  const gscqCollege = await prisma.college.create({
+    data: {
+      name: "Govt. Science College Quetta",
+      code: "GSCQ",
+      slug: "gsc-quetta",
+      tagline: "Pioneering Science & Technology Education",
+      logoUrl: "",
+      district: "Quetta",
+      division: "Quetta Division",
+      address: "Jinnah Road, Quetta, Balochistan, Pakistan",
+      contactEmail: "info@gscq.edu.pk",
+      contactPhone: "+92 81 9205555",
+      principalName: "Prof. Dr. Tariq Baloch",
+      bankName: "National Bank of Pakistan (NBP)",
+      bankAccount: "11029384756201",
+      branchCode: "0142",
+      accountTitle: "Principal Govt Science College Quetta",
+      isActive: true
+    }
+  });
+
   const superAdmin = await prisma.user.create({
     data: {
       email: "admin@college.edu",
-      name: "Super Admin",
+      name: "GPGCQ College Admin",
       password: hashedAdminPw,
-      role: "SUPER_ADMIN",
+      role: "COLLEGE_ADMIN",
+      collegeId: gpgcqCollege.id,
+      isActive: true
+    }
+  });
+
+  await prisma.user.create({
+    data: {
+      email: "admin@gscq.edu.pk",
+      name: "GSCQ College Admin",
+      password: hashedAdminPw,
+      role: "COLLEGE_ADMIN",
+      collegeId: gscqCollege.id,
       isActive: true
     }
   });
@@ -170,7 +236,7 @@ async function main() {
 
   for (const u of demoStaff) {
     await prisma.user.create({
-      data: { email: u.email, name: u.name, password: hashedDemoPw, role: u.role, isActive: true }
+      data: { email: u.email, name: u.name, password: hashedDemoPw, role: u.role, collegeId: gpgcqCollege.id, isActive: true }
     });
   }
 
@@ -238,21 +304,21 @@ async function main() {
 
   const depts: Record<string, any> = {};
   for (const d of deptsData) {
-    depts[d.code] = await prisma.department.create({ data: d });
+    depts[d.code] = await prisma.department.create({ data: { ...d, collegeId: gpgcqCollege.id } });
   }
 
   // ─── 4. PROGRAMS & GROUPS & SUBJECTS ─────────────────────────────────────
   console.log("🎓 Creating Programs, Groups, and Intermediate Subjects...");
   
   const programsData = [
-    { code: "BSCS", name: "BS Computer Science", educationLevel: "BS", departmentId: depts["CS"].id },
-    { code: "BSENG", name: "BS English", educationLevel: "BS", departmentId: depts["ENG"].id },
-    { code: "BSECO", name: "BS Economics", educationLevel: "BS", departmentId: depts["ECO"].id },
-    { code: "BSMATH", name: "BS Mathematics", educationLevel: "BS", departmentId: depts["MATH"].id },
-    { code: "BSPHY", name: "BS Physics", educationLevel: "BS", departmentId: depts["PHY"].id },
-    { code: "FSC-ENG", name: "F.Sc Pre-Engineering", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id },
-    { code: "FSC-MED", name: "F.Sc Pre-Medical", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id },
-    { code: "FA", name: "F.A Humanities", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id }
+    { code: "BSCS", name: "BS Computer Science", educationLevel: "BS", departmentId: depts["CS"].id, collegeId: gpgcqCollege.id },
+    { code: "BSENG", name: "BS English", educationLevel: "BS", departmentId: depts["ENG"].id, collegeId: gpgcqCollege.id },
+    { code: "BSECO", name: "BS Economics", educationLevel: "BS", departmentId: depts["ECO"].id, collegeId: gpgcqCollege.id },
+    { code: "BSMATH", name: "BS Mathematics", educationLevel: "BS", departmentId: depts["MATH"].id, collegeId: gpgcqCollege.id },
+    { code: "BSPHY", name: "BS Physics", educationLevel: "BS", departmentId: depts["PHY"].id, collegeId: gpgcqCollege.id },
+    { code: "FSC-ENG", name: "F.Sc Pre-Engineering", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id, collegeId: gpgcqCollege.id },
+    { code: "FSC-MED", name: "F.Sc Pre-Medical", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id, collegeId: gpgcqCollege.id },
+    { code: "FA", name: "F.A Humanities", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id, collegeId: gpgcqCollege.id }
   ];
 
   const progs: Record<string, any> = {};

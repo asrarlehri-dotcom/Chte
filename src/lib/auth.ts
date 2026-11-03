@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 
 // Valid roles in the system
 export const VALID_ROLES = [
+  "CHTE_ADMIN",
+  "COLLEGE_ADMIN",
   "SUPER_ADMIN",
   "BS_CONTROLLER",
   "BS_FACULTY",
@@ -29,7 +31,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: { student: true, faculty: true }
+          include: { student: true, faculty: true, college: true }
         });
 
         if (!user) return null;
@@ -40,15 +42,22 @@ export const authOptions: NextAuthOptions = {
         if (user.faculty && user.faculty.isActive === false)
           throw new Error("Your faculty account has been deactivated.");
 
+        if (user.college && user.college.isActive === false)
+          throw new Error("Your college has been deactivated or suspended by CHTE.");
+
         const isValidPassword = await bcrypt.compare(credentials.password, user.password);
         if (!isValidPassword) return null;
 
         return {
-          id:    user.id,
-          email: user.email,
-          name:  user.name,
-          role:  user.role,
-        };
+          id:          user.id,
+          email:       user.email,
+          name:        user.name,
+          role:        user.role,
+          collegeId:   user.collegeId || null,
+          collegeName: user.college?.name || null,
+          collegeLogo: user.college?.logoUrl || null,
+          collegeCode: user.college?.code || null,
+        } as any;
       }
     })
   ],
@@ -56,15 +65,23 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role;
-        token.id   = user.id;
+        token.role        = (user as any).role;
+        token.id          = user.id;
+        token.collegeId   = (user as any).collegeId;
+        token.collegeName = (user as any).collegeName;
+        token.collegeLogo = (user as any).collegeLogo;
+        token.collegeCode = (user as any).collegeCode;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).role = token.role;
-        (session.user as any).id   = token.id;
+        (session.user as any).role        = token.role;
+        (session.user as any).id          = token.id;
+        (session.user as any).collegeId   = token.collegeId;
+        (session.user as any).collegeName = token.collegeName;
+        (session.user as any).collegeLogo = token.collegeLogo;
+        (session.user as any).collegeCode = token.collegeCode;
       }
       return session;
     }

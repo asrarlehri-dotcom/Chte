@@ -67,7 +67,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN"].includes((session.user as any)?.role))
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
@@ -98,9 +101,13 @@ export async function POST(req: NextRequest) {
 
     await prisma.auditLog.create({
       data: {
-        userEmail: session.user?.email, userName: session.user?.name,
-        action: "CREATE", entity: "Course", entityId: course.id,
+        userEmail: session.user?.email,
+        userName: session.user?.name,
+        action: "CREATE",
+        entity: "Course",
+        entityId: course.id,
         description: `Course "${title}" (${code}) created with ${parsedCredits.format} credits for Semester ${semester}`,
+        collegeId: sessionCollegeId || null,
       },
     });
 

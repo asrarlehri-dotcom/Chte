@@ -1,13 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { School, Building2, ShieldCheck, MapPin } from "lucide-react";
 
 type Program = {
   id: string;
   name: string;
   code: string;
 };
+
+interface CollegeOption {
+  id: string;
+  name: string;
+  code: string;
+  logoUrl: string | null;
+  tagline: string | null;
+  district: string | null;
+}
 
 const ADMISSION_TYPES = [
   {
@@ -33,8 +43,13 @@ const ADMISSION_TYPES = [
 const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
 const CURRENT_YEAR = new Date().getFullYear().toString();
 
-export default function AdmissionPage() {
+function AdmissionFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [colleges, setColleges] = useState<CollegeOption[]>([]);
+  const [selectedCollegeId, setSelectedCollegeId] = useState<string>("");
+  const [selectedCollege, setSelectedCollege] = useState<CollegeOption | null>(null);
 
   const [programs, setPrograms] = useState<Program[]>([]);
 
@@ -108,12 +123,28 @@ export default function AdmissionPage() {
   const [successData, setSuccessData] = useState<{ admissionId: string; challanId: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // 1. Fetch Colleges and match URL query param
   useEffect(() => {
-    fetch("/api/public/programs")
+    fetch("/api/public/colleges")
       .then(res => res.json())
-      .then(data => setPrograms(Array.isArray(data) ? data : []))
-      .catch(() => setPrograms([]));
-      
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setColleges(data);
+          const paramCollegeId = searchParams.get("collegeId");
+          const paramInstitute = searchParams.get("institute");
+          let initial = null;
+          if (paramCollegeId) {
+            initial = data.find((c: any) => c.id === paramCollegeId);
+          } else if (paramInstitute) {
+            initial = data.find((c: any) => c.code.toLowerCase() === paramInstitute.toLowerCase());
+          }
+          const chosen = initial || data[0];
+          setSelectedCollegeId(chosen.id);
+          setSelectedCollege(chosen);
+        }
+      })
+      .catch(() => {});
+
     fetch("/api/settings")
       .then(res => res.json())
       .then(data => {
@@ -129,7 +160,16 @@ export default function AdmissionPage() {
         });
       })
       .catch(() => {});
-  }, []);
+  }, [searchParams]);
+
+  // 2. Fetch Programs scoped to selected college
+  useEffect(() => {
+    const url = selectedCollegeId ? `/api/public/programs?collegeId=${selectedCollegeId}` : "/api/public/programs";
+    fetch(url)
+      .then(res => res.json())
+      .then(data => setPrograms(Array.isArray(data) ? data : []))
+      .catch(() => setPrograms([]));
+  }, [selectedCollegeId]);
 
   useEffect(() => {
     if (!programId) {
@@ -214,6 +254,7 @@ export default function AdmissionPage() {
                 totalMarks: Number(prevMarks[c.id]?.total || 100)
               })))
             : null,
+          collegeId: selectedCollegeId || null,
         }),
       });
 
@@ -277,10 +318,16 @@ export default function AdmissionPage() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Header */}
-        <div className="bg-blue-600 p-6 sm:p-10 text-white">
-          <h1 className="text-3xl font-bold">BS Admission Application</h1>
-          <p className="mt-2 opacity-80">
-            Fill in the form below to apply for the BS Program.
+        <div className="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 p-6 sm:p-10 text-white">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-bold uppercase tracking-wider mb-2">
+            <ShieldCheck className="w-4 h-4 text-blue-300" />
+            CHTE Balochistan Official Admission Portal
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black">
+            {selectedCollege ? `${selectedCollege.name}` : "BS Admission Application"}
+          </h1>
+          <p className="mt-1 opacity-90 text-xs sm:text-sm text-blue-100">
+            {selectedCollege?.tagline || "Fill in the form below to apply for the BS Academic Degree Program."}
           </p>
         </div>
 
@@ -291,7 +338,60 @@ export default function AdmissionPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-10">
+          <form onSubmit={handleSubmit} className="space-y-8">
+
+            {/* ── 0. Target Institution / College Selection ── */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 border border-blue-200/90 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-blue-700" />
+                  <h3 className="text-sm font-bold text-blue-950 uppercase tracking-wide">
+                    Target Institution / College
+                  </h3>
+                </div>
+                <span className="text-[11px] font-semibold text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full self-start sm:self-auto">
+                  Higher & Technical Education (CHTE) Balochistan
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Select College</label>
+                  <select
+                    value={selectedCollegeId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedCollegeId(id);
+                      setSelectedCollege(colleges.find(c => c.id === id) || null);
+                      setProgramId("");
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-white border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-semibold text-sm text-slate-900 shadow-sm outline-none"
+                  >
+                    {colleges.map((col) => (
+                      <option key={col.id} value={col.id}>
+                        {col.name} ({col.code}) {col.district ? `— ${col.district}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedCollege && (
+                  <div className="text-xs text-blue-950 bg-white/90 p-3 rounded-xl border border-blue-200 flex items-center gap-2.5 self-end sm:mt-5 shadow-sm">
+                    {selectedCollege.logoUrl ? (
+                      <img src={selectedCollege.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded-lg flex-shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center flex-shrink-0 text-xs">
+                        {selectedCollege.code.substring(0, 3)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-bold truncate">{selectedCollege.code} Campus</div>
+                      <div className="text-[10px] text-slate-500 truncate">{selectedCollege.district || "Balochistan"}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* ── 1. Personal Details ──────────────────────── */}
             <div>
@@ -677,12 +777,20 @@ export default function AdmissionPage() {
                 disabled={submitting}
                 className="w-full px-6 py-4 bg-blue-600 text-white text-lg font-bold rounded-xl shadow hover:bg-blue-700 transition-colors focus:ring-4 focus:ring-blue-300 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {submitting ? "Submitting..." : "Submit Application"}
+                {submitting ? "Submitting..." : `Submit Application to ${selectedCollege?.code || "College"}`}
               </button>
             </div>
           </form>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdmissionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-sm font-semibold text-slate-500">Loading Admission Portal...</div>}>
+      <AdmissionFormContent />
+    </Suspense>
   );
 }

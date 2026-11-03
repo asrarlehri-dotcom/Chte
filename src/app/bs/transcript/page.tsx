@@ -7,9 +7,12 @@ import { useSettings } from "@/lib/useSettings";
 type StudentData = {
   id: string;
   rollNumber: string;
+  fatherName?: string | null;
+  session?: string | null;
   user: { name: string };
   currentSemester: number | null;
   bsAdmissionType: string | null;
+  program?: { name: string } | null;
   marks: Array<{
     semester: number;
     obtainedMarks: number;
@@ -140,7 +143,7 @@ export default function TranscriptGeneratorPage() {
               <span className="text-gray-500">Roll Number:</span> <strong className="font-mono">{selectedStudent.rollNumber}</strong>
             </div>
             <div>
-              <span className="text-gray-500">Program:</span> <strong>BS Computer Science</strong>
+              <span className="text-gray-500">Program:</span> <strong>{selectedStudent.program?.name || "BS Degree Program"}</strong>
             </div>
             <div>
               <span className="text-gray-500">Admission Mode:</span>{" "}

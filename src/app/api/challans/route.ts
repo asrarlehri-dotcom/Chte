@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 function generateChallanNumber(): string {
   const ts = Date.now().toString().slice(-8);
@@ -7,24 +9,49 @@ function generateChallanNumber(): string {
   return `CHL-${ts}-${rand}`;
 }
 
-// GET /api/challans?status=PENDING&educationLevel=BS
+// GET /api/challans?status=PENDING&educationLevel=BS&q=...
 export async function GET(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+    const sessionRole = (session?.user as any)?.role;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const educationLevel = searchParams.get("educationLevel");
     const cnic = searchParams.get("cnic");
+    const q = searchParams.get("q");
+    const requestedCollegeId = searchParams.get("collegeId");
+
+    let collegeFilter: string | undefined = undefined;
+    if (sessionCollegeId && sessionRole !== "CHTE_ADMIN" && sessionRole !== "SUPER_ADMIN") {
+      collegeFilter = sessionCollegeId;
+    } else if (requestedCollegeId) {
+      collegeFilter = requestedCollegeId;
+    }
+
+    const qFilter = q ? {
+      OR: [
+        { cnic: { contains: q, mode: "insensitive" as const } },
+        { challanNumber: { contains: q, mode: "insensitive" as const } },
+        { applicantName: { contains: q, mode: "insensitive" as const } },
+        { student: { rollNumber: { contains: q, mode: "insensitive" as const } } }
+      ]
+    } : {};
 
     const challans = await prisma.challan.findMany({
       where: {
         ...(status ? { status } : {}),
         ...(educationLevel ? { educationLevel } : {}),
         ...(cnic ? { cnic } : {}),
+        ...(collegeFilter ? { collegeId: collegeFilter } : {}),
+        ...qFilter,
       },
       include: {
         admission: { select: { id: true, status: true, programId: true } },
         student:   { select: { id: true, rollNumber: true } },
         program:   { select: { id: true, name: true, code: true } },
+        college:   { select: { id: true, name: true, code: true, bankName: true, bankAccount: true, branchCode: true, accountTitle: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -39,6 +66,9 @@ export async function GET(request: Request) {
 // POST /api/challans — Generate a new challan
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
     const body = await request.json();
     const {
       cnic,
@@ -47,21 +77,24 @@ export async function POST(request: Request) {
       feeType,
       educationLevel,
       semester,
-      session,
+      session: sess,
       particulars,
       gender,
       programId,
       daysValid = 7,
+      collegeId,
     } = body;
 
     if (!cnic || !applicantName || !feeType || !educationLevel) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    const targetCollegeId = sessionCollegeId || collegeId || null;
+
     // Lookup fee amount from FeeSettings (checking most recent session override <= target session)
     let feeSetting = null;
-    const sessionNum = Number(session);
-    if (session && !isNaN(sessionNum)) {
+    const sessionNum = Number(sess);
+    if (sess && !isNaN(sessionNum)) {
       const overrides = await prisma.feeSettings.findMany({
         where: {
           key: feeType,
@@ -123,12 +156,13 @@ export async function POST(request: Request) {
         dueDate,
         educationLevel,
         semester: semester ? Number(semester) : null,
-        session: session || null,
+        session: sess || null,
         particulars: particulars || feeSetting.label,
         gender: gender || null,
         programId: programId || null,
         admissionId: admission?.id || null,
         studentId:   student?.id   || null,
+        collegeId:   targetCollegeId,
         status: "PENDING",
       },
     });
