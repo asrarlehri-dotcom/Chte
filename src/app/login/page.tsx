@@ -125,7 +125,11 @@ function LoginForm() {
       });
 
       if (res?.error) {
-        setError(res.error || "Invalid credentials. Please verify your email and password.");
+        if (res.error === "CredentialsSignin") {
+          setError("Ghalat email ya password. Barah-e-karam email aur password check karein (e.g. admin@college.edu / admin123).");
+        } else {
+          setError(res.error || "Authentication failed. Please verify your credentials.");
+        }
         setLoading(false);
         return;
       }
@@ -316,9 +320,9 @@ function LoginForm() {
                   required
                   placeholder={
                     loginMode === "INSTITUTE"
-                      ? selectedCollege
-                        ? `admin@${selectedCollege.code.toLowerCase()}.edu.pk`
-                        : "admin@college.edu.pk"
+                      ? selectedCollege?.code === "GSCQ"
+                        ? "admin@gscq.edu.pk"
+                        : "admin@college.edu"
                       : "chte@balochistan.gov.pk"
                   }
                   value={email}
@@ -386,24 +390,55 @@ function LoginForm() {
               Demo Quick Credential:
             </div>
             {loginMode === "INSTITUTE" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("admin@college.edu");
-                  setPassword("admin123");
-                }}
-                className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-left transition-colors flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-bold text-white text-xs">
-                    {selectedCollege?.code || "College"} Admin
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const isGscq = selectedCollege?.code === "GSCQ";
+                    setEmail(isGscq ? "admin@gscq.edu.pk" : "admin@college.edu");
+                    setPassword("admin123");
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-left transition-colors flex items-center justify-between"
+                >
+                  <div>
+                    <div className="font-bold text-white text-xs">
+                      {selectedCollege?.code || "College"} Admin
+                    </div>
+                    <div className="text-slate-400 text-[11px]">
+                      {selectedCollege?.code === "GSCQ" ? "admin@gscq.edu.pk" : "admin@college.edu"}
+                    </div>
                   </div>
-                  <div className="text-slate-400 text-[11px]">admin@college.edu</div>
+                  <div className="text-blue-400 font-mono text-xs font-bold bg-blue-500/10 px-2 py-1 rounded">
+                    admin123
+                  </div>
+                </button>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("controller@college.edu");
+                      setPassword("demo123");
+                    }}
+                    className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-left transition-colors"
+                  >
+                    <div className="font-bold text-slate-300 text-[11px]">BS Controller</div>
+                    <div className="text-slate-500 text-[10px]">demo123</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("principal@college.edu");
+                      setPassword("demo123");
+                    }}
+                    className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-left transition-colors"
+                  >
+                    <div className="font-bold text-slate-300 text-[11px]">Principal</div>
+                    <div className="text-slate-500 text-[10px]">demo123</div>
+                  </button>
                 </div>
-                <div className="text-blue-400 font-mono text-xs font-bold bg-blue-500/10 px-2 py-1 rounded">
-                  admin123
-                </div>
-              </button>
+              </div>
             ) : (
               <button
                 type="button"

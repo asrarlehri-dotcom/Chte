@@ -18,7 +18,7 @@ export const VALID_ROLES = [
 export type UserRole = typeof VALID_ROLES[number];
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET || "supersecret_for_development",
+  secret: process.env.NEXTAUTH_SECRET || "college_cms_secure_secret_2026",
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -29,8 +29,21 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        const cleanEmail = credentials.email.trim().toLowerCase();
+
+        // Find user by exact or case-insensitive email, with college alias support
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: { equals: cleanEmail, mode: "insensitive" } },
+              ...(cleanEmail === "admin@gpgcq.edu.pk" || cleanEmail === "admin@gpgcq.edu"
+                ? [{ email: "admin@college.edu" }]
+                : []),
+              ...(cleanEmail === "admin@gscq.edu"
+                ? [{ email: "admin@gscq.edu.pk" }]
+                : [])
+            ]
+          },
           include: { student: true, faculty: true, college: true }
         });
 
