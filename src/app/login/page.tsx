@@ -134,12 +134,9 @@ function LoginForm() {
         return;
       }
 
-      // Redirect directly based on role/mode
-      if (loginMode === "CHTE" || email.toLowerCase().includes("chte")) {
-        window.location.href = "/chte/colleges";
-      } else {
-        window.location.href = "/dashboard";
-      }
+      // Successful login -> Redirect directly
+      const targetUrl = (loginMode === "CHTE" || email.toLowerCase().includes("chte")) ? "/chte/colleges" : "/dashboard";
+      window.location.replace(targetUrl);
     } catch (err: any) {
       setError(err?.message || "An unexpected authentication error occurred.");
       setLoading(false);

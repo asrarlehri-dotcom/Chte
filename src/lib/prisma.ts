@@ -1,26 +1,37 @@
 import { PrismaClient } from "@prisma/client";
 
-function cleanDbUrl(val?: string): string | undefined {
-  if (!val) return val;
+const NEON_DATABASE_URL =
+  "postgresql://neondb_owner:npg_U76IhBZpMlNQ@ep-frosty-queen-bdj4dfag-pooler.c-8.us-east-2.aws.neon.tech/neondb?sslmode=require&connect_timeout=30&pool_timeout=30";
+const NEON_DIRECT_URL =
+  "postgresql://neondb_owner:npg_U76IhBZpMlNQ@ep-frosty-queen-bdj4dfag.c-8.us-east-2.aws.neon.tech/neondb?sslmode=require&connect_timeout=30&pool_timeout=30";
+
+function sanitizeUrl(val: string | undefined, fallback: string): string {
+  if (!val) return fallback;
   let s = val.trim();
+  // Strip any wrapping quotes
   while ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
     s = s.slice(1, -1).trim();
   }
-  if (s.includes("postgresql://")) {
-    s = s.substring(s.indexOf("postgresql://"));
-  } else if (s.includes("postgres://")) {
-    s = s.substring(s.indexOf("postgres://"));
+  // Strip variable name prefix if user pasted 'DATABASE_URL=postgresql://...'
+  if (s.startsWith("DATABASE_URL=")) {
+    s = s.replace("DATABASE_URL=", "").trim();
   }
-  s = s.replace(/["']+$/, "").trim();
+  if (s.startsWith("DIRECT_URL=")) {
+    s = s.replace("DIRECT_URL=", "").trim();
+  }
+  // Strip quotes again in case they were inside DATABASE_URL="..."
+  while ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  // If it contains the placeholder 'example.com' or doesn't have postgres protocol
+  if (s.includes("example.com") || (!s.startsWith("postgresql://") && !s.startsWith("postgres://"))) {
+    return fallback;
+  }
   return s;
 }
 
-if (process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = cleanDbUrl(process.env.DATABASE_URL);
-}
-if (process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = cleanDbUrl(process.env.DIRECT_URL);
-}
+process.env.DATABASE_URL = sanitizeUrl(process.env.DATABASE_URL, NEON_DATABASE_URL);
+process.env.DIRECT_URL = sanitizeUrl(process.env.DIRECT_URL, NEON_DIRECT_URL);
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
