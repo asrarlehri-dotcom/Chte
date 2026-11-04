@@ -134,12 +134,8 @@ function LoginForm() {
         return;
       }
 
-      // Check user session to redirect properly
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      const role = sessionData?.user?.role;
-
-      if (role === "CHTE_ADMIN" || role === "SUPER_ADMIN") {
+      // Redirect directly based on role/mode
+      if (loginMode === "CHTE" || email.toLowerCase().includes("chte")) {
         window.location.href = "/chte/colleges";
       } else {
         window.location.href = "/dashboard";
