@@ -31,7 +31,7 @@ import {
   Quote,
   Award
 } from "lucide-react";
-import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS } from "@/app/api/chte-settings/route";
+import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS, ChteHomepageSettings } from "@/lib/chte-settings";
 
 interface PublicCollege {
   id: string;
@@ -62,7 +62,7 @@ export default function ChteHomePage() {
   const [currentDateStr, setCurrentDateStr] = useState("Wednesday, 28 May 2025");
   const [urduMode, setUrduMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [chteSettings, setChteSettings] = useState(DEFAULT_CHTE_SETTINGS);
+  const [chteSettings, setChteSettings] = useState<ChteHomepageSettings>(DEFAULT_CHTE_SETTINGS);
 
   useEffect(() => {
     // Set formatted client date after mount asynchronously
@@ -95,7 +95,7 @@ export default function ChteHomePage() {
       .then((res) => res.json())
       .then((data) => {
         if (data && typeof data === "object") {
-          setChteSettings((prev) => ({
+          setChteSettings((prev: ChteHomepageSettings) => ({
             ...prev,
             ...data,
             featuredProfiles: Array.isArray(data.featuredProfiles) ? data.featuredProfiles : prev.featuredProfiles,
@@ -152,7 +152,7 @@ export default function ChteHomePage() {
             <div className="text-[11px] sm:text-xs text-emerald-100/90 italic font-serif flex items-center gap-2">
               {(chteSettings.topMottoText || "Education | Development | Prosperity")
                 .split("|")
-                .map((word, idx, arr) => (
+                .map((word: string, idx: number, arr: string[]) => (
                   <span key={idx} className="flex items-center gap-2">
                     <span>{word.trim()}</span>
                     {idx < arr.length - 1 && <span className="text-emerald-400/50">|</span>}
@@ -934,7 +934,7 @@ export default function ChteHomePage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {chteSettings.featuredProfiles.map((p) => (
+                {chteSettings.featuredProfiles.map((p: ChteFeaturedProfile) => (
                   <div
                     key={p.id}
                     className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-md hover:shadow-xl hover:border-emerald-500/40 transition-all flex flex-col justify-between group"

@@ -27,7 +27,7 @@ import {
   Sparkle,
   ShieldAlert
 } from "lucide-react";
-import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS } from "@/app/api/chte-settings/route";
+import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS } from "@/lib/chte-settings";
 
 export default function HomepageSettingsTab({
   focusedSection,

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export const DEFAULT_PORTAL_SETTINGS = {
+const DEFAULT_PORTAL_SETTINGS = {
   heroBgType: "IMAGE", // "IMAGE" | "VIDEO"
   heroBgUrl: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
   heroImgZoom: 100, // Zoom percentage (50% to 250%)
