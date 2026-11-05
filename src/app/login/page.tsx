@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -31,6 +31,14 @@ interface CollegeOption {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+
+  // If already authenticated, redirect immediately to /dashboard
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      window.location.replace("/dashboard");
+    }
+  }, [status, session]);
 
   // Mode defaults to "INSTITUTE" unless "?mode=chte" is explicitly in URL
   const modeParam = searchParams.get("mode");

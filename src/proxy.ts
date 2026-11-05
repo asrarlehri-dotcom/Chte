@@ -22,7 +22,16 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const secret = process.env.NEXTAUTH_SECRET || "college_cms_secure_secret_2026";
+  const hasSecureCookie = !!req.cookies.get("__Secure-next-auth.session-token");
+  const isHttps = req.nextUrl.protocol === "https:" || req.headers.get("x-forwarded-proto") === "https" || hasSecureCookie;
+
+  let token = await getToken({ req, secret, secureCookie: isHttps });
+  if (!token && !isHttps) {
+    token = await getToken({ req, secret, secureCookie: true });
+  } else if (!token && isHttps) {
+    token = await getToken({ req, secret, secureCookie: false });
+  }
 
   if (!token) {
     const loginUrl = new URL("/login", req.url);
