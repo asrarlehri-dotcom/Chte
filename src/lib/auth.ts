@@ -29,22 +29,41 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const cleanEmail = credentials.email.trim().toLowerCase();
+        const rawInput = credentials.email.trim();
+        const cleanInput = rawInput.toLowerCase();
 
-        // Find user by exact or case-insensitive email, with college alias support
+        // Build list of target email candidates for usernames/aliases
+        const targetEmails: string[] = [cleanInput];
+
+        if (cleanInput === "chte" || cleanInput === "superadmin" || cleanInput === "super_admin") {
+          targetEmails.push("chte@balochistan.gov.pk");
+        } else if (cleanInput === "admin" || cleanInput === "admin@gpgcq.edu.pk" || cleanInput === "admin@gpgcq.edu") {
+          targetEmails.push("admin@college.edu");
+        } else if (cleanInput === "gscq" || cleanInput === "admin@gscq.edu") {
+          targetEmails.push("admin@gscq.edu.pk");
+        } else if (cleanInput === "controller" || cleanInput === "bs_controller") {
+          targetEmails.push("controller@college.edu");
+        } else if (cleanInput === "principal") {
+          targetEmails.push("principal@college.edu");
+        } else if (!cleanInput.includes("@")) {
+          targetEmails.push(
+            `${cleanInput}@balochistan.gov.pk`,
+            `${cleanInput}@college.edu`,
+            `${cleanInput}@gscq.edu.pk`
+          );
+        }
+
+        // Find user by exact email, username alias, or student roll number
         const user = await prisma.user.findFirst({
           where: {
             OR: [
-              { email: { equals: cleanEmail, mode: "insensitive" } },
-              ...(cleanEmail === "admin@gpgcq.edu.pk" || cleanEmail === "admin@gpgcq.edu"
-                ? [{ email: "admin@college.edu" }]
-                : []),
-              ...(cleanEmail === "admin@gscq.edu"
-                ? [{ email: "admin@gscq.edu.pk" }]
-                : [])
-            ]
+              ...targetEmails.map((e) => ({
+                email: { equals: e, mode: "insensitive" as const },
+              })),
+              { student: { rollNumber: { equals: rawInput, mode: "insensitive" as const } } },
+            ],
           },
-          include: { student: true, faculty: true, college: true }
+          include: { student: true, faculty: true, college: true },
         });
 
         if (!user) return null;
