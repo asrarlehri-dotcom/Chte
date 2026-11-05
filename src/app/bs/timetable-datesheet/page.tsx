@@ -25,7 +25,7 @@ import {
 import { useSettings } from "@/lib/useSettings";
 
 const SELECT_CLS =
-  "px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white";
+  "w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-2xs transition-all";
 
 function downloadCSV(filename: string, headers: string[], rows: (string | number)[][]) {
   const csvContent = [
@@ -673,37 +673,44 @@ export default function BSTimetableDatesheetPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">BS Timetable, Datesheets & Duty List</h1>
-          <p className="text-gray-500 mt-1">
-            Manage weekly class schedules, exam datesheets, staff invigilation, and superintendent hall rosters.
-          </p>
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#0d4a22] text-white flex items-center justify-center text-2xl sm:text-3xl shadow-md border-2 border-emerald-500/30 shrink-0">
+            📅
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-serif font-black text-[#073619] tracking-tight">
+              BS Timetable, Datesheets &amp; Duty Roster
+            </h1>
+            <p className="text-slate-500 mt-0.5 font-medium text-xs">
+              Manage weekly class schedules, exam datesheets, staff invigilation, and superintendent hall rosters.
+            </p>
+          </div>
         </div>
-        <div className="text-sm font-bold px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-          BS Academic ERP
+        <div className="text-xs font-black px-3.5 py-1.5 bg-emerald-50 text-[#073619] rounded-full border border-emerald-200 shadow-2xs">
+          🏛️ BS Academic ERP
         </div>
       </div>
 
-      {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 font-semibold">{error}</div>}
-      {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 font-semibold">{success}</div>}
+      {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 font-semibold text-xs">{error}</div>}
+      {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 font-semibold text-xs">{success}</div>}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
         {/* Tabs */}
-        <div className="flex border-b bg-gray-50/50 flex-wrap">
+        <div className="flex border-b border-slate-200 bg-slate-50/60 flex-wrap">
           {[
-            { id: "timetable", label: "📅 Class Timetable", icon: "🕒" },
-            { id: "datesheet", label: "📝 Exam Datesheet", icon: "📅" },
-            { id: "examduty", label: "🛡️ Exam Duty", icon: "🛡️" },
-            { id: "superintendent", label: "👨‍⚖️ Superintendent", icon: "📜" },
-            { id: "dutylist", label: "👮 Staff Duty List", icon: "🛡️" },
+            { id: "timetable", label: "Class Timetable", icon: "📅" },
+            { id: "datesheet", label: "Exam Datesheet", icon: "📝" },
+            { id: "examduty", label: "Exam Duty", icon: "🛡️" },
+            { id: "superintendent", label: "Superintendent", icon: "🧑‍🏫" },
+            { id: "dutylist", label: "Staff Duty List", icon: "👮" },
           ].map((tab) => (
             <button
               key={tab.id}
-              className={`px-5 py-4 font-bold text-sm transition-all flex items-center gap-2 ${
+              className={`px-5 py-3.5 font-black text-xs sm:text-sm transition-all flex items-center gap-2 border-b-2 ${
                 activeTab === tab.id
-                  ? "border-b-2 border-blue-600 text-blue-600 bg-white"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-100/40"
+                  ? "border-blue-600 text-blue-600 bg-white shadow-xs"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
               }`}
               onClick={() => {
                 setActiveTab(tab.id);
@@ -724,9 +731,11 @@ export default function BSTimetableDatesheetPage() {
           {/* ----------------- TIMETABLE TAB ----------------- */}
           {activeTab === "timetable" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Program</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    PROGRAM
+                  </label>
                   <select
                     value={tProgramId}
                     onChange={(e) => setTProgramId(e.target.value)}
@@ -739,7 +748,9 @@ export default function BSTimetableDatesheetPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Session</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    SESSION
+                  </label>
                   <select
                     value={tSession}
                     onChange={(e) => setTSession(e.target.value)}
@@ -752,7 +763,9 @@ export default function BSTimetableDatesheetPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Semester</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    SEMESTER
+                  </label>
                   <select
                     value={tSemester}
                     onChange={(e) => setTSemester(e.target.value)}
@@ -765,7 +778,9 @@ export default function BSTimetableDatesheetPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Department</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    DEPARTMENT
+                  </label>
                   <select
                     value={tDepartmentId}
                     onChange={(e) => setTDepartmentId(e.target.value)}
@@ -779,19 +794,21 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 items-center justify-between">
-                <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex flex-wrap gap-2 items-center">
                   <button
                     onClick={loadTimetable}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-bold transition-all"
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300/80 transition-all shadow-2xs flex items-center gap-1.5"
                   >
-                    🔍 Filter Timetables
+                    <span>🔍</span>
+                    <span>Filter Timetables</span>
                   </button>
                   <button
                     onClick={handleAutoGenerateTimetable}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>⚡ Auto-Generate draft</span>
+                    <span>⚡</span>
+                    <span>Auto-Generate draft</span>
                   </button>
                   <button
                     onClick={() => {
@@ -803,59 +820,65 @@ export default function BSTimetableDatesheetPage() {
                       setTtFacultyId(faculties[0]?.id || "");
                       setShowTimetableModal(true);
                     }}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-bold transition-all shadow-md flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>➕ Add Manual Slot</span>
+                    <span>➕</span>
+                    <span>Add Manual Slot</span>
                   </button>
                   <button
                     onClick={handlePublishTimetable}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>🚀 Publish Timetable</span>
+                    <span>🚀</span>
+                    <span>Publish Timetable</span>
                   </button>
                   {/* Finalize Timetable button */}
                   {timetableFinalized ? (
                     <button
                       onClick={handleUnfinalizeTimetable}
-                      className="px-4 py-2 bg-amber-100 text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-200 text-sm font-bold transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
                     >
-                      <span>🔓 Un-Finalize</span>
+                      <span>🔓</span>
+                      <span>Un-Finalize</span>
                     </button>
                   ) : (
                     <button
                       onClick={handleFinalizeTimetable}
                       disabled={loading || timetables.length === 0}
-                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                     >
-                      <span>🔒 Finalize Timetable</span>
+                      <span>🔒</span>
+                      <span>Finalize Timetable</span>
                     </button>
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <button
                     onClick={exportTimetableCSV}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold transition-all shadow flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>📥 Export CSV</span>
+                    <span>📥</span>
+                    <span>Export CSV</span>
                   </button>
                   <button
                     onClick={() => window.print()}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black text-sm font-bold transition-all shadow flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>📄 Export PDF / Print</span>
+                    <span>📄</span>
+                    <span>Export PDF / Print</span>
                   </button>
                 </div>
               </div>
 
               {/* Finalization Status Banner */}
               {timetables.length > 0 && (
-                <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border text-sm font-semibold ${
+                <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-xs font-bold ${
                   timetableFinalized
-                    ? "bg-green-50 border-green-200 text-green-700"
-                    : "bg-amber-50 border-amber-200 text-amber-700"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-amber-50 border-amber-200 text-amber-800"
                 }`}>
-                  <span className="text-lg">{timetableFinalized ? "✅" : "⚠️"}</span>
+                  <span className="text-base">{timetableFinalized ? "✅" : "⚠️"}</span>
                   <span>
                     {timetableFinalized
                       ? `Timetable is FINALIZED — Date Sheet can be generated from this timetable.`
@@ -956,9 +979,11 @@ export default function BSTimetableDatesheetPage() {
           {/* ----------------- DATESHEET TAB ----------------- */}
           {activeTab === "datesheet" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Program</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    PROGRAM
+                  </label>
                   <select
                     value={dProgramId}
                     onChange={(e) => setDProgramId(e.target.value)}
@@ -971,7 +996,9 @@ export default function BSTimetableDatesheetPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Session</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    SESSION
+                  </label>
                   <select
                     value={dSession}
                     onChange={(e) => setDSession(e.target.value)}
@@ -984,7 +1011,9 @@ export default function BSTimetableDatesheetPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Semester</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    SEMESTER
+                  </label>
                   <select
                     value={dSemester}
                     onChange={(e) => setDSemester(e.target.value)}
@@ -997,7 +1026,9 @@ export default function BSTimetableDatesheetPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Exam Type</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    EXAM TYPE
+                  </label>
                   <select
                     value={dExamType}
                     onChange={(e) => setDExamType(e.target.value)}
@@ -1010,10 +1041,12 @@ export default function BSTimetableDatesheetPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">📅 Exam Start Date</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    📅 EXAM START DATE
+                  </label>
                   <input
                     type="date"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white text-gray-900"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     value={examStartDate}
                     onChange={(e) => setExamStartDate(e.target.value)}
                   />
@@ -1021,35 +1054,37 @@ export default function BSTimetableDatesheetPage() {
               </div>
 
               {/* Excluded Exam Dates Input Box */}
-              <div className="p-4 bg-orange-50/70 border border-orange-200 rounded-xl space-y-1">
-                <label className="block text-xs font-bold text-orange-950 uppercase tracking-wider">
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-1">
+                <label className="block text-xs font-bold text-amber-950 uppercase tracking-wider">
                   🚫 Excluded Exam Dates (Holidays / Exclusions)
                 </label>
                 <input
                   type="text"
                   placeholder="e.g. 2026-06-07, 2026-06-14 (Comma separated dates to skip when generating)"
-                  className="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold bg-white text-gray-900"
+                  className="w-full px-3 py-2 border border-amber-200 rounded-xl text-xs font-mono font-bold bg-white text-slate-800 shadow-2xs"
                   value={excludedDatesInput}
                   onChange={(e) => setExcludedDatesInput(e.target.value)}
                 />
-                <p className="text-[11px] text-orange-800 font-semibold pt-0.5">
+                <p className="text-[11px] text-amber-800 font-semibold pt-0.5">
                   ✨ Note: <strong>SUNDAYS are automatically excluded by default</strong> in all exam datesheet calculations.
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3 items-center justify-between">
-                <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex flex-wrap gap-2 items-center">
                   <button
                     onClick={loadDatesheet}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-bold transition-all"
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300/80 transition-all shadow-2xs flex items-center gap-1.5"
                   >
-                    🔍 Filter Datesheets
+                    <span>🔍</span>
+                    <span>Filter Datesheets</span>
                   </button>
                   <button
                     onClick={handleAutoGenerateDatesheet}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>⚡ Auto-Generate Exam Dates</span>
+                    <span>⚡</span>
+                    <span>Auto-Generate Exam Dates</span>
                   </button>
                   <button
                     onClick={() => {
@@ -1061,47 +1096,53 @@ export default function BSTimetableDatesheetPage() {
                       setDsCourseId(courses[0]?.id || "");
                       setShowDatesheetModal(true);
                     }}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-bold transition-all shadow-md flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>➕ Add Manual Exam Paper</span>
+                    <span>➕</span>
+                    <span>Add Manual Exam Paper</span>
                   </button>
                   <button
                     onClick={handlePublishDatesheet}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>🚀 Publish Datesheet</span>
+                    <span>🚀</span>
+                    <span>Publish Datesheet</span>
                   </button>
                   {/* Finalize Datesheet button */}
                   {datesheetFinalized ? (
                     <button
                       onClick={handleUnfinalizeDatesheet}
-                      className="px-4 py-2 bg-amber-100 text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-200 text-sm font-bold transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
                     >
-                      <span>🔓 Un-Finalize</span>
+                      <span>🔓</span>
+                      <span>Un-Finalize</span>
                     </button>
                   ) : (
                     <button
                       onClick={handleFinalizeDatesheet}
                       disabled={loading || datesheets.length === 0}
-                      className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                     >
-                      <span>🔒 Finalize Date Sheet</span>
+                      <span>🔒</span>
+                      <span>Finalize Date Sheet</span>
                     </button>
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <button
                     onClick={exportDatesheetCSV}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold transition-all shadow flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>📥 Export CSV</span>
+                    <span>📥</span>
+                    <span>Export CSV</span>
                   </button>
                   <button
                     onClick={() => window.print()}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black text-sm font-bold transition-all shadow flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
-                    <span>📄 Export PDF / Print</span>
+                    <span>📄</span>
+                    <span>Export PDF / Print</span>
                   </button>
                 </div>
               </div>
@@ -1249,30 +1290,30 @@ export default function BSTimetableDatesheetPage() {
               )}
 
               {/* Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Program</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">PROGRAM</label>
                   <select value={dutyProgramId} onChange={e => setDutyProgramId(e.target.value)} className={SELECT_CLS}>
                     <option value="ALL">-- All Programs --</option>
                     {allPrograms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Session</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">SESSION</label>
                   <select value={dutySession} onChange={e => setDutySession(e.target.value)} className={SELECT_CLS}>
                     <option value="ALL">-- All Sessions --</option>
                     {sessions.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Semester</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">SEMESTER</label>
                   <select value={dutySemester} onChange={e => setDutySemester(e.target.value)} className={SELECT_CLS}>
                     <option value="0">-- All Semesters --</option>
                     {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>{`Semester ${s}`}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Exam Type</label>
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">EXAM TYPE</label>
                   <select value={dutyExamType} onChange={e => setDutyExamType(e.target.value)} className={SELECT_CLS}>
                     <option value="ALL">-- All Exam Types --</option>
                     <option value="TERMINAL">Terminal Exam</option>
@@ -1283,29 +1324,30 @@ export default function BSTimetableDatesheetPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap gap-3 items-center justify-between">
-                <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex flex-wrap gap-2 items-center">
                   <button
                     onClick={loadDuties}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-bold"
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300/80 transition-all shadow-2xs flex items-center gap-1.5"
                   >
-                    🔍 Filter Duties
+                    <span>🔍</span>
+                    <span>Filter Duties</span>
                   </button>
                   <button
                     onClick={handleGenerateDuties}
                     disabled={generatingDuties}
-                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-bold shadow-md flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <span>{generatingDuties ? "⏳ Generating..." : "⚡ Generate Duties (Auto)"}</span>
                   </button>
-                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                    <label className="text-xs font-bold text-gray-600">Max Invigilators/Paper:</label>
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+                    <label className="text-xs font-bold text-slate-600">Max Invigilators/Paper:</label>
                     <input
                       type="number"
                       min={1} max={5}
                       value={maxInvigilatorsPerPaper}
                       onChange={e => setMaxInvigilatorsPerPaper(parseInt(e.target.value) || 2)}
-                      className="w-14 px-2 py-1 border rounded text-xs font-bold text-center"
+                      className="w-12 px-1.5 py-0.5 border border-slate-300 rounded text-xs font-bold text-center bg-white"
                     />
                   </div>
                 </div>
@@ -1324,7 +1366,7 @@ export default function BSTimetableDatesheetPage() {
                     ]);
                     downloadCSV("Exam_Duty_List.csv", headers, rows);
                   }}
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-sm font-bold shadow flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                 >
                   📥 Export CSV
                 </button>
@@ -1422,7 +1464,7 @@ export default function BSTimetableDatesheetPage() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={loadDatesheet}
-                    className="px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                   >
                     <span>⚡ Auto-Generate Roster</span>
                   </button>
@@ -1445,19 +1487,19 @@ export default function BSTimetableDatesheetPage() {
                       });
                       setShowSuptModal(true);
                     }}
-                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                   >
                     <span>➕ Add Manual Entry</span>
                   </button>
                   <button
                     onClick={exportSuperintendentCSV}
-                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                   >
                     <span>📥 Export CSV</span>
                   </button>
                   <button
                     onClick={() => window.print()}
-                    className="px-3.5 py-2 bg-white text-purple-900 hover:bg-indigo-50 font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-white text-purple-900 hover:bg-indigo-50 font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                   >
                     <span>📄 Export PDF / Print Roster</span>
                   </button>
@@ -1879,7 +1921,7 @@ export default function BSTimetableDatesheetPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={handleAutoGenerateDatesheet}
-                      className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                     >
                       <span>⚡ Auto-Map Duties</span>
                     </button>
@@ -1898,19 +1940,19 @@ export default function BSTimetableDatesheetPage() {
                         });
                         setShowStaffDutyModal(true);
                       }}
-                      className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                     >
                       <span>➕ Add Manual Duty</span>
                     </button>
                     <button
                       onClick={exportDutyListCSV}
-                      className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                     >
                       <span>📥 Export CSV</span>
                     </button>
                     <button
                       onClick={() => window.print()}
-                      className="px-3.5 py-2 bg-gray-800 hover:bg-gray-900 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
                     >
                       <span>📄 Export PDF / Print</span>
                     </button>
