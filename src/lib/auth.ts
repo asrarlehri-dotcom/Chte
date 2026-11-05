@@ -41,6 +41,8 @@ export const authOptions: NextAuthOptions = {
           targetEmails.push("admin@college.edu");
         } else if (cleanInput === "gscq" || cleanInput === "admin@gscq.edu") {
           targetEmails.push("admin@gscq.edu.pk");
+        } else if (cleanInput === "gdcm" || cleanInput === "admin@gdcm.edu") {
+          targetEmails.push("admin@gdcm.edu.pk");
         } else if (cleanInput === "controller" || cleanInput === "bs_controller") {
           targetEmails.push("controller@college.edu");
         } else if (cleanInput === "principal") {
@@ -49,7 +51,8 @@ export const authOptions: NextAuthOptions = {
           targetEmails.push(
             `${cleanInput}@balochistan.gov.pk`,
             `${cleanInput}@college.edu`,
-            `${cleanInput}@gscq.edu.pk`
+            `${cleanInput}@gscq.edu.pk`,
+            `${cleanInput}@gdcm.edu.pk`
           );
         }
 

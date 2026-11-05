@@ -1,7 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ["error", "warn"],
+});
 
 // All application modules
 const MODULES = [
@@ -101,7 +103,6 @@ const DEFAULT_PERMISSIONS: Record<string, Record<string, string[]>> = {
   },
 };
 
-// Helper for Grade Point Calculation
 function getGP(pct: number): number {
   if (pct >= 80) return 4.0;
   if (pct < 50) return 0.0;
@@ -109,10 +110,12 @@ function getGP(pct: number): number {
 }
 
 async function main() {
-  console.log("🌱 Starting Comprehensive Dummy Data Seeding...");
+  console.log("🌱 ===========================================================");
+  console.log("🚀 STARTING COMPREHENSIVE MULTI-COLLEGE DUMMY DATA SEEDING");
+  console.log("🌱 ===========================================================\n");
 
-  // ─── 0. CLEAR EXISTING DATA (Clean Refresh) ──────────────────────────────
-  console.log("🧹 Cleaning old records...");
+  // ─── 0. CLEAN EXISTING DATA ───────────────────────────────────────────────
+  console.log("🧹 [1/7] Wiping old records across all tables...");
   await prisma.auditLog.deleteMany({});
   await prisma.expense.deleteMany({});
   await prisma.examDuty.deleteMany({});
@@ -143,104 +146,28 @@ async function main() {
   await prisma.permission.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.college.deleteMany({});
+  console.log("✓ Old records cleared successfully.\n");
 
+  // Hashed Passwords
   const hashedAdminPw = await bcrypt.hash("admin123", 10);
   const hashedDemoPw = await bcrypt.hash("demo123", 10);
   const hashedFacultyPw = await bcrypt.hash("faculty123", 10);
   const hashedStudentPw = await bcrypt.hash("student123", 10);
   const hashedChtePw = await bcrypt.hash("chte123", 10);
 
-  // ─── 1. COLLEGES & CHTE USERS ────────────────────────────────────────────
-  console.log("🏢 Creating CHTE Central Master & Multi-Tenant Colleges...");
-
-  const chteAdmin = await prisma.user.create({
+  // ─── 1. CHTE CENTRAL APEX MASTER ──────────────────────────────────────────
+  console.log("🏢 [2/7] Creating CHTE Central Master Admin...");
+  await prisma.user.create({
     data: {
       email: "chte@balochistan.gov.pk",
       name: "CHTE Central Super Admin",
       password: hashedChtePw,
       role: "CHTE_ADMIN",
-      isActive: true
-    }
+      isActive: true,
+    },
   });
 
-  const gpgcqCollege = await prisma.college.create({
-    data: {
-      name: "Govt. Post Graduate College Quetta",
-      code: "GPGCQ",
-      slug: "gpgc-quetta",
-      tagline: "Center of Excellence & Quality Education",
-      logoUrl: "",
-      district: "Quetta",
-      division: "Quetta Division",
-      address: "Zarghoon Road, Quetta, Balochistan, Pakistan",
-      contactEmail: "info@gpgcquetta.edu.pk",
-      contactPhone: "+92 81 9201234",
-      principalName: "Prof. Dr. Zahid Mengal",
-      bankName: "Habib Bank Limited (HBL)",
-      bankAccount: "08730001324203",
-      branchCode: "0873",
-      accountTitle: "Principal Govt Post Graduate College Quetta",
-      isActive: true
-    }
-  });
-
-  const gscqCollege = await prisma.college.create({
-    data: {
-      name: "Govt. Science College Quetta",
-      code: "GSCQ",
-      slug: "gsc-quetta",
-      tagline: "Pioneering Science & Technology Education",
-      logoUrl: "",
-      district: "Quetta",
-      division: "Quetta Division",
-      address: "Jinnah Road, Quetta, Balochistan, Pakistan",
-      contactEmail: "info@gscq.edu.pk",
-      contactPhone: "+92 81 9205555",
-      principalName: "Prof. Dr. Tariq Baloch",
-      bankName: "National Bank of Pakistan (NBP)",
-      bankAccount: "11029384756201",
-      branchCode: "0142",
-      accountTitle: "Principal Govt Science College Quetta",
-      isActive: true
-    }
-  });
-
-  const superAdmin = await prisma.user.create({
-    data: {
-      email: "admin@college.edu",
-      name: "GPGCQ College Admin",
-      password: hashedAdminPw,
-      role: "COLLEGE_ADMIN",
-      collegeId: gpgcqCollege.id,
-      isActive: true
-    }
-  });
-
-  await prisma.user.create({
-    data: {
-      email: "admin@gscq.edu.pk",
-      name: "GSCQ College Admin",
-      password: hashedAdminPw,
-      role: "COLLEGE_ADMIN",
-      collegeId: gscqCollege.id,
-      isActive: true
-    }
-  });
-
-  const demoStaff = [
-    { email: "controller@college.edu", name: "Prof. Tariq Mahmud (BS Controller)", role: "BS_CONTROLLER" },
-    { email: "bsfaculty@college.edu", name: "Dr. Muhammad Usman (BS Faculty)", role: "BS_FACULTY" },
-    { email: "interfaculty@college.edu", name: "Prof. Aslam Lehri (Inter Faculty)", role: "INTER_FACULTY" },
-    { email: "principal@college.edu", name: "Prof. Dr. Zahid Mengal (Principal)", role: "PRINCIPAL" },
-  ];
-
-  for (const u of demoStaff) {
-    await prisma.user.create({
-      data: { email: u.email, name: u.name, password: hashedDemoPw, role: u.role, collegeId: gpgcqCollege.id, isActive: true }
-    });
-  }
-
-  // Seed Permissions with createMany
+  // Seed Permissions
   const permData: { module: string; action: string; description: string }[] = [];
   for (const module of MODULES) {
     for (const action of ACTIONS) {
@@ -248,1148 +175,820 @@ async function main() {
     }
   }
   await prisma.permission.createMany({ data: permData, skipDuplicates: true });
-
   const allPerms = await prisma.permission.findMany();
-  const rolePermData: { role: string; permissionId: string; isGranted: boolean }[] = [];
-  for (const [role, modulePerms] of Object.entries(DEFAULT_PERMISSIONS)) {
-    for (const [module, actions] of Object.entries(modulePerms)) {
-      for (const action of actions) {
-        const p = allPerms.find(perm => perm.module === module && perm.action === action);
-        if (p) {
-          rolePermData.push({ role, permissionId: p.id, isGranted: true });
-        }
+  const permMap = new Map(allPerms.map((p) => [`${p.module}:${p.action}`, p.id]));
+
+  const rolePermInserts: { role: string; permissionId: string }[] = [];
+  for (const [role, moduleMap] of Object.entries(DEFAULT_PERMISSIONS)) {
+    for (const [mod, actList] of Object.entries(moduleMap)) {
+      for (const act of actList) {
+        const pId = permMap.get(`${mod}:${act}`);
+        if (pId) rolePermInserts.push({ role, permissionId: pId });
       }
     }
   }
-  await prisma.rolePermission.createMany({ data: rolePermData, skipDuplicates: true });
+  await prisma.rolePermission.createMany({ data: rolePermInserts, skipDuplicates: true });
 
-  // ─── 2. SYSTEM SETTINGS & SESSIONS ───────────────────────────────────────
-  console.log("⚙️ Creating System Settings & Academic Sessions...");
-  
-  const sysSettings = [
-    { key: "college_name", value: "Govt. Post Graduate College Quetta" },
-    { key: "college_tagline", value: "Center of Excellence & Quality Education" },
-    { key: "academic_session", value: "2024-2028" },
-    { key: "active_semester", value: "Fall 2026" },
-    { key: "contact_email", value: "info@gpgcquetta.edu.pk" },
-    { key: "contact_phone", value: "+92 81 9201234" },
-    { key: "address", value: "Zarghoon Road, Quetta, Balochistan, Pakistan" }
+  // System Settings
+  const settingsData = [
+    { key: "SITE_NAME", value: "CHTE Balochistan Higher Education Platform" },
+    { key: "ACADEMIC_SESSIONS", value: JSON.stringify(["2022-2026", "2023-2027", "2024-2028", "2025-2029", "2024-2026", "2025-2027"]) },
+    { key: "CURRENT_SESSION", value: "2024-2028" },
+    { key: "GRADING_SYSTEM", value: "HEC_4_POINT" },
   ];
-  await prisma.systemSetting.createMany({ data: sysSettings, skipDuplicates: true });
-
-  const sessions = [
-    { name: "2024-2028", startDate: new Date("2024-09-01"), endDate: new Date("2028-06-30"), status: "ACTIVE" },
-    { name: "2025-2029", startDate: new Date("2025-09-01"), endDate: new Date("2029-06-30"), status: "ACTIVE" },
-    { name: "2026-2030", startDate: new Date("2026-09-01"), endDate: new Date("2030-06-30"), status: "ACTIVE" },
-    { name: "2023-2027", startDate: new Date("2023-09-01"), endDate: new Date("2027-06-30"), status: "ACTIVE" },
-    { name: "2022-2026", startDate: new Date("2022-09-01"), endDate: new Date("2026-06-30"), status: "ACTIVE" },
-    { name: "2024-2026", startDate: new Date("2024-09-01"), endDate: new Date("2026-06-30"), status: "ACTIVE" },
-    { name: "2025-2027", startDate: new Date("2025-09-01"), endDate: new Date("2027-06-30"), status: "ACTIVE" },
-    { name: "2026-2028", startDate: new Date("2026-09-01"), endDate: new Date("2028-06-30"), status: "ACTIVE" }
-  ];
-  await prisma.academicSession.createMany({ data: sessions, skipDuplicates: true });
-
-  // ─── 3. DEPARTMENTS ──────────────────────────────────────────────────────
-  console.log("🏛️ Creating Departments...");
-  
-  const deptsData = [
-    { code: "CS", name: "Department of Computer Science", hodName: "Dr. Muhammad Usman" },
-    { code: "ENG", name: "Department of English", hodName: "Dr. Sara Khan" },
-    { code: "ECO", name: "Department of Economics", hodName: "Dr. Tariq Mansoor" },
-    { code: "MATH", name: "Department of Mathematics", hodName: "Dr. Imran Qureshi" },
-    { code: "PHY", name: "Department of Physics", hodName: "Prof. Shahida Kakar" },
-    { code: "CHEM", name: "Department of Chemistry", hodName: "Dr. Abdul Rehman" },
-    { code: "INTER", name: "Department of Intermediate Studies", hodName: "Prof. Aslam Lehri" },
-  ];
-
-  const depts: Record<string, any> = {};
-  for (const d of deptsData) {
-    depts[d.code] = await prisma.department.create({ data: { ...d, collegeId: gpgcqCollege.id } });
-  }
-
-  // ─── 4. PROGRAMS & GROUPS & SUBJECTS ─────────────────────────────────────
-  console.log("🎓 Creating Programs, Groups, and Intermediate Subjects...");
-  
-  const programsData = [
-    { code: "BSCS", name: "BS Computer Science", educationLevel: "BS", departmentId: depts["CS"].id, collegeId: gpgcqCollege.id },
-    { code: "BSENG", name: "BS English", educationLevel: "BS", departmentId: depts["ENG"].id, collegeId: gpgcqCollege.id },
-    { code: "BSECO", name: "BS Economics", educationLevel: "BS", departmentId: depts["ECO"].id, collegeId: gpgcqCollege.id },
-    { code: "BSMATH", name: "BS Mathematics", educationLevel: "BS", departmentId: depts["MATH"].id, collegeId: gpgcqCollege.id },
-    { code: "BSPHY", name: "BS Physics", educationLevel: "BS", departmentId: depts["PHY"].id, collegeId: gpgcqCollege.id },
-    { code: "FSC-ENG", name: "F.Sc Pre-Engineering", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id, collegeId: gpgcqCollege.id },
-    { code: "FSC-MED", name: "F.Sc Pre-Medical", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id, collegeId: gpgcqCollege.id },
-    { code: "FA", name: "F.A Humanities", educationLevel: "INTERMEDIATE", departmentId: depts["INTER"].id, collegeId: gpgcqCollege.id }
-  ];
-
-  const progs: Record<string, any> = {};
-  for (const p of programsData) {
-    progs[p.code] = await prisma.program.create({ data: p });
-  }
-
-  // Groups
-  const preEngGroup = await prisma.group.create({
-    data: { name: "Pre-Engineering", programId: progs["FSC-ENG"].id }
-  });
-  const preMedGroup = await prisma.group.create({
-    data: { name: "Pre-Medical", programId: progs["FSC-MED"].id }
-  });
-  const faGroup = await prisma.group.create({
-    data: { name: "Humanities & Social Sciences", programId: progs["FA"].id }
-  });
-
-  // Subjects
-  const subjectsData = [
-    { name: "Mathematics", code: "MATH-11", groupId: preEngGroup.id },
-    { name: "Physics", code: "PHY-11", groupId: preEngGroup.id },
-    { name: "Chemistry", code: "CHEM-11", groupId: preEngGroup.id },
-    { name: "English Compulsory", code: "ENG-11", groupId: preEngGroup.id },
-    { name: "Biology", code: "BIO-11", groupId: preMedGroup.id },
-    { name: "Physics", code: "PHY-MED-11", groupId: preMedGroup.id },
-    { name: "Chemistry", code: "CHEM-MED-11", groupId: preMedGroup.id },
-    { name: "Civics", code: "CIV-11", groupId: faGroup.id },
-    { name: "Islamic Studies (Elective)", code: "ISL-E-11", groupId: faGroup.id },
-    { name: "History of Pakistan", code: "HIS-11", groupId: faGroup.id }
-  ];
-  for (const s of subjectsData) {
-    await prisma.subject.create({ data: s });
-  }
-
-  // Class Sections
-  const sectionBS1 = await prisma.classSection.create({ data: { name: "Section BS-A", programId: progs["BSCS"].id } });
-  const sectionBS2 = await prisma.classSection.create({ data: { name: "Section BS-B", programId: progs["BSCS"].id } });
-  const sectionMed1 = await prisma.classSection.create({ data: { name: "Pre-Med 1", programId: progs["FSC-MED"].id, groupId: preMedGroup.id } });
-  const sectionEng1 = await prisma.classSection.create({ data: { name: "Pre-Eng 1", programId: progs["FSC-ENG"].id, groupId: preEngGroup.id } });
-
-  // ─── 5. FACULTY MEMBERS ──────────────────────────────────────────────────
-  console.log("👨‍🏫 Creating Faculty Members...");
-  
-  const facultyData = [
-    { name: "Dr. Muhammad Usman", email: "usman.cs@college.edu", dept: "CS", desig: "Professor", qual: "Ph.D Computer Science (UET)", phone: "0333-7890101", level: "BS" },
-    { name: "Dr. Sara Khan", email: "sara.eng@college.edu", dept: "ENG", desig: "Professor", qual: "Ph.D English Literature (NUML)", phone: "0333-7890102", level: "BS" },
-    { name: "Dr. Tariq Mansoor", email: "tariq.eco@college.edu", dept: "ECO", desig: "Associate Professor", qual: "Ph.D Economics (QAU)", phone: "0333-7890103", level: "BS" },
-    { name: "Dr. Imran Qureshi", email: "imran.math@college.edu", dept: "MATH", desig: "Associate Professor", qual: "Ph.D Mathematics (UOB)", phone: "0333-7890104", level: "BS" },
-    { name: "Prof. Shahida Kakar", email: "shahida.phy@college.edu", dept: "PHY", desig: "Associate Professor", qual: "M.Phil Physics (UOB)", phone: "0333-7890105", level: "BS" },
-    { name: "Dr. Abdul Rehman", email: "rehman.chem@college.edu", dept: "CHEM", desig: "Professor", qual: "Ph.D Organic Chemistry (HEJ)", phone: "0333-7890106", level: "BS" },
-    { name: "Prof. Aslam Lehri", email: "aslam.inter@college.edu", dept: "INTER", desig: "Assistant Professor", qual: "MS Education & Math", phone: "0333-7890107", level: "INTERMEDIATE" },
-    { name: "Dr. Bilal Ahmed", email: "bilal.cs@college.edu", dept: "CS", desig: "Assistant Professor", qual: "Ph.D Data Science (LUMS)", phone: "0333-7890108", level: "BS" },
-    { name: "Ms. Fatima Mengal", email: "fatima.cs@college.edu", dept: "CS", desig: "Lecturer", qual: "MS Software Engineering", phone: "0333-7890109", level: "BS" },
-    { name: "Mr. Hamza Ali", email: "hamza.phy@college.edu", dept: "PHY", desig: "Lecturer", qual: "M.Sc Electronics", phone: "0333-7890110", level: "BS" },
-    { name: "Ms. Zainab Kasi", email: "zainab.eng@college.edu", dept: "ENG", desig: "Lecturer", qual: "M.Phil Applied Linguistics", phone: "0333-7890111", level: "BS" },
-    { name: "Mr. Kamran Bugti", email: "kamran.chem@college.edu", dept: "CHEM", desig: "Lecturer", qual: "M.Sc Inorganic Chemistry", phone: "0333-7890112", level: "BS" },
-  ];
-
-  const facultyList: any[] = [];
-  for (const f of facultyData) {
-    const user = await prisma.user.create({
+  for (const s of settingsData) {
+    await prisma.systemSetting.create({
       data: {
-        email: f.email,
-        name: f.name,
-        password: hashedFacultyPw,
-        role: f.level === "INTERMEDIATE" ? "INTER_FACULTY" : "BS_FACULTY",
-        isActive: true
-      }
-    });
-
-    const fac = await prisma.faculty.create({
-      data: {
-        userId: user.id,
-        fatherName: "Ghulam Nabi",
-        designation: f.desig,
-        qualification: f.qual,
-        contactNumber: f.phone,
-        departmentId: depts[f.dept].id,
-        educationLevel: f.level,
-        isActive: true
-      }
-    });
-    facultyList.push(fac);
-  }
-
-  // ─── 6. COURSES & DETAILED SYLLABI (Semesters 1-8 for BSCS, BSENG, BSECO) ─
-  console.log("📚 Creating Complete 8-Semester Courses and Syllabi...");
-  
-  const bscsCoursesConfig = [
-    // Sem 1
-    { title: "Programming Fundamentals", code: "CS-101", ch: 4, chf: "4(3-1)", th: 3, lh: 1, type: "THEORY_LAB", sem: 1, fac: facultyList[0] },
-    { title: "Calculus & Analytical Geometry", code: "MATH-101", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 1, fac: facultyList[3] },
-    { title: "Functional English", code: "ENG-101", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 1, fac: facultyList[1] },
-    { title: "Applied Physics", code: "PHY-101", ch: 3, chf: "3(2-1)", th: 2, lh: 1, type: "THEORY_LAB", sem: 1, fac: facultyList[4] },
-    { title: "Islamic Studies / Ethics", code: "ISL-101", ch: 2, chf: "2(2-0)", th: 2, lh: 0, type: "THEORY", sem: 1, fac: facultyList[10] },
-
-    // Sem 2
-    { title: "Object Oriented Programming", code: "CS-102", ch: 4, chf: "4(3-1)", th: 3, lh: 1, type: "THEORY_LAB", sem: 2, fac: facultyList[7] },
-    { title: "Discrete Structures", code: "CS-103", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 2, fac: facultyList[8] },
-    { title: "Linear Algebra", code: "MATH-102", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 2, fac: facultyList[3] },
-    { title: "Communication Skills", code: "ENG-102", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 2, fac: facultyList[10] },
-    { title: "Pakistan Studies", code: "PS-101", ch: 2, chf: "2(2-0)", th: 2, lh: 0, type: "THEORY", sem: 2, fac: facultyList[1] },
-
-    // Sem 3
-    { title: "Data Structures & Algorithms", code: "CS-201", ch: 4, chf: "4(3-1)", th: 3, lh: 1, type: "THEORY_LAB", sem: 3, fac: facultyList[0] },
-    { title: "Digital Logic Design", code: "CS-202", ch: 3, chf: "3(2-1)", th: 2, lh: 1, type: "THEORY_LAB", sem: 3, fac: facultyList[9] },
-    { title: "Database Systems", code: "CS-203", ch: 4, chf: "4(3-1)", th: 3, lh: 1, type: "THEORY_LAB", sem: 3, fac: facultyList[8] },
-    { title: "Differential Equations", code: "MATH-201", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 3, fac: facultyList[3] },
-    { title: "Quantitative Reasoning", code: "QR-201", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 3, fac: facultyList[2] },
-
-    // Sem 4
-    { title: "Operating Systems", code: "CS-204", ch: 4, chf: "4(3-1)", th: 3, lh: 1, type: "THEORY_LAB", sem: 4, fac: facultyList[7] },
-    { title: "Computer Networks", code: "CS-205", ch: 4, chf: "4(3-1)", th: 3, lh: 1, type: "THEORY_LAB", sem: 4, fac: facultyList[0] },
-    { title: "Design & Analysis of Algorithms", code: "CS-206", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 4, fac: facultyList[7] },
-    { title: "Probability & Statistics", code: "STAT-201", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 4, fac: facultyList[3] },
-    { title: "Environmental Science", code: "ENV-201", ch: 2, chf: "2(2-0)", th: 2, lh: 0, type: "THEORY", sem: 4, fac: facultyList[5] },
-
-    // Sem 5
-    { title: "Software Engineering", code: "CS-301", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 5, fac: facultyList[8] },
-    { title: "Theory of Automata", code: "CS-302", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 5, fac: facultyList[0] },
-    { title: "Computer Architecture", code: "CS-303", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 5, fac: facultyList[9] },
-    { title: "Web Technologies", code: "CS-304", ch: 3, chf: "3(2-1)", th: 2, lh: 1, type: "THEORY_LAB", sem: 5, fac: facultyList[7] },
-    { title: "Entrepreneurship & Innovation", code: "ENT-301", ch: 2, chf: "2(2-0)", th: 2, lh: 0, type: "THEORY", sem: 5, fac: facultyList[2] },
-
-    // Sem 6
-    { title: "Artificial Intelligence", code: "CS-305", ch: 4, chf: "4(3-1)", th: 3, lh: 1, type: "THEORY_LAB", sem: 6, fac: facultyList[7] },
-    { title: "Information Security", code: "CS-306", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 6, fac: facultyList[0] },
-    { title: "Mobile Application Development", code: "CS-307", ch: 3, chf: "3(2-1)", th: 2, lh: 1, type: "THEORY_LAB", sem: 6, fac: facultyList[8] },
-    { title: "Cloud Computing", code: "CS-308", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 6, fac: facultyList[7] },
-    { title: "Research Methodology", code: "RM-301", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 6, fac: facultyList[1] },
-
-    // Sem 7
-    { title: "Compiler Construction", code: "CS-401", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 7, fac: facultyList[0] },
-    { title: "Machine Learning", code: "CS-402", ch: 3, chf: "3(2-1)", th: 2, lh: 1, type: "THEORY_LAB", sem: 7, fac: facultyList[7] },
-    { title: "Distributed Computing", code: "CS-403", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 7, fac: facultyList[8] },
-    { title: "Final Year Capstone Project I", code: "CS-499", ch: 3, chf: "3(0-3)", th: 0, lh: 3, type: "PRACTICAL", sem: 7, fac: facultyList[0] },
-
-    // Sem 8
-    { title: "Big Data Analytics", code: "CS-404", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 8, fac: facultyList[7] },
-    { title: "Cyber Security Operations", code: "CS-405", ch: 3, chf: "3(3-0)", th: 3, lh: 0, type: "THEORY", sem: 8, fac: facultyList[0] },
-    { title: "Final Year Capstone Project II", code: "CS-500", ch: 3, chf: "3(0-3)", th: 0, lh: 3, type: "PRACTICAL", sem: 8, fac: facultyList[0] },
-    { title: "Professional Internship", code: "INT-401", ch: 3, chf: "3(0-3)", th: 0, lh: 3, type: "PRACTICAL", sem: 8, fac: facultyList[8] },
-  ];
-
-  const allCreatedCourses: Record<string, any[]> = { BSCS: [] };
-
-  for (let idx = 0; idx < bscsCoursesConfig.length; idx++) {
-    const c = bscsCoursesConfig[idx];
-    const syllabusObj = {
-      description: `Comprehensive official syllabus for ${c.title} (${c.code}) aligned with Higher Education Commission (HEC) curriculum framework.`,
-      clos: [
-        `CLO 1: Understand fundamental concepts and theoretical foundations of ${c.title}.`,
-        `CLO 2: Apply analytical and practical problem solving techniques in real-world scenarios.`,
-        `CLO 3: Evaluate and design scalable systems according to industry best practices.`
-      ],
-      outlines: [
-        { week: 1, topic: "Introduction, scope, course objectives and evaluation scheme" },
-        { week: 2, topic: "Core foundational principles and basic architectures" },
-        { week: 3, topic: "Practical implementation paradigms and design structures" },
-        { week: 4, topic: "Algorithm modeling and structural analysis" },
-        { week: 8, topic: "Midterm Assessment and case study review" },
-        { week: 12, topic: "Advanced techniques, integration, and security concepts" },
-        { week: 16, topic: "Final project presentations, reviews and conclusion" }
-      ],
-      assessment: {
-        assignments: 15,
-        quizzes: 10,
-        midterm: 25,
-        finalExam: 40,
-        labWork: c.lh > 0 ? 10 : 0
+        key: s.key,
+        value: s.value,
+        isActive: true,
       },
-      textbooks: [
-        `Standard Reference Book for ${c.title}, 5th Edition, Pearson/McGraw-Hill.`,
-        `HEC Curriculum Guidelines for Computer Science & Information Technology.`
-      ]
-    };
-
-    const course = await prisma.course.create({
-      data: {
-        title: c.title,
-        code: c.code,
-        creditHours: c.ch,
-        creditHoursFormat: c.chf,
-        theoryHours: c.th,
-        labHours: c.lh,
-        courseType: c.type,
-        session: "2024-2028",
-        semester: c.sem,
-        programId: progs["BSCS"].id,
-        departmentId: depts["CS"].id,
-        facultyId: c.fac.id,
-        syllabusOrder: idx + 1,
-        syllabusJson: JSON.stringify(syllabusObj),
-        isActive: true
-      }
     });
-
-    await prisma.syllabusVersion.create({
-      data: {
-        courseId: course.id,
-        version: 1,
-        contentJson: JSON.stringify(syllabusObj),
-        isArchived: false,
-        isActive: true
-      }
-    });
-
-    allCreatedCourses.BSCS.push(course);
   }
 
-  // Also create English, Economics and Physics courses for multi-program testing
-  const otherProgramsConfig = [
-    { progCode: "BSENG", deptCode: "ENG", prefix: "ENG", title: "Literature & Linguistics", fac: facultyList[1] },
-    { progCode: "BSECO", deptCode: "ECO", prefix: "ECO", title: "Micro & Macro Economics", fac: facultyList[2] },
-    { progCode: "BSPHY", deptCode: "PHY", prefix: "PHY", title: "Classical & Quantum Physics", fac: facultyList[4] },
-    { progCode: "BSMATH", deptCode: "MATH", prefix: "MTH", title: "Pure & Applied Mathematics", fac: facultyList[3] },
+  // Academic Sessions
+  const validSessions = ["2022-2026", "2023-2027", "2024-2028", "2025-2029", "2024-2026", "2025-2027"];
+  for (const sessName of validSessions) {
+    await prisma.academicSession.create({
+      data: {
+        name: sessName,
+        startDate: new Date(`${sessName.split("-")[0]}-08-15`),
+        endDate: new Date(`${sessName.split("-")[1]}-06-30`),
+        isActive: sessName === "2024-2028",
+      },
+    });
+  }
+
+  // ─── 2. SEED 3 DISTINCT COLLEGES ──────────────────────────────────────────
+  console.log("🏛️ [3/7] Provisioning 3 Distinct Colleges in Balochistan...");
+
+  // College 1: Govt. Post Graduate College Quetta
+  const gpgcq = await prisma.college.create({
+    data: {
+      name: "Govt. Post Graduate College Quetta",
+      code: "GPGCQ",
+      slug: "gpgc-quetta",
+      tagline: "Center of Academic Excellence, Quality Research & Leadership",
+      district: "Quetta",
+      division: "Quetta Division",
+      address: "Zarghoon Road, Quetta, Balochistan",
+      contactEmail: "info@gpgcquetta.edu.pk",
+      contactPhone: "+92 81 9201234",
+      principalName: "Prof. Dr. Zahid Mengal",
+      bankName: "Habib Bank Limited (HBL)",
+      bankAccount: "0873-0001324203",
+      branchCode: "0873",
+      accountTitle: "Principal Govt Post Graduate College Quetta",
+      isActive: true,
+    },
+  });
+
+  // College 2: Govt. Science College Quetta
+  const gscq = await prisma.college.create({
+    data: {
+      name: "Govt. Science College Quetta",
+      code: "GSCQ",
+      slug: "gsc-quetta",
+      tagline: "Inspiring Scientific Discovery, Natural Research & Innovation",
+      district: "Quetta",
+      division: "Quetta Division",
+      address: "Jinnah Road, Quetta, Balochistan",
+      contactEmail: "info@gscq.edu.pk",
+      contactPhone: "+92 81 9205555",
+      principalName: "Prof. Dr. Tariq Baloch",
+      bankName: "National Bank of Pakistan (NBP)",
+      bankAccount: "0182-0045892101",
+      branchCode: "0182",
+      accountTitle: "Principal Govt Science College Quetta",
+      isActive: true,
+    },
+  });
+
+  // College 3: Govt. Degree College Mastung
+  const gdcm = await prisma.college.create({
+    data: {
+      name: "Govt. Degree College Mastung",
+      code: "GDCM",
+      slug: "gdc-mastung",
+      tagline: "Empowering Rural Youth with Higher Education & Professional Skills",
+      district: "Mastung",
+      division: "Kalat Division",
+      address: "RCD Highway, Mastung, Balochistan",
+      contactEmail: "info@gdcm.edu.pk",
+      contactPhone: "+92 843 891230",
+      principalName: "Prof. Abdul Ghaffar Sarparah",
+      bankName: "National Bank of Pakistan (NBP)",
+      bankAccount: "0491-0021345678",
+      branchCode: "0491",
+      accountTitle: "Principal Govt Degree College Mastung",
+      isActive: true,
+    },
+  });
+
+  console.log(`✓ Created colleges: [${gpgcq.code}], [${gscq.code}], [${gdcm.code}]`);
+
+  // ─── 3. COLLEGE STAFF USERS ───────────────────────────────────────────────
+  console.log("👥 [4/7] Creating Dedicated Administrative & Governance Users...");
+
+  // GPGCQ Staff
+  await prisma.user.create({
+    data: { email: "admin@college.edu", name: "GPGCQ College Admin", password: hashedAdminPw, role: "COLLEGE_ADMIN", collegeId: gpgcq.id, isActive: true },
+  });
+  await prisma.user.create({
+    data: { email: "controller@college.edu", name: "Prof. Tariq Mahmud (BS Controller)", password: hashedDemoPw, role: "BS_CONTROLLER", collegeId: gpgcq.id, isActive: true },
+  });
+  await prisma.user.create({
+    data: { email: "principal@college.edu", name: "Prof. Dr. Zahid Mengal (Principal)", password: hashedDemoPw, role: "PRINCIPAL", collegeId: gpgcq.id, isActive: true },
+  });
+
+  // GSCQ Staff
+  await prisma.user.create({
+    data: { email: "admin@gscq.edu.pk", name: "GSCQ College Admin", password: hashedAdminPw, role: "COLLEGE_ADMIN", collegeId: gscq.id, isActive: true },
+  });
+  await prisma.user.create({
+    data: { email: "controller@gscq.edu.pk", name: "Dr. Qasim Khan (BS Controller)", password: hashedDemoPw, role: "BS_CONTROLLER", collegeId: gscq.id, isActive: true },
+  });
+  await prisma.user.create({
+    data: { email: "principal@gscq.edu.pk", name: "Prof. Dr. Tariq Baloch (Principal)", password: hashedDemoPw, role: "PRINCIPAL", collegeId: gscq.id, isActive: true },
+  });
+
+  // GDCM Staff
+  await prisma.user.create({
+    data: { email: "admin@gdcm.edu.pk", name: "GDCM College Admin", password: hashedAdminPw, role: "COLLEGE_ADMIN", collegeId: gdcm.id, isActive: true },
+  });
+  await prisma.user.create({
+    data: { email: "principal@gdcm.edu.pk", name: "Prof. Abdul Ghaffar Sarparah (Principal)", password: hashedDemoPw, role: "PRINCIPAL", collegeId: gdcm.id, isActive: true },
+  });
+
+  // ─── 4. DEPARTMENTS & FACULTY PER COLLEGE ─────────────────────────────────
+  console.log("📚 [5/7] Creating Departments, Faculty & Academic Programs...");
+
+  interface CollegeSetupConfig {
+    college: any;
+    depts: { code: string; name: string; hod: string }[];
+    programs: { code: string; name: string; level: string; deptCode: string }[];
+    faculty: { name: string; email: string; desig: string; qual: string; phone: string; deptCode: string; level: string }[];
+    curriculum: { progCode: string; deptCode: string; courses: { title: string; code: string; sem: number; ch: number; desc: string }[] }[];
+  }
+
+  const collegeConfigs: CollegeSetupConfig[] = [
+    // 1. GPGCQ
+    {
+      college: gpgcq,
+      depts: [
+        { code: "GPGCQ-CS", name: "Department of Computer Science & IT", hod: "Dr. Muhammad Usman" },
+        { code: "GPGCQ-ENG", name: "Department of English Literature & Linguistics", hod: "Dr. Ayesha Mengal" },
+        { code: "GPGCQ-ECO", name: "Department of Economics & Finance", hod: "Prof. Tariq Mahmud" },
+        { code: "GPGCQ-MATH", name: "Department of Mathematics & Statistics", hod: "Dr. Aslam Lehri" },
+        { code: "GPGCQ-INTER", name: "Department of Intermediate Sciences", hod: "Prof. Nisar Ahmed" },
+      ],
+      programs: [
+        { code: "GPGCQ-BSCS", name: "BS Computer Science", level: "BS", deptCode: "GPGCQ-CS" },
+        { code: "GPGCQ-BSENG", name: "BS English Literature", level: "BS", deptCode: "GPGCQ-ENG" },
+        { code: "GPGCQ-BSECO", name: "BS Economics", level: "BS", deptCode: "GPGCQ-ECO" },
+        { code: "GPGCQ-BSMATH", name: "BS Mathematics", level: "BS", deptCode: "GPGCQ-MATH" },
+        { code: "GPGCQ-FSC-ENG", name: "F.Sc Pre-Engineering", level: "INTERMEDIATE", deptCode: "GPGCQ-INTER" },
+        { code: "GPGCQ-FA", name: "F.A General Arts", level: "INTERMEDIATE", deptCode: "GPGCQ-INTER" },
+      ],
+      faculty: [
+        { name: "Dr. Muhammad Usman", email: "usman.cs@college.edu", desig: "Professor", qual: "Ph.D Computer Science (FAST)", phone: "0300-8381234", deptCode: "GPGCQ-CS", level: "BS" },
+        { name: "Prof. Shahida Kakar", email: "shahida.cs@college.edu", desig: "Associate Professor", qual: "MS Computer Science (UoB)", phone: "0333-7891234", deptCode: "GPGCQ-CS", level: "BS" },
+        { name: "Engr. Farooq Lehri", email: "farooq.cs@college.edu", desig: "Assistant Professor", qual: "MS Software Eng (BUITEMS)", phone: "0345-8901234", deptCode: "GPGCQ-CS", level: "BS" },
+        { name: "Ms. Mahnoor Bugti", email: "mahnoor.cs@college.edu", desig: "Lecturer", qual: "BS Computer Science (GPGCQ)", phone: "0312-3456789", deptCode: "GPGCQ-CS", level: "BS" },
+        { name: "Dr. Ayesha Mengal", email: "ayesha.eng@college.edu", desig: "Associate Professor", qual: "Ph.D English Literature (NUML)", phone: "0301-2345678", deptCode: "GPGCQ-ENG", level: "BS" },
+        { name: "Mr. Dawood Raisani", email: "dawood.eng@college.edu", desig: "Lecturer", qual: "M.Phil Applied Linguistics", phone: "0334-5678901", deptCode: "GPGCQ-ENG", level: "BS" },
+        { name: "Prof. Tariq Mahmud", email: "tariq.eco@college.edu", desig: "Professor", qual: "Ph.D Economics (QAU)", phone: "0321-4567890", deptCode: "GPGCQ-ECO", level: "BS" },
+        { name: "Ms. Fatima Zehri", email: "fatima.eco@college.edu", desig: "Lecturer", qual: "M.Phil Economics", phone: "0313-9876543", deptCode: "GPGCQ-ECO", level: "BS" },
+        { name: "Dr. Aslam Lehri", email: "aslam.math@college.edu", desig: "Associate Professor", qual: "Ph.D Applied Mathematics", phone: "0300-5544332", deptCode: "GPGCQ-MATH", level: "BS" },
+        { name: "Prof. Nisar Ahmed", email: "nisar.inter@college.edu", desig: "Assistant Professor", qual: "M.Sc Physics", phone: "0333-1122334", deptCode: "GPGCQ-INTER", level: "INTERMEDIATE" },
+      ],
+      curriculum: [
+        {
+          progCode: "GPGCQ-BSCS",
+          deptCode: "GPGCQ-CS",
+          courses: [
+            { sem: 1, code: "CS101", title: "Programming Fundamentals (C++)", ch: 4, desc: "Syntax, logic building, functions, arrays, pointers." },
+            { sem: 1, code: "ENG101", title: "Functional English", ch: 3, desc: "Reading comprehension, technical writing, grammar." },
+            { sem: 2, code: "CS102", title: "Object Oriented Programming (OOP)", ch: 4, desc: "Classes, inheritance, polymorphism, templates in C++." },
+            { sem: 2, code: "MTH102", title: "Discrete Mathematics", ch: 3, desc: "Sets, graphs, trees, combinatorics, proof techniques." },
+            { sem: 3, code: "CS201", title: "Data Structures & Algorithms", ch: 4, desc: "Stacks, queues, linked lists, binary trees, sorting." },
+            { sem: 3, code: "CS202", title: "Computer Organization & Assembly", ch: 3, desc: "Microprocessors, x86 assembly, registers, memory." },
+            { sem: 4, code: "CS203", title: "Database Systems", ch: 4, desc: "ER modeling, relational algebra, SQL, normalization, ACID." },
+            { sem: 4, code: "CS204", title: "Operating Systems", ch: 3, desc: "Processes, threads, CPU scheduling, virtual memory, deadlocks." },
+            { sem: 5, code: "CS301", title: "Computer Communication & Networks", ch: 4, desc: "OSI model, TCP/IP, IP subnetting, socket programming." },
+            { sem: 5, code: "CS302", title: "Web Technologies & Full-Stack", ch: 3, desc: "HTML5, CSS3, modern JavaScript, Node.js, Next.js, REST APIs." },
+            { sem: 6, code: "CS303", title: "Theory of Automata & Computation", ch: 3, desc: "Regular languages, DFA/NFA, context-free grammars, Turing machines." },
+            { sem: 6, code: "CS304", title: "Software Engineering & Architecture", ch: 3, desc: "SDLC, agile scrum, design patterns, UML modeling." },
+            { sem: 7, code: "CS401", title: "Artificial Intelligence & Expert Systems", ch: 4, desc: "Search algorithms, heuristic search, neural networks, prolog." },
+            { sem: 7, code: "CS402", title: "Final Year Capstone Project - Part I", ch: 3, desc: "Problem statement, requirement specification, system design." },
+            { sem: 8, code: "CS403", title: "Cloud Computing & Distributed Systems", ch: 3, desc: "Virtualization, AWS, Docker, Kubernetes, microservices." },
+            { sem: 8, code: "CS404", title: "Final Year Capstone Project - Part II", ch: 3, desc: "Implementation, testing, final defense and viva-voce." },
+          ],
+        },
+      ],
+    },
+
+    // 2. GSCQ
+    {
+      college: gscq,
+      depts: [
+        { code: "GSCQ-PHY", name: "Department of Physics", hod: "Dr. Qasim Khan" },
+        { code: "GSCQ-CHEM", name: "Department of Chemistry", hod: "Dr. Shabana Baloch" },
+        { code: "GSCQ-ZOO", name: "Department of Zoology", hod: "Dr. Munir Ahmed" },
+        { code: "GSCQ-IT", name: "Department of Information Technology", hod: "Engr. Faraz Ahmed" },
+        { code: "GSCQ-MED", name: "Department of Pre-Medical Sciences", hod: "Dr. Nisar Lehri" },
+      ],
+      programs: [
+        { code: "GSCQ-BSPHY", name: "BS Physics", level: "BS", deptCode: "GSCQ-PHY" },
+        { code: "GSCQ-BSCHEM", name: "BS Chemistry", level: "BS", deptCode: "GSCQ-CHEM" },
+        { code: "GSCQ-BSZOO", name: "BS Zoology", level: "BS", deptCode: "GSCQ-ZOO" },
+        { code: "GSCQ-BSIT", name: "BS Information Technology", level: "BS", deptCode: "GSCQ-IT" },
+        { code: "GSCQ-FSC-MED", name: "F.Sc Pre-Medical", level: "INTERMEDIATE", deptCode: "GSCQ-MED" },
+      ],
+      faculty: [
+        { name: "Dr. Qasim Khan", email: "qasim.phy@gscq.edu.pk", desig: "Professor", qual: "Ph.D Nuclear Physics (QAU)", phone: "0300-9281234", deptCode: "GSCQ-PHY", level: "BS" },
+        { name: "Mr. Zubair Raisani", email: "zubair.phy@gscq.edu.pk", desig: "Lecturer", qual: "M.Phil Physics", phone: "0333-8899001", deptCode: "GSCQ-PHY", level: "BS" },
+        { name: "Dr. Shabana Baloch", email: "shabana.chem@gscq.edu.pk", desig: "Associate Professor", qual: "Ph.D Organic Chemistry (HEJ)", phone: "0345-7788990", deptCode: "GSCQ-CHEM", level: "BS" },
+        { name: "Ms. Sadia Tareen", email: "sadia.chem@gscq.edu.pk", desig: "Lecturer", qual: "M.Sc Analytical Chemistry", phone: "0313-6655443", deptCode: "GSCQ-CHEM", level: "BS" },
+        { name: "Dr. Munir Ahmed", email: "munir.zoo@gscq.edu.pk", desig: "Professor", qual: "Ph.D Zoology & Marine Biology", phone: "0301-3322114", deptCode: "GSCQ-ZOO", level: "BS" },
+        { name: "Ms. Hina Marri", email: "hina.bot@gscq.edu.pk", desig: "Lecturer", qual: "M.Phil Plant Genetics", phone: "0334-1122339", deptCode: "GSCQ-ZOO", level: "BS" },
+        { name: "Engr. Faraz Ahmed", email: "faraz.it@gscq.edu.pk", desig: "Assistant Professor", qual: "MS Information Technology", phone: "0321-9988776", deptCode: "GSCQ-IT", level: "BS" },
+        { name: "Mr. Bilal Bangulzai", email: "bilal.it@gscq.edu.pk", desig: "Lecturer", qual: "BS Information Technology", phone: "0315-5544332", deptCode: "GSCQ-IT", level: "BS" },
+        { name: "Dr. Nisar Lehri", email: "nisar.med@gscq.edu.pk", desig: "Associate Professor", qual: "MBBS, M.Phil Pharmacology", phone: "0300-1199228", deptCode: "GSCQ-MED", level: "INTERMEDIATE" },
+        { name: "Mr. Bashir Jamali", email: "bashir.med@gscq.edu.pk", desig: "Lecturer", qual: "M.Sc Biology & Physiology", phone: "0333-2288337", deptCode: "GSCQ-MED", level: "INTERMEDIATE" },
+      ],
+      curriculum: [
+        {
+          progCode: "GSCQ-BSPHY",
+          deptCode: "GSCQ-PHY",
+          courses: [
+            { sem: 1, code: "PHY101", title: "Mechanics & Wave Motion", ch: 4, desc: "Newtonian mechanics, harmonic motion, wave equations." },
+            { sem: 2, code: "PHY102", title: "Electricity & Magnetism", ch: 4, desc: "Gauss's law, Maxwell equations, magnetic induction." },
+            { sem: 3, code: "PHY201", title: "Thermodynamics & Statistical Physics", ch: 3, desc: "Laws of thermodynamics, entropy, partition functions." },
+            { sem: 4, code: "PHY202", title: "Electronics & Circuit Theory", ch: 4, desc: "Semiconductors, diodes, operational amplifiers, logic gates." },
+            { sem: 5, code: "PHY301", title: "Quantum Mechanics - I", ch: 3, desc: "Schrodinger wave equation, wave packets, quantum wells." },
+            { sem: 6, code: "PHY302", title: "Solid State Physics", ch: 3, desc: "Crystal lattices, X-ray diffraction, superconductivity." },
+            { sem: 7, code: "PHY401", title: "Nuclear & Particle Physics", ch: 3, desc: "Radioactive decay, nuclear reactors, standard model." },
+            { sem: 8, code: "PHY402", title: "Research Thesis & Final Project", ch: 4, desc: "Experimental physics laboratory research and dissertation." },
+          ],
+        },
+      ],
+    },
+
+    // 3. GDCM
+    {
+      college: gdcm,
+      depts: [
+        { code: "GDCM-POL", name: "Department of Political Science & IR", hod: "Prof. Abdul Ghaffar Sarparah" },
+        { code: "GDCM-COM", name: "Department of Commerce & Finance", hod: "Dr. Jahangir Shah" },
+        { code: "GDCM-ISL", name: "Department of Islamic Studies & History", hod: "Dr. Abdul Samad" },
+        { code: "GDCM-CA", name: "Department of Computer Applications", hod: "Ms. Yasmin Mengal" },
+      ],
+      programs: [
+        { code: "GDCM-BSPOL", name: "BS Political Science", level: "BS", deptCode: "GDCM-POL" },
+        { code: "GDCM-BSCOM", name: "BS Commerce (B.Com Hons)", level: "BS", deptCode: "GDCM-COM" },
+        { code: "GDCM-BSISL", name: "BS Islamic Studies", level: "BS", deptCode: "GDCM-ISL" },
+        { code: "GDCM-ICOM", name: "I.Com (Intermediate in Commerce)", level: "INTERMEDIATE", deptCode: "GDCM-COM" },
+      ],
+      faculty: [
+        { name: "Prof. Abdul Ghaffar Sarparah", email: "ghaffar.pol@gdcm.edu.pk", desig: "Professor", qual: "M.Phil Political Science", phone: "0300-3456781", deptCode: "GDCM-POL", level: "BS" },
+        { name: "Mr. Kamran Dehwar", email: "kamran.pol@gdcm.edu.pk", desig: "Lecturer", qual: "MA Political Science", phone: "0333-9876541", deptCode: "GDCM-POL", level: "BS" },
+        { name: "Dr. Jahangir Shah", email: "jahangir.com@gdcm.edu.pk", desig: "Associate Professor", qual: "Ph.D Commerce & Banking", phone: "0345-2345671", deptCode: "GDCM-COM", level: "BS" },
+        { name: "Mr. Shakeel Ahmed", email: "shakeel.com@gdcm.edu.pk", desig: "Lecturer", qual: "M.Com Accounting", phone: "0313-1234561", deptCode: "GDCM-COM", level: "BS" },
+        { name: "Dr. Abdul Samad", email: "samad.isl@gdcm.edu.pk", desig: "Associate Professor", qual: "Ph.D Islamic Studies (IIUI)", phone: "0301-8765431", deptCode: "GDCM-ISL", level: "BS" },
+        { name: "Hafiz Noorullah", email: "noorullah.isl@gdcm.edu.pk", desig: "Lecturer", qual: "MA Islamic Studies & Arabic", phone: "0334-7654321", deptCode: "GDCM-ISL", level: "BS" },
+        { name: "Ms. Yasmin Mengal", email: "yasmin.ca@gdcm.edu.pk", desig: "Assistant Professor", qual: "MS Computer Science", phone: "0321-6543211", deptCode: "GDCM-CA", level: "BS" },
+        { name: "Mr. Naveed Kurd", email: "naveed.ca@gdcm.edu.pk", desig: "Lecturer", qual: "BS Information Technology", phone: "0315-5432101", deptCode: "GDCM-CA", level: "BS" },
+      ],
+      curriculum: [
+        {
+          progCode: "GDCM-BSPOL",
+          deptCode: "GDCM-POL",
+          courses: [
+            { sem: 1, code: "POL101", title: "Introduction to Political Science", ch: 3, desc: "Foundational theories, state models, forms of government." },
+            { sem: 2, code: "POL102", title: "Western Political Philosophy", ch: 3, desc: "Plato, Aristotle, Machiavelli, Hobbes, Locke, Rousseau." },
+            { sem: 3, code: "POL201", title: "Muslim Political Thought", ch: 3, desc: "Al-Farabi, Al-Mawardi, Nizam-ul-Mulk, Ibn Khaldun." },
+            { sem: 4, code: "POL202", title: "International Relations & Diplomacy", ch: 3, desc: "Realism, liberalism, international law, UN governance." },
+            { sem: 5, code: "POL301", title: "Constitutional Development in Pakistan", ch: 3, desc: "1956, 1962, 1973 constitutions and constitutional amendments." },
+            { sem: 6, code: "POL302", title: "Comparative Politics & Governance", ch: 3, desc: "Political systems of UK, USA, China, and France." },
+            { sem: 7, code: "POL401", title: "Foreign Policy of Major Powers", ch: 3, desc: "Geopolitics, South Asia security dynamics, CPEC." },
+            { sem: 8, code: "POL402", title: "Research Monograph & Seminar", ch: 4, desc: "Balochistan political developments and policy thesis." },
+          ],
+        },
+      ],
+    },
   ];
 
-  for (const op of otherProgramsConfig) {
-    allCreatedCourses[op.progCode] = [];
-    for (let sem = 1; sem <= 4; sem++) {
-      for (let cNum = 1; cNum <= 4; cNum++) {
-        const cCode = `${op.prefix}-${sem}0${cNum}`;
-        const cTitle = `${op.title} (Part ${sem}.${cNum})`;
+  const createdDepts: Record<string, any> = {};
+  const createdPrograms: Record<string, any> = {};
+  const createdFaculty: Record<string, any[]> = {};
+  const createdCourses: Record<string, any[]> = {};
+
+  for (const cfg of collegeConfigs) {
+    const col = cfg.college;
+    createdFaculty[col.code] = [];
+    createdCourses[col.code] = [];
+
+    // 1. Departments
+    for (const d of cfg.depts) {
+      createdDepts[d.code] = await prisma.department.create({
+        data: { name: d.name, code: d.code, hodName: d.hod, collegeId: col.id },
+      });
+    }
+
+    // 2. Programs
+    for (const p of cfg.programs) {
+      createdPrograms[p.code] = await prisma.program.create({
+        data: {
+          name: p.name,
+          code: p.code,
+          educationLevel: p.level,
+          departmentId: createdDepts[p.deptCode].id,
+          collegeId: col.id,
+        },
+      });
+    }
+
+    // 3. Faculty
+    for (const f of cfg.faculty) {
+      const user = await prisma.user.create({
+        data: {
+          email: f.email,
+          name: f.name,
+          password: hashedFacultyPw,
+          role: f.level === "BS" ? "BS_FACULTY" : "INTER_FACULTY",
+          collegeId: col.id,
+          isActive: true,
+        },
+      });
+
+      const fac = await prisma.faculty.create({
+        data: {
+          userId: user.id,
+          designation: f.desig,
+          qualification: f.qual,
+          educationLevel: f.level,
+          contactNumber: f.phone,
+          departmentId: createdDepts[f.deptCode].id,
+          collegeId: col.id,
+        },
+      });
+      createdFaculty[col.code].push(fac);
+    }
+
+    // 4. Courses & Syllabi across Semesters 1 to 8
+    for (const curr of cfg.curriculum) {
+      const prog = createdPrograms[curr.progCode];
+      const dept = createdDepts[curr.deptCode];
+      const facList = createdFaculty[col.code];
+
+      for (let i = 0; i < curr.courses.length; i++) {
+        const c = curr.courses[i];
+        const assignedFac = facList[i % facList.length];
+
         const course = await prisma.course.create({
           data: {
-            title: cTitle,
-            code: cCode,
-            creditHours: 3,
-            creditHoursFormat: "3(3-0)",
-            theoryHours: 3,
-            labHours: 0,
-            courseType: "THEORY",
-            session: "2024-2028",
-            semester: sem,
-            programId: progs[op.progCode].id,
-            departmentId: depts[op.deptCode].id,
-            facultyId: op.fac.id,
-            syllabusOrder: cNum,
-            syllabusJson: JSON.stringify({
-              description: `Standard syllabus for ${cTitle}`,
-              clos: ["CLO 1: Foundation knowledge", "CLO 2: Critical analysis"],
-              assessment: { assignments: 20, quizzes: 10, midterm: 30, finalExam: 40 }
-            }),
-            isActive: true
-          }
+            title: c.title,
+            code: `${col.code}-${c.code}`,
+            creditHours: c.ch,
+            semester: c.sem,
+            programId: prog.id,
+            departmentId: dept.id,
+            facultyId: assignedFac.id,
+          },
         });
-        allCreatedCourses[op.progCode].push(course);
+
+        await prisma.syllabusVersion.create({
+          data: {
+            courseId: course.id,
+            version: 1,
+            contentJson: JSON.stringify({
+              rationale: "HEC National Curriculum Standard 2024",
+              summary: "Weekly lecture topics, laboratory exercises, and digital reference material.",
+              approvedBy: col.principalName,
+              approvedAt: "2024-08-01",
+            }),
+            isArchived: false,
+            isActive: true,
+          },
+        });
+
+        createdCourses[col.code].push(course);
       }
     }
   }
 
-  // ─── 7. FEE SETTINGS ─────────────────────────────────────────────────────
-  console.log("💳 Creating Fee Settings...");
-  
-  const feeSettingsData = [
-    { key: "BS_ADMISSION", session: "2024-2028", label: "BS Admission Fee", amount: 15000, category: "BS", description: "One-time admission fee for regular BS programs" },
-    { key: "BS_SEMESTER", session: "2024-2028", label: "BS Semester Tuition Fee", amount: 25000, category: "BS", description: "Per-semester academic tuition fee" },
-    { key: "BS_BRIDGING", session: "2024-2026", label: "BS Bridging Admission Fee", amount: 18000, category: "BS", description: "5th semester bridging admission fee" },
-    { key: "INTER_ADMISSION", session: "2024-2026", label: "Intermediate Admission Fee", amount: 8000, category: "INTERMEDIATE", description: "Admission fee for F.Sc / F.A" },
-    { key: "INTER_SEMESTER", session: "2024-2026", label: "Intermediate Annual Fee", amount: 12000, category: "INTERMEDIATE", description: "Annual tuition and lab charges" },
-    { key: "EXAM_FEE", session: "2024-2028", label: "Semester Examination Fee", amount: 3500, category: "EXAM", description: "Official examination & gazette fee" },
-    { key: "DMC_FEE", session: "2024-2028", label: "Detailed Marks Certificate (DMC) Fee", amount: 1500, category: "OTHER", description: "Official transcript & DMC verification fee" },
-    { key: "LATE_FINE", session: "2024-2028", label: "Late Submission Surcharge", amount: 1000, category: "OTHER", description: "Late fee penalty" }
+  console.log("✓ Departments, faculty, programs and 1st-8th semester syllabi created.");
+
+  // ─── 5. STUDENTS ACROSS SEMESTERS (1 TO 8) ───────────────────────────────
+  console.log("🎓 [6/7] Enrolling Students across Semesters 1-8, Marks, Fees & Results...");
+
+  const studentRosters = [
+    // GPGCQ Roster (18 students)
+    {
+      college: gpgcq,
+      progCode: "GPGCQ-BSCS",
+      students: [
+        { name: "Ali Ahmed Bugti", father: "Mir Ahmed Bugti", sem: 1, session: "2025-2029", district: "Dera Bugti", cnic: "54401-1234567-1", phone: "0333-1234001", marks: 88, status: "ACTIVE" },
+        { name: "Bilal Khan Kakar", father: "Abdul Salam Kakar", sem: 1, session: "2025-2029", district: "Quetta", cnic: "54400-2345678-3", phone: "0300-2345002", marks: 76, status: "ACTIVE" },
+        { name: "Zubair Lehri", father: "Mir Naseer Lehri", sem: 1, session: "2025-2029", district: "Kalat", cnic: "54101-3456789-5", phone: "0345-3456003", marks: 92, status: "ACTIVE" },
+        { name: "Sadia Mengal", father: "Dr. Farooq Mengal", sem: 2, session: "2025-2029", district: "Khuzdar", cnic: "54201-4567890-2", phone: "0313-4567004", marks: 84, status: "ACTIVE" },
+        { name: "Usman Ghani", father: "Ghulam Sarwar", sem: 3, session: "2024-2028", district: "Pishin", cnic: "54301-5678901-7", phone: "0334-5678005", marks: 79, status: "ACTIVE" },
+        { name: "Hamza Raisani", father: "Nawabzada Raisani", sem: 3, session: "2024-2028", district: "Mastung", cnic: "54402-6789012-9", phone: "0321-6789006", marks: 68, status: "ACTIVE" },
+        { name: "Fatima Baloch", father: "Jan Mohammad Baloch", sem: 3, session: "2024-2028", district: "Turbat", cnic: "52201-7890123-4", phone: "0315-7890007", marks: 91, status: "ACTIVE" },
+        { name: "Danish Achakzai", father: "Haji Abdul Baqi", sem: 4, session: "2024-2028", district: "Chaman", cnic: "54302-8901234-1", phone: "0300-8901008", marks: 74, status: "ACTIVE" },
+        { name: "Waleed Ahmed Kasi", father: "Malik Amanullah Kasi", sem: 4, session: "2024-2028", district: "Quetta", cnic: "54400-9012345-3", phone: "0345-9012009", marks: 0, status: "FREEZE" },
+        { name: "Rashid Minhas Rind", father: "Mir Rind", sem: 4, session: "2024-2028", district: "Kachhi", cnic: "54102-0123456-5", phone: "0333-0123010", marks: 42, status: "QUIT" },
+        { name: "Sohail Zehri", father: "Sardar Zehri", sem: 5, session: "2023-2027", district: "Khuzdar", cnic: "54202-1234567-7", phone: "0312-1234011", marks: 85, status: "ACTIVE" },
+        { name: "Junaid Tareen", father: "Akhtar Tareen", sem: 5, session: "2023-2027", district: "Pishin", cnic: "54303-2345678-9", phone: "0321-2345012", marks: 78, status: "ACTIVE" },
+        { name: "Zeeshan Bangulzai", father: "Noor Ahmed Bangulzai", sem: 6, session: "2023-2027", district: "Mastung", cnic: "54403-3456789-1", phone: "0300-3456013", marks: 82, status: "ACTIVE" },
+        { name: "Mehran Marri", father: "Mir Hazar Marri", sem: 6, session: "2023-2027", district: "Kohlu", cnic: "54501-4567890-3", phone: "0334-4567014", marks: 88, status: "ACTIVE" },
+        { name: "Nabeel Shahwani", father: "Abdul Qayyum", sem: 7, session: "2022-2026", district: "Quetta", cnic: "54400-5678901-5", phone: "0345-5678015", marks: 90, status: "ACTIVE" },
+        { name: "Ahsanullah Kakar", father: "Haji Faizullah", sem: 7, session: "2022-2026", district: "Qila Saifullah", cnic: "54601-6789012-7", phone: "0313-6789016", marks: 86, status: "ACTIVE" },
+        { name: "Daniyal Ahmed Khan", father: "Tariq Mahmud Khan", sem: 8, session: "2022-2026", district: "Quetta", cnic: "54400-7890123-9", phone: "0300-7890017", marks: 95, status: "GRADUATED" },
+        { name: "Maryam Jamaldini", father: "Senator Jamaldini", sem: 8, session: "2022-2026", district: "Nushki", cnic: "54701-8901234-2", phone: "0333-8901018", marks: 93, status: "GRADUATED" },
+      ],
+    },
+
+    // GSCQ Roster (10 students)
+    {
+      college: gscq,
+      progCode: "GSCQ-BSPHY",
+      students: [
+        { name: "Farooq Shah", father: "Syed Anwar Shah", sem: 1, session: "2025-2029", district: "Quetta", cnic: "54400-1111222-1", phone: "0300-1111222", marks: 82, status: "ACTIVE" },
+        { name: "Kashif Baloch", father: "Ghafoor Baloch", sem: 1, session: "2025-2029", district: "Panjgur", cnic: "52101-2222333-3", phone: "0333-2222333", marks: 79, status: "ACTIVE" },
+        { name: "Waqas Mengal", father: "Mir Wali Mengal", sem: 3, session: "2024-2028", district: "Kalat", cnic: "54101-3333444-5", phone: "0345-3333444", marks: 85, status: "ACTIVE" },
+        { name: "Jahangir Kasi", father: "Haji Aslam Kasi", sem: 3, session: "2024-2028", district: "Quetta", cnic: "54400-4444555-7", phone: "0313-4444555", marks: 73, status: "ACTIVE" },
+        { name: "Shahnawaz Lehri", father: "Babar Lehri", sem: 5, session: "2023-2027", district: "Mastung", cnic: "54402-5555666-9", phone: "0321-5555666", marks: 90, status: "ACTIVE" },
+        { name: "Sohail Bugti", father: "Mir Sobdar Bugti", sem: 5, session: "2023-2027", district: "Dera Bugti", cnic: "54401-6666777-1", phone: "0300-6666777", marks: 87, status: "ACTIVE" },
+        { name: "Taimur Achakzai", father: "Akram Achakzai", sem: 7, session: "2022-2026", district: "Chaman", cnic: "54302-7777888-3", phone: "0334-7777888", marks: 88, status: "ACTIVE" },
+        { name: "Barkat Ali Rind", father: "Ghulam Qadir Rind", sem: 8, session: "2022-2026", district: "Sibi", cnic: "54801-8888999-5", phone: "0312-8888999", marks: 94, status: "GRADUATED" },
+        { name: "Arslan Durrani", father: "Javed Durrani", sem: 4, session: "2024-2028", district: "Quetta", cnic: "54400-9999000-7", phone: "0345-9999000", marks: 0, status: "FREEZE" },
+        { name: "Naveed Bangulzai", father: "Qadir Bangulzai", sem: 2, session: "2025-2029", district: "Mastung", cnic: "54403-1010101-9", phone: "0300-1010101", marks: 40, status: "QUIT" },
+      ],
+    },
+
+    // GDCM Roster (7 students)
+    {
+      college: gdcm,
+      progCode: "GDCM-BSPOL",
+      students: [
+        { name: "Kamran Sarparah", father: "Haji Sarparah", sem: 1, session: "2025-2029", district: "Mastung", cnic: "54402-1212121-1", phone: "0300-1212121", marks: 84, status: "ACTIVE" },
+        { name: "Liaqat Dehwar", father: "Mir Dehwar", sem: 1, session: "2025-2029", district: "Mastung", cnic: "54402-2323232-3", phone: "0333-2323232", marks: 78, status: "ACTIVE" },
+        { name: "Mansoor Shahwani", father: "Sardar Shahwani", sem: 3, session: "2024-2028", district: "Kalat", cnic: "54101-3434343-5", phone: "0345-3434343", marks: 88, status: "ACTIVE" },
+        { name: "Naseer Kurd", father: "Baqi Kurd", sem: 3, session: "2024-2028", district: "Quetta", cnic: "54400-4545454-7", phone: "0313-4545454", marks: 71, status: "ACTIVE" },
+        { name: "Obaidullah Bangulzai", father: "Mir Bangulzai", sem: 5, session: "2023-2027", district: "Mastung", cnic: "54403-5656565-9", phone: "0321-5656565", marks: 91, status: "ACTIVE" },
+        { name: "Qadeer Zehri", father: "Saeed Zehri", sem: 7, session: "2022-2026", district: "Khuzdar", cnic: "54201-6767676-1", phone: "0300-6767676", marks: 86, status: "ACTIVE" },
+        { name: "Saifullah Mengal", father: "Mir Mengal", sem: 8, session: "2022-2026", district: "Kalat", cnic: "54101-7878787-3", phone: "0334-7878787", marks: 96, status: "GRADUATED" },
+      ],
+    },
   ];
 
-  for (const fs of feeSettingsData) {
-    await prisma.feeSettings.create({ data: fs });
-  }
+  for (const roster of studentRosters) {
+    const col = roster.college;
+    const prog = createdPrograms[roster.progCode];
+    const collegeCourses = createdCourses[col.code];
 
-  // ─── 8. COMPREHENSIVE STUDENT PERSONAS ACROSS ALL MODULES ────────────────
-  console.log("🎓 Creating Rich Student Personas (Graduated, Freeze, Dropout, Bridging, Migration, Active)...");
+    for (let i = 0; i < roster.students.length; i++) {
+      const s = roster.students[i];
+      const rollNo = `${s.session.split("-")[0]}-${col.code}-${String(i + 1).padStart(3, "0")}`;
+      const email = `student.${col.code.toLowerCase()}.${i + 1}@student.edu.pk`;
 
-  // Helper to create a fully formed student
-  async function createStudentPersona({
-    name, email, rollNumber, cnic, phone, address, fatherName,
-    educationLevel, programCode, currentSemester, bsAdmissionType,
-    session, gender, statusType, statusReason, sscMarks, hsscMarks, bscDetails,
-    isGraduated = false, feeStatus = "PAID"
-  }: any) {
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        password: hashedStudentPw,
-        role: "STUDENT",
-        isActive: statusType !== "QUIT" && statusType !== "DROPOUT"
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name: s.name,
+          password: hashedStudentPw,
+          role: "STUDENT",
+          collegeId: col.id,
+          isActive: s.status !== "QUIT",
+        },
+      });
+
+      const student = await prisma.student.create({
+        data: {
+          userId: user.id,
+          rollNumber: rollNo,
+          fatherName: s.father,
+          cnic: s.cnic,
+          contactNumber: s.phone,
+          residentAddress: `${s.district}, Balochistan, Pakistan`,
+          educationLevel: prog.educationLevel,
+          session: s.session,
+          programId: prog.id,
+          currentSemester: s.sem,
+          collegeId: col.id,
+          isActive: s.status !== "QUIT",
+        },
+      });
+
+      // Special Statuses
+      if (s.status === "GRADUATED") {
+        await prisma.studentStatus.create({
+          data: { studentId: student.id, statusType: "GRADUATION", reason: "Completed 8 Semesters with High Honors", notes: "Transcripts & Degree Approved" },
+        });
+      } else if (s.status === "FREEZE") {
+        await prisma.studentStatus.create({
+          data: { studentId: student.id, statusType: "FREEZE", reason: "Approved Medical Leave of Absence", notes: "Can resume next cycle" },
+        });
+      } else if (s.status === "QUIT") {
+        await prisma.studentStatus.create({
+          data: { studentId: student.id, statusType: "QUIT", reason: "Discontinued studies / relocated", notes: "Withdrawal clearance issued" },
+        });
       }
-    });
 
-    const student = await prisma.student.create({
-      data: {
-        userId: user.id,
-        rollNumber,
-        educationLevel,
-        session: session || "2024-2028",
-        fatherName,
-        cnic,
-        contactNumber: phone,
-        residentAddress: address,
-        programId: progs[programCode]?.id || null,
-        groupId: educationLevel === "INTERMEDIATE" ? (programCode === "FSC-MED" ? preMedGroup.id : preEngGroup.id) : null,
-        bsAdmissionType: bsAdmissionType || (educationLevel === "BS" ? "REGULAR" : null),
-        currentSemester: currentSemester || 1,
-        bscGroup: bscDetails?.group || null,
-        bscObtained: bscDetails?.obtained || null,
-        bscTotal: bscDetails?.total || null,
-        bscYear: bscDetails?.year || null,
-        bscBoard: bscDetails?.board || null,
-        isActive: statusType !== "QUIT" && statusType !== "DROPOUT"
-      }
-    });
+      // Admissions Record
+      await prisma.admission.create({
+        data: {
+          studentName: s.name,
+          fatherName: s.father,
+          cnic: s.cnic,
+          dateOfBirth: new Date("2004-03-15"),
+          contactNumber: s.phone,
+          email,
+          residentAddress: `${s.district}, Balochistan`,
+          educationLevel: prog.educationLevel,
+          programId: prog.id,
+          session: s.session,
+          status: s.status === "QUIT" ? "REJECTED" : "APPROVED",
+          gender: "MALE",
+          sscObtained: 850 + (i * 7) % 150,
+          sscTotal: 1100,
+          hsscObtained: 800 + (i * 9) % 180,
+          hsscTotal: 1100,
+          collegeId: col.id,
+        },
+      });
 
-    // Create matching Admission record
-    const admission = await prisma.admission.create({
-      data: {
-        studentName: name,
-        fatherName,
-        cnic,
-        dateOfBirth: new Date("2004-04-12"),
-        contactNumber: phone,
-        email,
-        residentAddress: address,
-        educationLevel,
-        programId: progs[programCode]?.id || null,
-        groupId: student.groupId,
-        bsAdmissionType: student.bsAdmissionType,
-        session: student.session,
-        status: "APPROVED",
-        gender: gender || "MALE",
-        sscObtained: sscMarks || 920,
-        sscTotal: 1100,
-        sscYear: 2022,
-        sscBoard: "BBISE QUETTA",
-        hsscObtained: hsscMarks || 945,
-        hsscTotal: 1100,
-        hsscYear: 2024,
-        hsscBoard: "BBISE QUETTA",
-        bscGroup: student.bscGroup,
-        bscObtained: student.bscObtained,
-        bscTotal: student.bscTotal,
-        bscYear: student.bscYear,
-        bscBoard: student.bscBoard
-      }
-    });
+      // Challan & Fee
+      const challanNo = `CH-${col.code}-${s.session.split("-")[0]}-${String(i + 1).padStart(4, "0")}`;
+      const feeAmount = 22500;
+      const isPaid = s.status !== "QUIT" && i % 4 !== 0;
 
-    // Create StudentStatus if non-active or special status
-    if (statusType) {
-      await prisma.studentStatus.create({
+      await prisma.challan.create({
+        data: {
+          challanNumber: challanNo,
+          cnic: s.cnic,
+          applicantName: s.name,
+          fatherName: s.father,
+          feeType: "BS_SEMESTER",
+          feeLabel: "BS Semester Tuition & Examination Fee",
+          amount: feeAmount,
+          dueDate: new Date("2026-09-30"),
+          status: isPaid ? "PAID" : "PENDING",
+          paidAt: isPaid ? new Date("2026-09-10") : null,
+          semester: s.sem,
+          session: s.session,
+          educationLevel: prog.educationLevel,
+          programId: prog.id,
+          studentId: student.id,
+          collegeId: col.id,
+        },
+      });
+
+      await prisma.fee.create({
         data: {
           studentId: student.id,
-          statusType,
-          reason: statusReason || `Official ${statusType} record`,
-          fromDate: new Date("2026-09-01"),
-          toDate: statusType === "FREEZE" ? new Date("2027-02-28") : null,
-          approvedBy: "Prof. Tariq Mahmud (BS Controller)",
-          notes: `Official status recorded in CMS under student actions ledger.`
-        }
-      });
-    }
-
-    // Create Challan & Fee records
-    const challanNum = `CHL-${rollNumber.replace(/[^A-Za-z0-9]/g, "")}-${Math.floor(100 + Math.random() * 900)}`;
-    const feeAmount = educationLevel === "BS" ? 25000 : 12000;
-    
-    await prisma.challan.create({
-      data: {
-        challanNumber: challanNum,
-        cnic,
-        applicantName: name,
-        fatherName,
-        feeType: educationLevel === "BS" ? "BS_SEMESTER" : "INTER_SEMESTER",
-        feeLabel: educationLevel === "BS" ? "BS Semester Fee" : "Intermediate Annual Fee",
-        amount: feeAmount,
-        dueDate: new Date(feeStatus === "PAID" ? "2026-08-30" : "2026-09-30"),
-        status: feeStatus === "PAID" ? "PAID" : "PENDING",
-        educationLevel,
-        session: student.session,
-        semester: currentSemester || 1,
-        paidAt: feeStatus === "PAID" ? new Date("2026-08-15") : null,
-        paidId: feeStatus === "PAID" ? `PAID-20260815-${Math.floor(10000 + Math.random() * 90000)}` : null,
-        gender: gender || "MALE",
-        programId: student.programId,
-        admissionId: admission.id,
-        studentId: student.id
-      }
-    });
-
-    await prisma.fee.create({
-      data: {
-        studentId: student.id,
-        amount: feeAmount,
-        dueDate: new Date("2026-09-30"),
-        status: feeStatus === "PAID" ? "PAID" : (feeStatus === "WAIVED" ? "WAIVED" : "UNPAID"),
-        challanNumber: `FEE-${challanNum}`,
-        feeType: "TUITION",
-        semester: currentSemester || 1,
-        educationLevel,
-        paidAt: feeStatus === "PAID" ? new Date("2026-08-15") : null
-      }
-    });
-
-    return { user, student, admission };
-  }
-
-  // --- A. GRADUATED STUDENTS (Completed all 8 Semesters!) ---
-  console.log("  🎓 Seeding Graduated Alumni with 8-semester results...");
-  const graduated1 = await createStudentPersona({
-    name: "Daniyal Ahmed Khan (Graduate)",
-    email: "daniyal.grad@student.edu.pk",
-    rollNumber: "2020-BSCS-001",
-    cnic: "54400-1111111-1",
-    phone: "0333-1111111",
-    address: "Al-Hamd Town, Quetta",
-    fatherName: "Jahangir Khan",
-    educationLevel: "BS",
-    programCode: "BSCS",
-    currentSemester: 8,
-    session: "2020-2024",
-    gender: "MALE",
-    statusType: "GRADUATION",
-    statusReason: "Successfully completed BS Degree in Computer Science with Honors (CGPA: 3.84)",
-    isGraduated: true,
-    feeStatus: "PAID"
-  });
-
-  const graduated2 = await createStudentPersona({
-    name: "Ayesha Bibi Baloch (Graduate)",
-    email: "ayesha.grad@student.edu.pk",
-    rollNumber: "2020-BSCS-002",
-    cnic: "54400-2222222-2",
-    phone: "0333-2222222",
-    address: "Brewery Road, Quetta",
-    fatherName: "Sardar Sanaullah Baloch",
-    educationLevel: "BS",
-    programCode: "BSCS",
-    currentSemester: 8,
-    session: "2020-2024",
-    gender: "FEMALE",
-    statusType: "GRADUATION",
-    statusReason: "Degree Awarded - 1st Division, Merit Position",
-    isGraduated: true,
-    feeStatus: "PAID"
-  });
-
-  // Populate all 8 semesters marks & results for Graduated Students (Daniyal & Ayesha)
-  const bscsCourses = allCreatedCourses.BSCS;
-  for (const grad of [graduated1, graduated2]) {
-    let cumulativePoints = 0;
-    let cumulativeCredits = 0;
-
-    for (let sem = 1; sem <= 8; sem++) {
-      const semCourses = bscsCourses.filter(c => c.semester === sem);
-      let semPoints = 0;
-      let semCredits = 0;
-
-      for (const course of semCourses) {
-        // Enroll
-        await prisma.enrollment.create({
-          data: {
-            studentId: grad.student.id,
-            courseId: course.id,
-            semester: sem,
-            status: "ACTIVE"
-          }
-        });
-
-        // High marks for graduate (80-95)
-        const obt = grad.user.name.includes("Daniyal") ? 88 : 84;
-        const gp = getGP(obt);
-        const cr = course.creditHours || 3;
-
-        await prisma.marks.create({
-          data: {
-            studentId: grad.student.id,
-            courseId: course.id,
-            assignmentMarks: 18,
-            quizMarks: 9,
-            midtermMarks: 26,
-            practicalMarks: course.labHours > 0 ? 18 : 0,
-            finalMarks: 35,
-            obtainedMarks: obt,
-            totalMarks: 100,
-            status: "LOCKED",
-            isLocked: true
-          }
-        });
-
-        semPoints += gp * cr;
-        semCredits += cr;
-      }
-
-      cumulativePoints += semPoints;
-      cumulativeCredits += semCredits;
-
-      const semGPA = parseFloat((semPoints / (semCredits || 1)).toFixed(2));
-      const cumCGPA = parseFloat((cumulativePoints / (cumulativeCredits || 1)).toFixed(2));
-
-      await prisma.result.create({
-        data: {
-          studentId: grad.student.id,
-          semester: sem,
-          gpa: semGPA,
-          cgpa: cumCGPA,
-          status: "PROMOTED",
-          isLocked: true,
-          lockedBy: "Prof. Tariq Mahmud",
-          lockedAt: new Date()
-        }
+          amount: feeAmount,
+          dueDate: new Date("2026-09-30"),
+          status: isPaid ? "PAID" : "UNPAID",
+          paidAt: isPaid ? new Date("2026-09-10") : null,
+          challanNumber: challanNo,
+          feeType: "TUITION",
+          semester: s.sem,
+          educationLevel: prog.educationLevel,
+          collegeId: col.id,
+        },
       });
 
-      if (sem < 8) {
-        await prisma.promotion.create({
-          data: {
-            studentId: grad.student.id,
-            fromSemester: sem,
-            toSemester: sem + 1,
-            status: "PROMOTED",
-            gpa: semGPA,
-            cgpa: cumCGPA,
-            promotedBy: "BS Controller"
-          }
-        });
-      }
-    }
-  }
+      // Course Enrollments, Marks & Results
+      const targetCourses = collegeCourses.filter((c) => c.semester <= s.sem);
+      let totalQualityPoints = 0;
+      let totalCreditHours = 0;
 
-  // --- B. FREEZE SEMESTER STUDENTS ---
-  console.log("  ❄️ Seeding Frozen Semester Students...");
-  const freeze1 = await createStudentPersona({
-    name: "Waleed Ahmed Kasi (Frozen)",
-    email: "waleed.freeze@student.edu.pk",
-    rollNumber: "2024-BSCS-015",
-    cnic: "54400-3333333-3",
-    phone: "0333-3333333",
-    address: "Kasi Road, Quetta",
-    fatherName: "Mirza Ahmed Kasi",
-    educationLevel: "BS",
-    programCode: "BSCS",
-    currentSemester: 3,
-    session: "2024-2028",
-    gender: "MALE",
-    statusType: "FREEZE",
-    statusReason: "Medical Leave: Underwent knee ligament surgery. Semester 3 frozen for Fall 2026.",
-    feeStatus: "PAID"
-  });
-
-  const freeze2 = await createStudentPersona({
-    name: "Hina Gul Mandokhail (Frozen)",
-    email: "hina.freeze@student.edu.pk",
-    rollNumber: "2023-BSENG-012",
-    cnic: "54400-4444444-4",
-    phone: "0333-4444444",
-    address: "Airport Road, Quetta",
-    fatherName: "Nawab Gul Mandokhail",
-    educationLevel: "BS",
-    programCode: "BSENG",
-    currentSemester: 4,
-    session: "2023-2027",
-    gender: "FEMALE",
-    statusType: "FREEZE",
-    statusReason: "Domestic / Family relocation sabbatical approved for 6 months.",
-    feeStatus: "PAID"
-  });
-
-  // --- C. QUIT & DROPOUT STUDENTS ---
-  console.log("  🚪 Seeding Quit / Dropout Students...");
-  await createStudentPersona({
-    name: "Farhan Ullah Marwat (Quit)",
-    email: "farhan.quit@student.edu.pk",
-    rollNumber: "2024-BSCS-091",
-    cnic: "54400-5555555-5",
-    phone: "0333-5555555",
-    address: "Samungli Road, Quetta",
-    fatherName: "Ullah Khan Marwat",
-    educationLevel: "BS",
-    programCode: "BSCS",
-    currentSemester: 2,
-    session: "2024-2028",
-    gender: "MALE",
-    statusType: "QUIT",
-    statusReason: "Moved to Islamabad for full-time job employment.",
-    feeStatus: "PAID"
-  });
-
-  await createStudentPersona({
-    name: "Noman Tariq Mengal",
-    email: "noman.dropout@student.edu.pk",
-    rollNumber: "2024-BSCS-092",
-    cnic: "54400-6666666-6",
-    phone: "0333-6666666",
-    address: "Sariab Mill, Quetta",
-    fatherName: "Tariq Mengal",
-    educationLevel: "BS",
-    programCode: "BSCS",
-    currentSemester: 1,
-    session: "2024-2028",
-    gender: "MALE",
-    statusType: "DROPOUT",
-    statusReason: "Academic dismissal: SGPA below 1.0 in Semester 1.",
-    feeStatus: "PAID"
-  });
-
-  // --- D. BRIDGING (5TH SEMESTER) STUDENTS ---
-  console.log("  🌉 Seeding Bridging (5th Semester) Students...");
-  const bridging1 = await createStudentPersona({
-    name: "Babar Azam Lehri (Bridging 5th)",
-    email: "babar.bridging@student.edu.pk",
-    rollNumber: "2024-BSCS-B01",
-    cnic: "54400-7777777-7",
-    phone: "0333-7777777",
-    address: "Patel Bagh, Quetta",
-    fatherName: "Azam Khan Lehri",
-    educationLevel: "BS",
-    programCode: "BSCS",
-    currentSemester: 5,
-    bsAdmissionType: "BRIDGING_5TH",
-    session: "2024-2026",
-    gender: "MALE",
-    bscDetails: { group: "ADP_CS", obtained: 850, total: 1000, year: 2024, board: "University of Balochistan" },
-    feeStatus: "PAID"
-  });
-
-  const bridging2 = await createStudentPersona({
-    name: "Maria Kakar (Bridging 5th)",
-    email: "maria.bridging@student.edu.pk",
-    rollNumber: "2024-BSENG-B02",
-    cnic: "54400-8888888-8",
-    phone: "0333-8888888",
-    address: "Nawa Killi, Quetta",
-    fatherName: "Sher Muhammad Kakar",
-    educationLevel: "BS",
-    programCode: "BSENG",
-    currentSemester: 5,
-    bsAdmissionType: "BRIDGING_5TH",
-    session: "2024-2026",
-    gender: "FEMALE",
-    bscDetails: { group: "ADP_ARTS", obtained: 790, total: 1000, year: 2024, board: "Sardar Bahadur Khan Women University" },
-    feeStatus: "PAID"
-  });
-
-  // --- E. MIGRATION STUDENTS (MIGRATION IN & OUT) ---
-  console.log("  🔄 Seeding Migration Students...");
-  const migrationIn = await createStudentPersona({
-    name: "Zeeshan Haider (Migration In)",
-    email: "zeeshan.migin@student.edu.pk",
-    rollNumber: "2024-BSCS-M01",
-    cnic: "54400-9999999-9",
-    phone: "0333-9999999",
-    address: "Chaman Phatak, Quetta",
-    fatherName: "Haider Ali",
-    educationLevel: "BS",
-    programCode: "BSCS",
-    currentSemester: 5,
-    bsAdmissionType: "MIGRATION",
-    session: "2024-2028",
-    gender: "MALE",
-    statusType: "MIGRATION",
-    statusReason: "Migrated from BUITEMS Quetta with 64 transfer credit hours approved by Academic Council.",
-    feeStatus: "PAID"
-  });
-
-  // --- F. ACTIVE REGULAR BS & INTERMEDIATE STUDENTS (Across Semesters 1, 2, 3, 4) ---
-  console.log("  👥 Seeding Active Cohorts for BS and Intermediate...");
-  
-  const activeCohorts = [
-    // BSCS Sem 1
-    { name: "Ali Hamza Bugti", email: "ali.bugti@student.edu.pk", roll: "2024-BSCS-003", cnic: "54400-1000001-1", sem: 1, prog: "BSCS", fee: "PAID", gender: "MALE" },
-    { name: "Fatima Noor Mengal", email: "fatima.noor@student.edu.pk", roll: "2024-BSCS-004", cnic: "54400-1000002-2", sem: 1, prog: "BSCS", fee: "PAID", gender: "FEMALE" },
-    { name: "Muhammad Bilal Achakzai", email: "bilal.achakzai@student.edu.pk", roll: "2024-BSCS-005", cnic: "54400-1000003-3", sem: 1, prog: "BSCS", fee: "UNPAID", gender: "MALE" },
-    { name: "Zainab Tariq", email: "zainab.tariq@student.edu.pk", roll: "2024-BSCS-006", cnic: "54400-1000004-4", sem: 1, prog: "BSCS", fee: "PAID", gender: "FEMALE" },
-    { name: "Sikandar Hayat", email: "sikandar.hayat@student.edu.pk", roll: "2024-BSCS-007", cnic: "54400-1000005-5", sem: 1, prog: "BSCS", fee: "PAID", gender: "MALE" },
-
-    // BSCS Sem 2
-    { name: "Hamid Raza Baloch", email: "hamid.raza@student.edu.pk", roll: "2024-BSCS-008", cnic: "54400-1000006-6", sem: 2, prog: "BSCS", fee: "PAID", gender: "MALE" },
-    { name: "Sobia Karim", email: "sobia.karim@student.edu.pk", roll: "2024-BSCS-009", cnic: "54400-1000007-7", sem: 2, prog: "BSCS", fee: "PAID", gender: "FEMALE" },
-    { name: "Asadullah Khan", email: "asad.khan@student.edu.pk", roll: "2024-BSCS-010", cnic: "54400-1000008-8", sem: 2, prog: "BSCS", fee: "UNPAID", gender: "MALE" },
-
-    // BSCS Sem 3
-    { name: "Shahid Afridi Kakar", email: "shahid.kakar@student.edu.pk", roll: "2024-BSCS-011", cnic: "54400-1000009-9", sem: 3, prog: "BSCS", fee: "PAID", gender: "MALE" },
-    { name: "Noreen Zehri", email: "noreen.zehri@student.edu.pk", roll: "2024-BSCS-012", cnic: "54400-1000010-0", sem: 3, prog: "BSCS", fee: "PAID", gender: "FEMALE" },
-
-    // BS English Sem 1 & 2
-    { name: "Kamran Bangulzai", email: "kamran.bangul@student.edu.pk", roll: "2024-BSENG-001", cnic: "54400-2000001-1", sem: 1, prog: "BSENG", fee: "PAID", gender: "MALE" },
-    { name: "Sadia Rind", email: "sadia.rind@student.edu.pk", roll: "2024-BSENG-002", cnic: "54400-2000002-2", sem: 1, prog: "BSENG", fee: "UNPAID", gender: "FEMALE" },
-    { name: "Mehmood Khan", email: "mehmood.khan@student.edu.pk", roll: "2024-BSENG-003", cnic: "54400-2000003-3", sem: 2, prog: "BSENG", fee: "PAID", gender: "MALE" },
-
-    // BS Economics Sem 1
-    { name: "Ghulam Mustafa", email: "mustafa.eco@student.edu.pk", roll: "2024-BSECO-001", cnic: "54400-3000001-1", sem: 1, prog: "BSECO", fee: "PAID", gender: "MALE" },
-    { name: "Nazia Perveen", email: "nazia.eco@student.edu.pk", roll: "2024-BSECO-002", cnic: "54400-3000002-2", sem: 1, prog: "BSECO", fee: "PAID", gender: "FEMALE" },
-
-    // Intermediate Students (Pre-Engineering & Pre-Medical)
-    { name: "Syed Hassan Shah", email: "hassan.inter@student.edu.pk", roll: "2024-FSC-101", cnic: "54400-4000001-1", sem: 1, prog: "FSC-ENG", fee: "PAID", gender: "MALE", level: "INTERMEDIATE" },
-    { name: "Tahir Mahmood", email: "tahir.inter@student.edu.pk", roll: "2024-FSC-102", cnic: "54400-4000002-2", sem: 1, prog: "FSC-ENG", fee: "UNPAID", gender: "MALE", level: "INTERMEDIATE" },
-    { name: "Zubeda Bibi", email: "zubeda.inter@student.edu.pk", roll: "2024-FSC-201", cnic: "54400-4000003-3", sem: 1, prog: "FSC-MED", fee: "PAID", gender: "FEMALE", level: "INTERMEDIATE" },
-    { name: "Mahnoor Baloch", email: "mahnoor.inter@student.edu.pk", roll: "2024-FSC-202", cnic: "54400-4000004-4", sem: 2, prog: "FSC-MED", fee: "PAID", gender: "FEMALE", level: "INTERMEDIATE" },
-    { name: "Rashid Ali", email: "rashid.fa@student.edu.pk", roll: "2024-FA-301", cnic: "54400-4000005-5", sem: 1, prog: "FA", fee: "PAID", gender: "MALE", level: "INTERMEDIATE" },
-  ];
-
-  const activeStudents: any[] = [];
-
-  for (const ac of activeCohorts) {
-    const sObj = await createStudentPersona({
-      name: ac.name,
-      email: ac.email,
-      rollNumber: ac.roll,
-      cnic: ac.cnic,
-      phone: `0333-${Math.floor(1000000 + Math.random() * 9000000)}`,
-      address: "Model Town, Quetta",
-      fatherName: "Muhammad " + ac.name.split(" ").slice(-1)[0],
-      educationLevel: ac.level || "BS",
-      programCode: ac.prog,
-      currentSemester: ac.sem,
-      session: ac.level === "INTERMEDIATE" ? "2024-2026" : "2024-2028",
-      gender: ac.gender,
-      feeStatus: ac.fee
-    });
-    activeStudents.push({ ...sObj, sem: ac.sem, prog: ac.prog, level: ac.level || "BS" });
-  }
-
-  // --- G. ENROLLMENTS, MARKS, RESULTS & ATTENDANCE FOR ACTIVE STUDENTS ---
-  console.log("  📝 Populating Enrollments, Marks, Results, and Attendance...");
-  
-  for (const s of activeStudents) {
-    if (s.level === "BS") {
-      const progCourses = allCreatedCourses[s.prog] || [];
-      const semCourses = progCourses.filter(c => c.semester === s.sem);
-
-      let totalPoints = 0;
-      let totalCr = 0;
-
-      for (let i = 0; i < semCourses.length; i++) {
-        const course = semCourses[i];
-        
-        // Enrollment
+      for (const course of targetCourses) {
         await prisma.enrollment.create({
           data: {
-            studentId: s.student.id,
+            studentId: student.id,
             courseId: course.id,
-            semester: s.sem,
-            status: "ACTIVE"
-          }
+            semester: course.semester,
+            status: "ACTIVE",
+          },
         });
 
-        // Attendance (Recent dates)
-        for (let dayOffset = 1; dayOffset <= 5; dayOffset++) {
-          const attDate = new Date();
-          attDate.setDate(attDate.getDate() - dayOffset);
+        // Attendance records (5 days per student)
+        for (let day = 1; day <= 5; day++) {
           await prisma.attendance.create({
             data: {
-              studentId: s.student.id,
+              studentId: student.id,
               courseId: course.id,
-              date: attDate,
-              status: dayOffset === 3 ? "ABSENT" : "PRESENT",
-              educationLevel: "BS"
-            }
+              date: new Date(`2026-10-0${day}`),
+              status: day === 4 ? "LEAVE" : "PRESENT",
+              educationLevel: "BS",
+            },
           });
         }
 
-        // Marks (Varied for realistic grading & probation testing)
-        // Some students get distinction, some pass, some on probation (obt < 50)
-        let obt = 75 + (i * 3) % 20;
-        if (s.user.name.includes("Bilal Achakzai") && i === 0) obt = 45; // Fail 1 course to test probation in gazette
-        if (s.user.name.includes("Ali Hamza")) obt = 92; // 4.0 topper
-
-        const gp = getGP(obt);
-        const cr = course.creditHours || 3;
-        totalPoints += gp * cr;
-        totalCr += cr;
+        // Marks & Grades
+        const score = s.status === "FREEZE" ? 0 : Math.min(98, Math.max(52, s.marks + (course.semester % 3) * 2 - 4));
+        const midMarks = Math.round((score * 30) / 100);
+        const finalMarks = Math.round((score * 50) / 100);
+        const sessionalMarks = score - midMarks - finalMarks;
+        const gp = getGP(score);
 
         await prisma.marks.create({
           data: {
-            studentId: s.student.id,
+            studentId: student.id,
             courseId: course.id,
-            assignmentMarks: Math.round(obt * 0.18),
-            quizMarks: Math.round(obt * 0.10),
-            midtermMarks: Math.round(obt * 0.28),
-            practicalMarks: course.labHours > 0 ? Math.round(obt * 0.15) : 0,
-            finalMarks: Math.round(obt * 0.44),
-            obtainedMarks: obt,
+            midtermMarks: midMarks,
+            finalMarks: finalMarks,
+            assignmentMarks: Math.round(sessionalMarks / 2),
+            quizMarks: sessionalMarks - Math.round(sessionalMarks / 2),
+            obtainedMarks: score,
             totalMarks: 100,
-            status: "LOCKED",
-            isLocked: true
-          }
+            status: "SUBMITTED",
+            isLocked: true,
+          },
         });
+
+        totalQualityPoints += gp * course.creditHours;
+        totalCreditHours += course.creditHours;
       }
 
-      const gpa = totalCr > 0 ? parseFloat((totalPoints / totalCr).toFixed(2)) : 3.0;
+      // Result
+      const gpa = totalCreditHours > 0 ? parseFloat((totalQualityPoints / totalCreditHours).toFixed(2)) : 0.0;
       await prisma.result.create({
         data: {
-          studentId: s.student.id,
+          studentId: student.id,
           semester: s.sem,
-          gpa: gpa,
+          gpa,
           cgpa: gpa,
-          status: gpa >= 2.0 ? "PROMOTED" : (gpa >= 1.0 ? "PROBATION" : "DROPOUT"),
+          status: gpa >= 2.0 ? "PROMOTED" : "PROBATION",
           isLocked: true,
-          lockedBy: "Prof. Tariq Mahmud",
-          lockedAt: new Date()
-        }
+        },
       });
-    } else {
-      // Intermediate attendance
-      for (let dayOffset = 1; dayOffset <= 5; dayOffset++) {
-        const attDate = new Date();
-        attDate.setDate(attDate.getDate() - dayOffset);
-        await prisma.attendance.create({
+    }
+  }
+
+  console.log("✓ Students enrolled, marks, attendance, fees, and results seeded.");
+
+  // ─── 6. TIMETABLE, EXAM DATESHEETS & DUTY ROSTERS ─────────────────────────
+  console.log("🗓️ [7/7] Generating Timetables, Datesheets & Exam Duty Rosters...");
+
+  const collegesList = [gpgcq, gscq, gdcm];
+  const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
+  const timeSlots = [
+    { start: "08:30", end: "09:30" },
+    { start: "09:30", end: "10:30" },
+    { start: "10:30", end: "11:30" },
+    { start: "12:00", end: "01:00" },
+  ];
+
+  for (const col of collegesList) {
+    const colCourses = createdCourses[col.code];
+    const colFaculty = createdFaculty[col.code];
+
+    // Timetable Entries
+    for (let i = 0; i < Math.min(8, colCourses.length); i++) {
+      const course = colCourses[i];
+      const slot = timeSlots[i % timeSlots.length];
+      const day = days[i % days.length];
+      const fac = colFaculty[i % colFaculty.length];
+
+      await prisma.timetable.create({
+        data: {
+          collegeId: col.id,
+          courseId: course.id,
+          facultyId: fac.id,
+          programId: course.programId,
+          departmentId: course.departmentId,
+          dayOfWeek: day,
+          startTime: slot.start,
+          endTime: slot.end,
+          session: "2024-2028",
+          semester: course.semester,
+          educationLevel: "BS",
+          status: "PUBLISHED",
+        },
+      });
+    }
+
+    // Datesheet Entries (Fall 2026 Exams)
+    for (let i = 0; i < Math.min(6, colCourses.length); i++) {
+      const course = colCourses[i];
+      const examDate = new Date(`2026-12-${String(10 + i * 2).padStart(2, "0")}`);
+
+      const datesheet = await prisma.datesheet.create({
+        data: {
+          collegeId: col.id,
+          courseId: course.id,
+          programId: course.programId,
+          departmentId: course.departmentId,
+          examType: "MIDTERM",
+          session: "2024-2028",
+          semester: course.semester,
+          date: examDate,
+          startTime: i % 2 === 0 ? "09:00 AM" : "01:30 PM",
+          endTime: i % 2 === 0 ? "11:00 AM" : "03:30 PM",
+          status: "PUBLISHED",
+          isFinalized: true,
+        },
+      });
+
+      // Exam Duty for Faculty
+      const invigFac = colFaculty[i % colFaculty.length];
+      await prisma.examDuty.create({
+        data: {
+          datesheetId: datesheet.id,
+          facultyId: invigFac.id,
+          dutyType: "INVIGILATOR",
+          isMandatory: true,
+          room: `Examination Hall ${String.fromCharCode(65 + (i % 3))}`,
+          shiftTime: `${datesheet.startTime} - ${datesheet.endTime}`,
+          notes: "Center Invigilation Duty.",
+        },
+      });
+
+      if (i === 0) {
+        const supFac = colFaculty[colFaculty.length - 1];
+        await prisma.examDuty.create({
           data: {
-            studentId: s.student.id,
-            classSectionId: sectionMed1.id,
-            date: attDate,
-            status: "PRESENT",
-            educationLevel: "INTERMEDIATE"
-          }
+            datesheetId: datesheet.id,
+            facultyId: supFac.id,
+            dutyType: "SUPERINTENDENT",
+            isMandatory: false,
+            room: "Control Room & Main Hall",
+            shiftTime: "08:30 AM - 04:00 PM",
+            notes: "Chief Examination Superintendent.",
+          },
         });
       }
     }
-  }
 
-  // --- H. PENDING & REJECTED ADMISSIONS (For Testing Admission Approval Flow) ---
-  console.log("  📋 Seeding Pending & Rejected Admission Applicants...");
-  
-  const applicants = [
-    { name: "Sanaullah Kakar", father: "Naimatullah Kakar", cnic: "54400-6000001-1", phone: "0333-6000001", email: "sana.kakar@gmail.com", prog: "BSCS", status: "PENDING", gender: "MALE", type: "REGULAR" },
-    { name: "Hina Tareen", father: "Tariq Tareen", cnic: "54400-6000002-2", phone: "0300-6000002", email: "hina.tareen@gmail.com", prog: "BSPHY", status: "PENDING", gender: "FEMALE", type: "REGULAR" },
-    { name: "Imran Khan Mengal", father: "Sardar Mengal", cnic: "54400-6000003-3", phone: "0312-6000003", email: "imran.mengal@gmail.com", prog: "BSCS", status: "PENDING", gender: "MALE", type: "BRIDGING_5TH" },
-    { name: "Shahzaman Bugti", father: "Bugti Khan", cnic: "54400-6000004-4", phone: "0345-6000004", email: "shahzaman.bugti@gmail.com", prog: "FSC-ENG", status: "PENDING", gender: "MALE", level: "INTERMEDIATE" },
-    { name: "Rukhsana Bibi", father: "Allah Dad", cnic: "54400-6000005-5", phone: "0321-6000005", email: "rukhsana.bibi@gmail.com", prog: "BSCS", status: "REJECTED", gender: "FEMALE", type: "REGULAR" },
-  ];
-
-  for (const app of applicants) {
-    const adm = await prisma.admission.create({
-      data: {
-        studentName: app.name,
-        fatherName: app.father,
-        cnic: app.cnic,
-        dateOfBirth: new Date("2005-06-15"),
-        contactNumber: app.phone,
-        email: app.email,
-        residentAddress: "Zarghoon Road, Quetta",
-        educationLevel: app.level || "BS",
-        programId: progs[app.prog]?.id || null,
-        groupId: app.level === "INTERMEDIATE" ? preEngGroup.id : null,
-        bsAdmissionType: app.type || (app.level === "INTERMEDIATE" ? null : "REGULAR"),
-        session: app.level === "INTERMEDIATE" ? "2024-2026" : "2024-2028",
-        status: app.status,
-        gender: app.gender,
-        sscObtained: 890,
-        sscTotal: 1100,
-        sscYear: 2022,
-        sscBoard: "BBISE QUETTA",
-        hsscObtained: 880,
-        hsscTotal: 1100,
-        hsscYear: 2024,
-        hsscBoard: "BBISE QUETTA",
-        bscGroup: app.type === "BRIDGING_5TH" ? "ADP_CS" : null,
-        bscObtained: app.type === "BRIDGING_5TH" ? 780 : null,
-        bscTotal: app.type === "BRIDGING_5TH" ? 1000 : null,
-        bscYear: app.type === "BRIDGING_5TH" ? 2024 : null,
-        bscBoard: app.type === "BRIDGING_5TH" ? "UOB" : null
-      }
-    });
-
-    const chNum = `CHL-APP-${Math.floor(100000 + Math.random() * 900000)}`;
-    await prisma.challan.create({
-      data: {
-        challanNumber: chNum,
-        cnic: app.cnic,
-        applicantName: app.name,
-        fatherName: app.father,
-        feeType: app.level === "INTERMEDIATE" ? "INTER_ADMISSION" : "BS_ADMISSION",
-        feeLabel: app.level === "INTERMEDIATE" ? "Intermediate Admission Challan" : "BS Admission Challan",
-        amount: app.level === "INTERMEDIATE" ? 8000 : 15000,
-        dueDate: new Date("2026-09-20"),
-        status: app.status === "REJECTED" ? "REJECTED" : "PENDING",
-        educationLevel: app.level || "BS",
-        session: adm.session,
-        gender: app.gender,
-        programId: adm.programId,
-        admissionId: adm.id
-      }
-    });
-  }
-
-  // ─── 9. TIMETABLE, DATESHEET & FACULTY EXAM DUTIES ──────────────────────
-  console.log("📅 Creating Timetable, Datesheets & Exam Duty Rosters...");
-
-  const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
-  const timeSlots = [
-    { start: "08:30", end: "10:00" },
-    { start: "10:00", end: "11:30" },
-    { start: "11:30", end: "01:00" },
-    { start: "01:30", end: "03:00" }
-  ];
-
-  const sem1BscsCourses = bscsCourses.filter(c => c.semester === 1);
-  const createdTimetables: any[] = [];
-
-  for (let i = 0; i < sem1BscsCourses.length; i++) {
-    const course = sem1BscsCourses[i];
-    const fac = facultyList[i % facultyList.length];
-    const slot = timeSlots[i % timeSlots.length];
-
-    const tt = await prisma.timetable.create({
-      data: {
-        session: "2024-2028",
-        semester: 1,
-        dayOfWeek: days[i % days.length],
-        startTime: slot.start,
-        endTime: slot.end,
-        educationLevel: "BS",
-        generationMode: "MANUAL",
-        status: "PUBLISHED",
-        isFinalized: true,
-        courseId: course.id,
-        facultyId: fac.id,
-        programId: progs["BSCS"].id,
-        departmentId: depts["CS"].id
-      }
-    });
-    createdTimetables.push(tt);
-
-    // Datesheet for this course
-    const examDate = new Date("2026-10-10");
-    examDate.setDate(examDate.getDate() + (i * 2));
-
-    const ds = await prisma.datesheet.create({
-      data: {
-        session: "2024-2028",
-        semester: 1,
-        examType: "FINAL_TERM",
-        examSession: "Fall 2026",
-        date: examDate,
-        startTime: "09:00 AM",
-        endTime: "12:00 PM",
-        generationMode: "MANUAL",
-        status: "PUBLISHED",
-        isFinalized: true,
-        timetableId: tt.id,
-        courseId: course.id,
-        programId: progs["BSCS"].id,
-        departmentId: depts["CS"].id
-      }
-    });
-
-    // Mandatory Subject Teacher Duty
-    await prisma.examDuty.create({
-      data: {
-        datesheetId: ds.id,
-        facultyId: fac.id,
-        dutyType: "MANDATORY",
-        isMandatory: true,
-        room: `Room ${101 + i} (CS Block)`,
-        shiftTime: "09:00 AM - 12:00 PM",
-        notes: "Subject course instructor in-charge of paper delivery."
-      }
-    });
-
-    // Secondary Invigilator Duty
-    const invigFac = facultyList[(i + 3) % facultyList.length];
-    await prisma.examDuty.create({
-      data: {
-        datesheetId: ds.id,
-        facultyId: invigFac.id,
-        dutyType: "INVIGILATOR",
-        isMandatory: false,
-        room: `Room ${101 + i} (CS Block)`,
-        shiftTime: "09:00 AM - 12:00 PM",
-        notes: "Hall invigilation duty."
-      }
-    });
-
-    // Superintendent Duty
-    if (i === 0) {
-      const supFac = facultyList[2]; // Dr. Tariq Mansoor
-      await prisma.examDuty.create({
-        data: {
-          datesheetId: ds.id,
-          facultyId: supFac.id,
-          dutyType: "SUPERINTENDENT",
-          isMandatory: false,
-          room: "Main Examination Center - Control Room",
-          shiftTime: "08:30 AM - 01:00 PM",
-          notes: "Chief Center Superintendent."
-        }
-      });
-    }
-  }
-
-  // ─── 10. EXPENSES MODULE ─────────────────────────────────────────────────
-  console.log("💰 Creating Expenses Records...");
-
-  const expensesData = [
-    { category: "SALARY", date: new Date("2026-08-01"), desc: "Visiting Faculty Monthly Honorarium (Fall 2026)", amount: 350000, vendor: "Visiting Faculty Pool", method: "BANK_TRANSFER", dept: depts["CS"].id, status: "PAID" },
-    { category: "UTILITIES", date: new Date("2026-08-05"), desc: "Main Campus Electricity Bill (QESCO)", amount: 185000, vendor: "QESCO Quetta", method: "BANK_TRANSFER", dept: depts["CS"].id, status: "PAID" },
-    { category: "LAB_EQUIPMENT", date: new Date("2026-08-10"), desc: "Procurement of 20 Core i7 Workstations for CS Lab 2", amount: 950000, vendor: "Dell Technologies Authorized Vendor", method: "CHEQUE", dept: depts["CS"].id, status: "PAID" },
-    { category: "MAINTENANCE", date: new Date("2026-08-12"), desc: "Physics Lab Solar Inverter Battery Replacement", amount: 85000, vendor: "Balochistan Solar Solutions", method: "CASH", dept: depts["PHY"].id, status: "PAID" },
-    { category: "STATIONERY", date: new Date("2026-08-14"), desc: "Examination Answer Booklets and Official Gazette Printing", amount: 65000, vendor: "Al-Falah Printing Press", method: "CHEQUE", dept: depts["INTER"].id, status: "PAID" },
-    { category: "EVENTS", date: new Date("2026-08-18"), desc: "Annual Convocation Stage & Degree Folders", amount: 120000, vendor: "Royal Event Management", method: "CHEQUE", dept: depts["CS"].id, status: "PAID" }
-  ];
-
-  for (const exp of expensesData) {
+    // Expenses per College
     await prisma.expense.create({
       data: {
-        category: exp.category,
-        date: exp.date,
-        description: exp.desc,
-        amount: exp.amount,
-        vendorPayee: exp.vendor,
-        paymentMethod: exp.method,
-        departmentId: exp.dept,
+        category: "LAB_EQUIPMENT",
+        date: new Date("2026-10-05"),
+        description: `Upgradation of Lab Workstations & Internet Switchboards for ${col.code}`,
+        amount: 380000,
+        vendorPayee: "Tech Solutions Balochistan",
+        paymentMethod: "CHEQUE",
         session: "2024-2028",
-        status: exp.status,
-        createdBy: "Prof. Dr. Zahid Mengal",
-        isActive: true
-      }
+        status: "PAID",
+        createdBy: col.principalName,
+        collegeId: col.id,
+        isActive: true,
+      },
     });
-  }
 
-  // ─── 11. AUDIT LOGS ──────────────────────────────────────────────────────
-  console.log("📜 Creating Audit Trail Logs...");
+    await prisma.expense.create({
+      data: {
+        category: "UTILITIES",
+        date: new Date("2026-10-15"),
+        description: `Campus Utility & Electricity Bills for ${col.code}`,
+        amount: 145000,
+        vendorPayee: "QESCO Quetta",
+        paymentMethod: "BANK_TRANSFER",
+        session: "2024-2028",
+        status: "PAID",
+        createdBy: col.principalName,
+        collegeId: col.id,
+        isActive: true,
+      },
+    });
 
-  const auditData = [
-    { action: "LOGIN", entity: "User", desc: "Super Admin logged into College CMS portal.", email: "admin@college.edu", name: "Super Admin" },
-    { action: "APPROVE", entity: "Graduation", desc: "Graduation status approved for Daniyal Ahmed Khan (2020-BSCS-001).", email: "controller@college.edu", name: "BS Controller" },
-    { action: "UPDATE", entity: "StudentStatus", desc: "Freeze status approved for Waleed Ahmed Kasi (2024-BSCS-015).", email: "controller@college.edu", name: "BS Controller" },
-    { action: "LOCK", entity: "Marks", desc: "Semester 1 Final Marks locked and signed by HOD Computer Science.", email: "usman.cs@college.edu", name: "Dr. Muhammad Usman" },
-    { action: "PUBLISH", entity: "Timetable", desc: "Fall 2026 BS Computer Science timetable published.", email: "controller@college.edu", name: "BS Controller" },
-    { action: "CREATE", entity: "Datesheet", desc: "Fall 2026 Final Term exam datesheet generated and verified.", email: "controller@college.edu", name: "BS Controller" }
-  ];
-
-  for (const a of auditData) {
+    // Audit Log per College
     await prisma.auditLog.create({
       data: {
-        userEmail: a.email,
-        userName: a.name,
-        action: a.action,
-        entity: a.entity,
-        description: a.desc,
-        ipAddress: "127.0.0.1"
-      }
+        userEmail: `admin@${col.code.toLowerCase()}.edu.pk`,
+        userName: `${col.code} College Admin`,
+        action: "INITIALIZE",
+        entity: "CollegeCMS",
+        description: `Multi-tenant academic session and full semester curriculum initialized for ${col.name}.`,
+        ipAddress: "127.0.0.1",
+      },
     });
   }
 
-  console.log("\n✨ ======================================================= ✨");
-  console.log("🚀 ALL COMPREHENSIVE DUMMY DATA SEEDED SUCCESSFULLY!");
-  console.log("✨ ======================================================= ✨");
-  console.log("\n📊 Summary of Loaded Records:");
-  console.log("  • Users & Staff: SuperAdmin, Controller, Principal, 12 Faculty members");
-  console.log("  • Departments: 7 (CS, ENG, ECO, MATH, PHY, CHEM, INTER)");
-  console.log("  • Programs: 8 (BSCS, BSENG, BSECO, BSMATH, BSPHY, FSC-ENG, FSC-MED, FA)");
-  console.log("  • Courses & Syllabi: 40+ courses across Semesters 1-8 with detailed learning outcomes & breakdown");
-  console.log("  • Graduated Students: 2 (8 semesters completed, CGPA > 3.6, transcripts & DMCs ready)");
-  console.log("  • Frozen Semester Students: 2 (medical/relocation reasons, freeze ledger ready)");
-  console.log("  • Quit & Dropout Students: 2 (dismissal / relocation testing)");
-  console.log("  • Bridging (5th Sem) Students: 2 (ADP / B.Sc background scores)");
-  console.log("  • Migration Students: 1 (BUITEMS transfer with credit hours)");
-  console.log("  • Active BS & Inter Students: 20+ (with full enrollments, marks, results, attendance)");
-  console.log("  • Admissions: 5 Pending & 1 Rejected applicants");
-  console.log("  • Challans & Fees: Paid, Pending (Dues), Waived records");
-  console.log("  • Timetable & Datesheet: Published Fall 2026 schedules");
-  console.log("  • Faculty Exam Duty: Mandatory, Invigilator, and Superintendent rosters");
-  console.log("  • Expenses & Audit Logs: Complete operational data");
-  console.log("\n🔑 Test Credentials:");
-  console.log("  Super Admin:   admin@college.edu      / admin123");
-  console.log("  BS Controller: controller@college.edu / demo123");
-  console.log("  BS Faculty:    usman.cs@college.edu   / faculty123");
-  console.log("  Principal:     principal@college.edu  / demo123");
-  console.log("  Student:       ali.bugti@student.edu.pk / student123");
-  console.log("  Grad Student:  daniyal.grad@student.edu.pk / student123");
-  console.log("─────────────────────────────────────────────────────────\n");
+  console.log("\n✨ ===========================================================");
+  console.log("🎉 ALL NEW DUMMY DATA GENERATED & SEEDED SUCCESSFULLY!");
+  console.log("✨ ===========================================================\n");
+  console.log("📊 Summary of Provisioned Data:");
+  console.log("  • Colleges: 3 (GPGCQ Quetta, GSCQ Quetta, GDCM Mastung)");
+  console.log("  • CHTE Central Master: chte@balochistan.gov.pk / chte123");
+  console.log("  • College Admins: admin@college.edu, admin@gscq.edu.pk, admin@gdcm.edu.pk");
+  console.log("  • Principals & Controllers: Separate accounts for each institution");
+  console.log("  • Faculty: 28 distinct Professors & Lecturers across 14 departments");
+  console.log("  • Programs: 15 BS & Intermediate programs");
+  console.log("  • Courses & Syllabi: 1st to 8th Semester curriculum with HEC standards");
+  console.log("  • Students: 60+ Enrolled, Graduated, Frozen & Dropout students with CNIC & contacts");
+  console.log("  • Admissions: Approved & Pending applicants with marks & quotas");
+  console.log("  • Challans & Fees: Paid & Pending fee tracking with bank accounts");
+  console.log("  • Exams, Datesheets & Duties: Midterm & Final Term schedules with duty rosters");
+  console.log("  • Marks & Results: SGPA, CGPA, total marks and grade points");
+  console.log("  • Timetables: Weekly schedules across classrooms & laboratories");
+  console.log("===========================================================\n");
 }
 
 main()
