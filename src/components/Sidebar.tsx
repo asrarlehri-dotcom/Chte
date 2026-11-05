@@ -81,11 +81,10 @@ export function Sidebar() {
   const linkClass = (href: string) => {
     const active =
       pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-    return `group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
-      active
-        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/30 font-bold scale-[1.01]"
-        : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
-    }`;
+    return `group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${active
+      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/30 font-bold scale-[1.01]"
+      : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
+      }`;
   };
 
   // ── Central Navigation: ONLY Colleges, Users, Permissions, Settings, Audit Logs ──
@@ -93,6 +92,13 @@ export function Sidebar() {
     {
       title: "COLLEGES GOVERNANCE",
       items: [
+        {
+          key: "chte-master-dashboard",
+          href: "/chte",
+          label: "CHTE Master Dashboard",
+          badge: "HQ",
+          icon: LayoutDashboard,
+        },
         {
           key: "chte-homepage-setup",
           href: "/admin/settings",
@@ -104,7 +110,6 @@ export function Sidebar() {
           key: "chte-colleges",
           href: "/chte/colleges",
           label: "Colleges Management",
-          badge: "HQ",
           icon: Building2,
         },
       ],
@@ -338,17 +343,15 @@ export function Sidebar() {
         <div>
           <Link
             href="/dashboard"
-            className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
-              pathname === "/dashboard"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 font-bold scale-[1.01]"
-                : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
-            }`}
+            className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${pathname === "/dashboard"
+              ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 font-bold scale-[1.01]"
+              : "text-slate-300 hover:bg-slate-800/70 hover:text-white"
+              }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <LayoutDashboard
-                className={`w-4 h-4 flex-shrink-0 ${
-                  pathname === "/dashboard" ? "text-white" : "text-blue-400"
-                }`}
+                className={`w-4 h-4 flex-shrink-0 ${pathname === "/dashboard" ? "text-white" : "text-blue-400"
+                  }`}
               />
               <span className="truncate">
                 {isCentral ? "Central Overview" : "Dashboard"}
@@ -389,11 +392,10 @@ export function Sidebar() {
                       <div className="flex items-center gap-2.5 min-w-0">
                         {ItemIcon && (
                           <ItemIcon
-                            className={`w-4 h-4 flex-shrink-0 transition-colors ${
-                              active
-                                ? "text-white"
-                                : "text-slate-400 group-hover:text-slate-200"
-                            }`}
+                            className={`w-4 h-4 flex-shrink-0 transition-colors ${active
+                              ? "text-white"
+                              : "text-slate-400 group-hover:text-slate-200"
+                              }`}
                           />
                         )}
                         <span className="truncate">{item.label}</span>
@@ -405,11 +407,10 @@ export function Sidebar() {
                           </span>
                         )}
                         <ChevronRight
-                          className={`w-3 h-3 transition-opacity ${
-                            active
-                              ? "text-white opacity-90"
-                              : "text-slate-500 opacity-50 group-hover:opacity-100"
-                          }`}
+                          className={`w-3 h-3 transition-opacity ${active
+                            ? "text-white opacity-90"
+                            : "text-slate-500 opacity-50 group-hover:opacity-100"
+                            }`}
                         />
                       </div>
                     </Link>
@@ -458,11 +459,10 @@ export function Sidebar() {
         <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-slate-800/60">
           <div className="flex items-center gap-2 min-w-0">
             <div
-              className={`w-7 h-7 rounded-lg font-bold text-[10px] flex items-center justify-center border flex-shrink-0 ${
-                isCentral
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                  : "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
-              }`}
+              className={`w-7 h-7 rounded-lg font-bold text-[10px] flex items-center justify-center border flex-shrink-0 ${isCentral
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                : "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
+                }`}
             >
               {initials}
             </div>
