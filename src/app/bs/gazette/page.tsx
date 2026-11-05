@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getGPValue, calculateStudentCGPA } from "@/lib/cgpa";
 import { useSettings } from "@/lib/useSettings";
 
@@ -1134,6 +1134,25 @@ export default function GazetteCompilerPage() {
       });
   }, [settings.ACADEMIC_SESSIONS]);
 
+  const urlProcessedRef = useRef(false);
+  useEffect(() => {
+    if (urlProcessedRef.current) return;
+    if (typeof window !== "undefined" && (allDbStudents.length > 0 || allStudents.length > 0)) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const rawType = urlParams.get("type") || urlParams.get("tab") || urlParams.get("view");
+      const modeParam = (urlParams.get("mode") as "single" | "bulk") || "single";
+      const rollParam = urlParams.get("roll");
+      if (rawType === "transcript" || rawType === "dmc") {
+        urlProcessedRef.current = true;
+        const pool = allDbStudents.length > 0 ? allDbStudents : allStudents;
+        const matched = rollParam
+          ? pool.find((s) => s.rollNumber.toLowerCase() === rollParam.toLowerCase().trim())
+          : undefined;
+        openCertModal(rawType, modeParam, matched);
+      }
+    }
+  }, [allDbStudents, allStudents]);
+
   // Fetch students whenever filters change — API handles educationLevel, session, programId
   useEffect(() => {
     setLoading(true);
@@ -1264,17 +1283,24 @@ export default function GazetteCompilerPage() {
       `}</style>
 
       {/* Page Header (Web only) */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between flex-wrap gap-4 print:hidden">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Official Results Gazette</h1>
-          <p className="text-slate-500 mt-1 font-medium text-sm">
-            Program-wise structured results gazette compiled for semesters and batches.
-          </p>
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100/80 flex items-center justify-between flex-wrap gap-4 print:hidden">
+        <div className="flex items-center gap-3.5">
+          <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#0d4a22] text-white flex items-center justify-center text-2xl sm:text-3xl shadow-md border-2 border-emerald-500/30 shrink-0">
+            🎓
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-serif font-black text-[#073619] tracking-tight">
+              Official Results Gazette &amp; Degree Certificates
+            </h1>
+            <p className="text-slate-500 mt-0.5 font-medium text-xs">
+              Program-wise structured results gazette compiled for semesters, DMCs, and cumulative transcripts.
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2.5 flex-wrap">
           <button
             onClick={toggleAllRemarks}
-            className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-300 transition-all flex items-center gap-1.5 shadow-xs"
+            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-full text-xs font-bold border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
             title="Expand or Collapse failed papers in all student rows"
           >
             <span>{allExpanded ? "🔼 Collapse Papers" : "🔽 Expand Papers"}</span>
@@ -1282,20 +1308,20 @@ export default function GazetteCompilerPage() {
           <button
             type="button"
             onClick={() => openCertModal("dmc", "single")}
-            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5"
+            className="px-5 py-2 bg-white hover:bg-emerald-50 text-[#073619] rounded-full text-xs font-bold border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
             title="Open Detailed Marks Certificate (DMC) generator"
           >
             <span>📄</span>
-            <span>DMC</span>
+            <span>DMC Generator</span>
           </button>
           <button
             type="button"
             onClick={() => openCertModal("transcript", "single")}
-            className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5"
+            className="px-5 py-2 bg-[#0d4a22] hover:bg-[#073619] text-white rounded-full text-xs font-black shadow-sm transition-all flex items-center gap-1.5"
             title="Open Academic Transcript generator"
           >
-            <span>📜</span>
-            <span>Transcript</span>
+            <span>🎓</span>
+            <span>Transcript Generator</span>
           </button>
           <button
             type="button"
@@ -1303,7 +1329,7 @@ export default function GazetteCompilerPage() {
               setCertModal(null);
               setTimeout(() => window.print(), 100);
             }}
-            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5"
+            className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-full text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5"
           >
             <span>🖨️</span>
             <span>Print Gazette</span>
@@ -1312,15 +1338,18 @@ export default function GazetteCompilerPage() {
       </div>
 
       {/* Filters (Web only) */}
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 print:hidden">
-        <div className="flex flex-wrap gap-5 items-end">
+      <div className="bg-white p-5 rounded-3xl shadow-sm border border-emerald-100/80 print:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           {/* Semester */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Semester</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+              <span>📚</span>
+              <span>SEMESTER</span>
+            </label>
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(parseInt(e.target.value))}
-              className="px-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none bg-slate-50 min-w-[150px]"
+              className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs"
             >
               {semesterOptions.map((sem) => (
                 <option key={sem} value={sem}>Semester {sem}</option>
@@ -1329,12 +1358,15 @@ export default function GazetteCompilerPage() {
           </div>
 
           {/* Session */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Session</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+              <span>📅</span>
+              <span>ACADEMIC SESSION</span>
+            </label>
             <select
               value={selectedSession}
               onChange={(e) => setSelectedSession(e.target.value)}
-              className="px-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none bg-slate-50 min-w-[160px]"
+              className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs"
             >
               <option value="ALL">All Sessions</option>
               {sessionOptions.map((s) => (
@@ -1344,12 +1376,15 @@ export default function GazetteCompilerPage() {
           </div>
 
           {/* Program */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Program</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+              <span>📖</span>
+              <span>DEGREE PROGRAM</span>
+            </label>
             <select
               value={selectedProgram}
               onChange={(e) => setSelectedProgram(e.target.value)}
-              className="px-4 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none bg-slate-50 min-w-[200px]"
+              className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs"
             >
               <option value="ALL">All Programs (Grouped Gazette)</option>
               {programs.map((p) => (
@@ -1359,16 +1394,16 @@ export default function GazetteCompilerPage() {
           </div>
 
           {!loading && (
-            <div className="ml-auto flex items-center gap-2 self-end">
-              <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">
-                {allStudents.length} total student(s)
+            <div className="flex items-center gap-2 flex-wrap pb-1">
+              <span className="px-3.5 py-2 bg-emerald-50 text-[#073619] border border-emerald-200 rounded-xl text-xs font-bold">
+                👥 {allStudents.length} Students
               </span>
-              <span className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-xs font-bold">
-                {programSessionGroups.length} program section(s)
+              <span className="px-3.5 py-2 bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold">
+                📑 {programSessionGroups.length} Sections
               </span>
               {selectedIds.length > 0 && (
-                <span className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold">
-                  {selectedIds.length} selected
+                <span className="px-3.5 py-2 bg-[#0d4a22] text-white rounded-xl text-xs font-bold">
+                  {selectedIds.length} Selected
                 </span>
               )}
             </div>
@@ -1852,29 +1887,31 @@ export default function GazetteCompilerPage() {
 
         return (
           <div
-            className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm overflow-y-auto p-4 sm:p-6 flex flex-col items-center"
+            className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex flex-col items-center bg-cover bg-top"
+            style={{
+              backgroundImage: "url('/balochistan-landscape.png')",
+              backgroundColor: "rgba(10, 30, 20, 0.75)",
+              backgroundBlendMode: "overlay",
+            }}
             onClick={(e) => {
               if (e.target === e.currentTarget) setCertModal(null);
             }}
           >
             {/* Control Panel (Hidden on Print) */}
-            <div className="w-full max-w-5xl shrink-0 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700 print:hidden mb-6 z-20">
+            <div className="w-full max-w-5xl shrink-0 bg-white text-slate-800 rounded-3xl shadow-2xl border border-emerald-100 p-6 sm:p-7 space-y-4 print:hidden mb-6 z-20">
               {/* Header Action Bar */}
-              <div className="px-5 py-4 flex items-center justify-between gap-4 border-b border-slate-800 flex-wrap">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-3xl shrink-0">{certModal.type === "dmc" ? "📄" : "📜"}</span>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#0d4a22] text-white flex items-center justify-center text-2xl sm:text-3xl shadow-md border-2 border-emerald-500/30 shrink-0">
+                    🎓
+                  </div>
                   <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base font-black tracking-wide text-white">
-                        {certModal.type === "dmc"
-                          ? "Detailed Marks Certificate (DMC) Generator"
-                          : "Official Academic Degree Transcript Generator"}
-                      </h3>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white border border-blue-400">
-                        {certModal.mode === "single" ? "👤 Single Student Mode" : `👥 Bulk Mode (${bulkSelectedStudents.length} Selected)`}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 font-medium mt-1">
+                    <h3 className="text-xl sm:text-2xl font-serif font-black tracking-tight text-[#073619]">
+                      {certModal.type === "dmc"
+                        ? "Official Detailed Marks Certificate (DMC) Generator"
+                        : "Official Academic Degree Transcript Generator"}
+                    </h3>
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">
                       {certModal.mode === "single"
                         ? "Select session, program, semester, and choose a student or enter roll number to generate certificate."
                         : "Filter by session, program, semester and select students from the checklist below to print in bulk."}
@@ -1882,99 +1919,110 @@ export default function GazetteCompilerPage() {
                   </div>
                 </div>
 
-                {/* Mode Switcher, Document Switcher & Print / Close */}
-                <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-                  {/* Mode Tabs */}
-                  <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => setCertModal((prev) => (prev ? { ...prev, mode: "single" } : null))}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all ${
-                        certModal.mode === "single"
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      👤 Single
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCertModal((prev) => (prev ? { ...prev, mode: "bulk" } : null))}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all ${
-                        certModal.mode === "bulk"
-                          ? "bg-indigo-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      👥 Bulk
-                    </button>
-                  </div>
-
-                  {/* Document Switcher */}
-                  <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => setCertModal((prev) => (prev ? { ...prev, type: "dmc" } : null))}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all ${
-                        certModal.type === "dmc"
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      📄 DMC
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCertModal((prev) => (prev ? { ...prev, type: "transcript" } : null))}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all ${
-                        certModal.type === "transcript"
-                          ? "bg-purple-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      📜 Transcript
-                    </button>
-                  </div>
-
-                  {/* Print Button */}
-                  <button
-                    type="button"
-                    disabled={certModal.mode === "single" ? !currentSingleStudent : bulkSelectedStudents.length === 0}
-                    onClick={() => window.print()}
-                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-2"
-                  >
-                    <span>🖨️</span>
-                    <span>
-                      {certModal.mode === "single"
-                        ? `Print Single ${certModal.type.toUpperCase()}`
-                        : `Print Selected (${bulkSelectedStudents.length})`}
-                    </span>
-                  </button>
-
-                  {/* Close Window Button */}
-                  <button
-                    type="button"
-                    onClick={() => setCertModal(null)}
-                    className="px-4 py-2.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-xl text-xs font-black transition-all border border-rose-500/40 flex items-center gap-1.5"
-                    title="Close generator window"
-                  >
-                    <span>✕</span>
-                    <span>Close</span>
-                  </button>
-                </div>
+                <span className="bg-[#0d4a22] text-white px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs shrink-0">
+                  {certModal.mode === "single"
+                    ? "👤 SINGLE STUDENT MODE"
+                    : `👥 BULK MODE (${bulkSelectedStudents.length} SELECTED)`}
+                </span>
               </div>
 
-              {/* Shared Dedicated Filter Bar (Session, Program, Semester) */}
-              <div className="px-5 py-3.5 bg-slate-950/60 border-b border-slate-800 flex flex-wrap items-center gap-4 text-xs">
+              {/* Mode Switcher, Document Switcher & Print / Close */}
+              <div className="flex items-center gap-2.5 flex-wrap pt-1">
+                {/* Single Mode Pill */}
+                <button
+                  type="button"
+                  onClick={() => setCertModal((prev) => (prev ? { ...prev, mode: "single" } : null))}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
+                    certModal.mode === "single"
+                      ? "bg-[#0d4a22] text-white shadow-sm"
+                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                  }`}
+                >
+                  <span>👤</span>
+                  <span>Single</span>
+                </button>
+
+                {/* Bulk Mode Pill */}
+                <button
+                  type="button"
+                  onClick={() => setCertModal((prev) => (prev ? { ...prev, mode: "bulk" } : null))}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
+                    certModal.mode === "bulk"
+                      ? "bg-[#0d4a22] text-white shadow-sm"
+                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                  }`}
+                >
+                  <span>👥</span>
+                  <span>Bulk</span>
+                </button>
+
+                {/* DMC Pill */}
+                <button
+                  type="button"
+                  onClick={() => setCertModal((prev) => (prev ? { ...prev, type: "dmc" } : null))}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
+                    certModal.type === "dmc"
+                      ? "bg-[#0d4a22] text-white shadow-sm"
+                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                  }`}
+                >
+                  <span>📄</span>
+                  <span>DMC</span>
+                </button>
+
+                {/* Transcript Pill */}
+                <button
+                  type="button"
+                  onClick={() => setCertModal((prev) => (prev ? { ...prev, type: "transcript" } : null))}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
+                    certModal.type === "transcript"
+                      ? "bg-[#0d4a22] text-white shadow-sm"
+                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                  }`}
+                >
+                  <span>📄</span>
+                  <span>Transcript</span>
+                </button>
+
+                {/* Print Button */}
+                <button
+                  type="button"
+                  disabled={certModal.mode === "single" ? !currentSingleStudent : bulkSelectedStudents.length === 0}
+                  onClick={() => window.print()}
+                  className="px-5 py-2 bg-white hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed text-slate-800 border border-slate-200 rounded-full text-xs font-black shadow-2xs transition-all flex items-center gap-1.5"
+                >
+                  <span>🖨️</span>
+                  <span>
+                    {certModal.mode === "single"
+                      ? `Print Single ${certModal.type.toUpperCase()}`
+                      : `Print Selected (${bulkSelectedStudents.length})`}
+                  </span>
+                </button>
+
+                {/* Close Window Button */}
+                <button
+                  type="button"
+                  onClick={() => setCertModal(null)}
+                  className="px-5 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ml-auto"
+                  title="Close generator window"
+                >
+                  <span>✕</span>
+                  <span>Close</span>
+                </button>
+              </div>
+
+              {/* Dedicated Filter Grid (Session, Program, Semester, Roll / Search) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
                 {/* Session Filter */}
-                <div className="flex flex-col gap-1 min-w-[150px]">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Academic Session
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+                    <span>📅</span>
+                    <span>ACADEMIC SESSION</span>
                   </label>
                   <select
                     value={certModal.session}
                     onChange={(e) => handleModalSessionChange(e.target.value)}
-                    className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
                   >
                     <option value="ALL">All Sessions</option>
                     {sessionOptions.map((s) => (
@@ -1986,14 +2034,15 @@ export default function GazetteCompilerPage() {
                 </div>
 
                 {/* Program Filter */}
-                <div className="flex flex-col gap-1 min-w-[200px]">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Degree Program
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+                    <span>📖</span>
+                    <span>DEGREE PROGRAM</span>
                   </label>
                   <select
                     value={certModal.programId}
                     onChange={(e) => handleModalProgramChange(e.target.value)}
-                    className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
                   >
                     <option value="ALL">All Programs</option>
                     {programs.map((p) => (
@@ -2005,16 +2054,17 @@ export default function GazetteCompilerPage() {
                 </div>
 
                 {/* Semester Filter */}
-                <div className="flex flex-col gap-1 min-w-[130px]">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Semester
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+                    <span>📚</span>
+                    <span>SEMESTER</span>
                   </label>
                   <select
                     value={certModal.semester}
                     onChange={(e) =>
                       setCertModal((prev) => (prev ? { ...prev, semester: parseInt(e.target.value) } : null))
                     }
-                    className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
                   >
                     {semesterOptions.map((sem) => (
                       <option key={sem} value={sem}>
@@ -2024,117 +2074,117 @@ export default function GazetteCompilerPage() {
                   </select>
                 </div>
 
-                {/* Single Mode: Roll Number Search & Dropdown Picker */}
-                {certModal.mode === "single" && (
-                  <>
-                    <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Roll Number / Search
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={certModal.rollSearch}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCertModal((prev) => {
-                              if (!prev) return null;
-                              if (!val.trim()) {
-                                return {
-                                  ...prev,
-                                  rollSearch: "",
-                                  selectedStudentId: null,
-                                };
-                              }
-                              const matching = modalCandidates.find(
-                                (s) =>
-                                  s.rollNumber.toLowerCase() === val.toLowerCase().trim() ||
-                                  s.rollNumber.toLowerCase().includes(val.toLowerCase().trim())
-                              );
-                              return {
-                                ...prev,
-                                rollSearch: val,
-                                selectedStudentId: matching ? matching.id : null,
-                              };
-                            });
-                          }}
-                          placeholder="Search / Type Roll Number..."
-                          className="w-full bg-slate-800 text-white placeholder-slate-500 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                        {certModal.rollSearch && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCertModal((prev) =>
-                                prev ? { ...prev, rollSearch: "", selectedStudentId: null } : null
-                              )
-                            }
-                            className="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-white"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1 min-w-[220px]">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Select Student ({searchCandidates.length})
-                      </label>
-                      <select
-                        value={certModal.selectedStudentId || ""}
-                        onChange={(e) => {
-                          const sId = e.target.value;
-                          setCertModal((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  selectedStudentId: sId ? sId : null,
-                                  rollSearch: sId
-                                    ? modalCandidates.find((s) => s.id === sId)?.rollNumber || ""
-                                    : "",
-                                }
-                              : null
+                {/* Single Mode: Roll Number Search */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+                    <span>🔍</span>
+                    <span>ROLL NUMBER / SEARCH</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={certModal.rollSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCertModal((prev) => {
+                          if (!prev) return null;
+                          if (!val.trim()) {
+                            return {
+                              ...prev,
+                              rollSearch: "",
+                              selectedStudentId: null,
+                            };
+                          }
+                          const matching = modalCandidates.find(
+                            (s) =>
+                              s.rollNumber.toLowerCase() === val.toLowerCase().trim() ||
+                              s.rollNumber.toLowerCase().includes(val.toLowerCase().trim())
                           );
-                        }}
-                        className="bg-slate-800 text-white border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          return {
+                            ...prev,
+                            rollSearch: val,
+                            selectedStudentId: matching ? matching.id : null,
+                          };
+                        });
+                      }}
+                      placeholder="Search / Type Roll..."
+                      className="w-full bg-white text-slate-800 placeholder-slate-400 border border-slate-200 rounded-xl px-4 py-2.5 pr-8 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
+                    />
+                    {certModal.rollSearch && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCertModal((prev) =>
+                            prev ? { ...prev, rollSearch: "", selectedStudentId: null } : null
+                          )
+                        }
+                        className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-700"
                       >
-                        <option value="">
-                          -- Choose Student to View {certModal.type.toUpperCase()} ({searchCandidates.length} Available) --
-                        </option>
-                        {searchCandidates.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.rollNumber} — {s.user?.name} ({s.program?.name || "BS"})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </>
-                )}
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Single Mode: Full-Width Student Selector */}
+              {certModal.mode === "single" && (
+                <div className="flex flex-col gap-1 pt-1">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+                    <span>👤</span>
+                    <span>SELECT STUDENT ({searchCandidates.length})</span>
+                  </label>
+                  <select
+                    value={certModal.selectedStudentId || ""}
+                    onChange={(e) => {
+                      const sId = e.target.value;
+                      const found = modalCandidates.find((s) => s.id === sId);
+                      setCertModal((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              selectedStudentId: sId ? sId : null,
+                              rollSearch: found ? found.rollNumber : "",
+                            }
+                          : null
+                      );
+                    }}
+                    className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
+                  >
+                    <option value="">
+                      -- Choose Student to View {certModal.type.toUpperCase()} ({searchCandidates.length} Available) --
+                    </option>
+                    {searchCandidates.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.rollNumber} — {s.user?.name} ({s.program?.name || "BS"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Single Mode Student Status Ribbon */}
               {certModal.mode === "single" && currentSingleStudent && (
-                <div className="px-5 py-2.5 bg-blue-950/40 border-b border-blue-900/50 flex items-center justify-between flex-wrap gap-2 text-xs">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-emerald-400 font-black">● ACTIVE STUDENT:</span>
-                    <strong className="text-white font-bold">{currentSingleStudent.user?.name}</strong>
-                    <span className="font-mono text-blue-300 font-bold">({currentSingleStudent.rollNumber})</span>
-                    <span className="text-slate-400">&bull;</span>
-                    <span className="text-slate-300">
+                <div className="bg-[#eef7ee] border border-[#cbe4cb] rounded-2xl px-5 py-3 flex items-center justify-between flex-wrap gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2 flex-wrap text-xs font-bold text-[#073619]">
+                    <span className="text-[#0a5228] font-black">● ACTIVE STUDENT:</span>
+                    <strong className="text-[#073619] font-black">{currentSingleStudent.user?.name}</strong>
+                    <span className="font-mono text-[#0a5228] font-bold">({currentSingleStudent.rollNumber})</span>
+                    <span className="text-slate-400">|</span>
+                    <span>
                       {currentSingleStudent.program?.name ||
                         programs.find((p) => p.id === currentSingleStudent.programId)?.name ||
                         "General BS"}
                     </span>
-                    <span className="text-slate-400">&bull;</span>
-                    <span className="text-slate-300">Session: {currentSingleStudent.session || certModal.session}</span>
-                    <span className="text-slate-400">&bull;</span>
-                    <span className="text-amber-300 font-bold">Exam Semester: {certModal.semester}</span>
+                    <span className="text-slate-400">|</span>
+                    <span>Session: {currentSingleStudent.session || certModal.session}</span>
+                    <span className="text-slate-400">|</span>
+                    <span className="text-[#0a5228] font-extrabold">Exam Semester: {certModal.semester}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-black shadow transition-all flex items-center gap-1.5"
+                    className="bg-[#0d4a22] hover:bg-[#073619] text-white px-5 py-2 rounded-full text-xs font-black shadow-sm flex items-center gap-1.5 transition-all"
                   >
                     <span>🖨️</span>
                     <span>Print This {certModal.type.toUpperCase()}</span>
@@ -2149,21 +2199,21 @@ export default function GazetteCompilerPage() {
               {certModal.mode === "single" && (
                 <>
                   {!currentSingleStudent ? (
-                    <div className="bg-slate-900 border border-slate-800 text-white p-12 rounded-3xl text-center space-y-4 print:hidden max-w-2xl mx-auto shadow-2xl">
-                      <div className="w-16 h-16 rounded-2xl bg-blue-900/40 border border-blue-500/30 text-blue-400 flex items-center justify-center text-3xl mx-auto">
-                        {certModal.type === "dmc" ? "📄" : "📜"}
+                    <div className="bg-white border-2 border-dashed border-emerald-200/80 text-slate-700 p-12 rounded-3xl text-center space-y-4 print:hidden max-w-2xl mx-auto shadow-sm">
+                      <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-[#0a5228] flex items-center justify-center text-3xl mx-auto">
+                        🎓
                       </div>
                       <div>
-                        <h4 className="font-black text-lg text-white">
+                        <h4 className="font-black text-lg text-[#073619]">
                           Select Student to Generate {certModal.type === "dmc" ? "DMC" : "Transcript"}
                         </h4>
-                        <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                        <p className="text-xs text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
                           Upar diye gaye dropdown se student choose karein ya unka Roll Number enter karein.
                           <br />
-                          Jab tak aap student khud select nahi karein ge, koi certificate preview ya print nahi hoga.
+                          Jab tak aap student khud select nahi karein ge, certificate preview generate nahi hoga.
                         </p>
                       </div>
-                      <div className="pt-2 flex items-center justify-center gap-2 text-[11px] font-bold text-slate-400 border-t border-slate-800 flex-wrap">
+                      <div className="pt-2 flex items-center justify-center gap-2 text-[11px] font-bold text-slate-500 border-t border-slate-100 flex-wrap">
                         <span>Session: {certModal.session}</span>
                         <span>&bull;</span>
                         <span>Semester: {certModal.semester}</span>
@@ -2173,52 +2223,58 @@ export default function GazetteCompilerPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-slate-400 bg-slate-900/60 border border-slate-800 px-4 py-1.5 rounded-xl print:hidden">
-                        <span className="font-bold text-slate-300">
-                          {certModal.type === "dmc" ? "📄 DMC Preview" : "📜 Academic Transcript Preview"} &bull;{" "}
-                          {currentSingleStudent.user?.name}{" "}
-                          <span className="font-mono text-slate-500">({currentSingleStudent.rollNumber})</span>
-                        </span>
+                      <div className="bg-[#0a4420] text-white px-6 py-3.5 rounded-t-2xl flex items-center justify-between shadow-xs print:hidden">
+                        <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                          <span>📄</span>
+                          <span>
+                            {certModal.type === "dmc" ? "Detailed Marks Certificate (DMC) Preview" : "Academic Transcript Preview"} &bull;{" "}
+                            {currentSingleStudent.user?.name}{" "}
+                            <span className="font-mono text-emerald-200">({currentSingleStudent.rollNumber})</span>
+                          </span>
+                        </div>
                         <button
                           type="button"
                           onClick={() => window.print()}
-                          className="text-[10px] font-bold text-blue-400 hover:text-blue-300 underline"
+                          className="px-3.5 py-1.5 rounded-lg border border-emerald-400/40 hover:bg-emerald-800/80 text-white text-xs font-bold flex items-center gap-1.5 transition-all"
                         >
-                          🖨️ Print This Certificate
+                          <span>🖨️</span>
+                          <span>Print This Certificate</span>
                         </button>
                       </div>
 
-                      {certModal.type === "dmc" ? (
-                        <DMCPrintCard
-                          student={currentSingleStudent}
-                          semester={certModal.semester}
-                          collegeName={collegeName}
-                          collegeLogo={collegeLogo}
-                          collegeTagline={collegeTagline}
-                          collegeAddress={collegeAddress}
-                          programName={
-                            currentSingleStudent.program?.name ||
-                            programs.find((p) => p.id === currentSingleStudent.programId)?.name ||
-                            "General BS"
-                          }
-                          session={currentSingleStudent.session || certModal.session}
-                        />
-                      ) : (
-                        <TranscriptPrintCard
-                          student={currentSingleStudent}
-                          maxSemester={certModal.semester}
-                          collegeName={collegeName}
-                          collegeLogo={collegeLogo}
-                          collegeTagline={collegeTagline}
-                          collegeAddress={collegeAddress}
-                          programName={
-                            currentSingleStudent.program?.name ||
-                            programs.find((p) => p.id === currentSingleStudent.programId)?.name ||
-                            "General BS"
-                          }
-                          session={currentSingleStudent.session || certModal.session}
-                        />
-                      )}
+                      <div className="rounded-b-2xl overflow-hidden bg-white shadow-xl border border-slate-200">
+                        {certModal.type === "dmc" ? (
+                          <DMCPrintCard
+                            student={currentSingleStudent}
+                            semester={certModal.semester}
+                            collegeName={collegeName}
+                            collegeLogo={collegeLogo}
+                            collegeTagline={collegeTagline}
+                            collegeAddress={collegeAddress}
+                            programName={
+                              currentSingleStudent.program?.name ||
+                              programs.find((p) => p.id === currentSingleStudent.programId)?.name ||
+                              "General BS"
+                            }
+                            session={currentSingleStudent.session || certModal.session}
+                          />
+                        ) : (
+                          <TranscriptPrintCard
+                            student={currentSingleStudent}
+                            maxSemester={certModal.semester}
+                            collegeName={collegeName}
+                            collegeLogo={collegeLogo}
+                            collegeTagline={collegeTagline}
+                            collegeAddress={collegeAddress}
+                            programName={
+                              currentSingleStudent.program?.name ||
+                              programs.find((p) => p.id === currentSingleStudent.programId)?.name ||
+                              "General BS"
+                            }
+                            session={currentSingleStudent.session || certModal.session}
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </>
@@ -2228,19 +2284,19 @@ export default function GazetteCompilerPage() {
               {certModal.mode === "bulk" && (
                 <div className="space-y-6">
                   {/* Interactive Student Checklist Card */}
-                  <div className="bg-slate-900 border border-slate-700 text-white p-6 rounded-2xl shadow-2xl print:hidden">
-                    <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-800">
+                  <div className="bg-white border border-emerald-100 text-slate-800 p-6 rounded-2xl shadow-xl print:hidden">
+                    <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-100">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-base font-black text-white flex items-center gap-2">
+                          <h4 className="text-base font-black text-[#073619] flex items-center gap-2">
                             <span>📋</span>
                             <span>Student Checklist for Bulk {certModal.type.toUpperCase()}</span>
                           </h4>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-600 text-white border border-blue-400">
+                          <span className="px-3 py-0.5 rounded-full text-xs font-black bg-[#0d4a22] text-white">
                             {bulkSelectedStudents.length} of {modalCandidates.length} Selected
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           Neeche diye gaye students ko check karein ya <strong>"Select All"</strong> par click karein.
                         </p>
                       </div>
@@ -2249,14 +2305,14 @@ export default function GazetteCompilerPage() {
                         <button
                           type="button"
                           onClick={selectAllBulk}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow transition-all"
+                          className="px-4 py-2 bg-[#0d4a22] hover:bg-[#073619] text-white rounded-xl text-xs font-black shadow transition-all"
                         >
                           ☑ Select All ({modalCandidates.length})
                         </button>
                         <button
                           type="button"
                           onClick={clearAllBulk}
-                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold border border-slate-700 transition-all"
+                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition-all"
                         >
                           ☐ Clear All
                         </button>
@@ -2284,8 +2340,8 @@ export default function GazetteCompilerPage() {
                               onClick={() => toggleBulkStudent(s.id)}
                               className={`p-3 rounded-xl text-left border text-xs font-bold transition-all flex items-center gap-3 shadow-xs ${
                                 isChecked
-                                  ? "bg-blue-600 text-white border-blue-400 shadow-md ring-1 ring-blue-400"
-                                  : "bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white"
+                                  ? "bg-[#0d4a22] text-white border-emerald-600 shadow-md ring-1 ring-emerald-500"
+                                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200"
                               }`}
                             >
                               <span className="text-lg shrink-0">{isChecked ? "☑" : "☐"}</span>
@@ -2303,8 +2359,8 @@ export default function GazetteCompilerPage() {
 
                   {/* Render Selected Student Cards Below */}
                   {bulkSelectedStudents.length === 0 ? (
-                    <div className="bg-slate-900/60 border border-slate-800 text-white p-8 rounded-2xl text-center space-y-2 print:hidden max-w-xl mx-auto">
-                      <p className="text-xs text-slate-400 font-medium">
+                    <div className="bg-white border border-dashed border-emerald-200 text-slate-700 p-8 rounded-2xl text-center space-y-2 print:hidden max-w-xl mx-auto shadow-sm">
+                      <p className="text-xs text-slate-500 font-medium">
                         Upar checklist se jin students ko aap print karna chahte hain unhein check karein, ya <strong>"Select All"</strong> dabayein.
                       </p>
                     </div>
@@ -2319,9 +2375,9 @@ export default function GazetteCompilerPage() {
                       return (
                         <div key={`${certModal.type}-${student.id}`} className="space-y-2 mb-8 print:mb-0">
                           {/* On-Screen Action Strip */}
-                          <div className="flex items-center justify-between text-xs text-slate-400 bg-slate-900/60 border border-slate-800 px-4 py-1.5 rounded-xl print:hidden">
-                            <span className="font-bold text-slate-300">
-                              📄 {student.user?.name} <span className="font-mono text-slate-500">({student.rollNumber})</span>
+                          <div className="flex items-center justify-between text-xs text-white bg-[#0a4420] px-5 py-2.5 rounded-t-xl print:hidden">
+                            <span className="font-bold">
+                              📄 {student.user?.name} <span className="font-mono text-emerald-200">({student.rollNumber})</span>
                             </span>
                             <div className="flex items-center gap-2">
                               <button
@@ -2338,16 +2394,16 @@ export default function GazetteCompilerPage() {
                                       : null
                                   )
                                 }
-                                className="text-[10px] font-bold text-blue-400 hover:text-blue-300 underline"
+                                className="text-[11px] font-bold text-emerald-200 hover:text-white underline"
                                 title="Switch to Single mode for this student"
                               >
                                 View Single
                               </button>
-                              <span className="text-slate-600">&bull;</span>
+                              <span className="text-emerald-400">&bull;</span>
                               <button
                                 type="button"
                                 onClick={() => toggleBulkStudent(student.id)}
-                                className="text-[10px] font-bold text-rose-400 hover:text-rose-300 underline"
+                                className="text-[11px] font-bold text-rose-300 hover:text-rose-100 underline"
                                 title="Remove from print list"
                               >
                                 ✕ Remove
@@ -2355,29 +2411,31 @@ export default function GazetteCompilerPage() {
                             </div>
                           </div>
 
-                          {certModal.type === "dmc" ? (
-                            <DMCPrintCard
-                              student={student}
-                              semester={certModal.semester}
-                              collegeName={collegeName}
-                              collegeLogo={collegeLogo}
-                              collegeTagline={collegeTagline}
-                              collegeAddress={collegeAddress}
-                              programName={progName}
-                              session={sess}
-                            />
-                          ) : (
-                            <TranscriptPrintCard
-                              student={student}
-                              maxSemester={certModal.semester}
-                              collegeName={collegeName}
-                              collegeLogo={collegeLogo}
-                              collegeTagline={collegeTagline}
-                              collegeAddress={collegeAddress}
-                              programName={progName}
-                              session={sess}
-                            />
-                          )}
+                          <div className="rounded-b-xl overflow-hidden bg-white shadow-lg border border-slate-200">
+                            {certModal.type === "dmc" ? (
+                              <DMCPrintCard
+                                student={student}
+                                semester={certModal.semester}
+                                collegeName={collegeName}
+                                collegeLogo={collegeLogo}
+                                collegeTagline={collegeTagline}
+                                collegeAddress={collegeAddress}
+                                programName={progName}
+                                session={sess}
+                              />
+                            ) : (
+                              <TranscriptPrintCard
+                                student={student}
+                                maxSemester={certModal.semester}
+                                collegeName={collegeName}
+                                collegeLogo={collegeLogo}
+                                collegeTagline={collegeTagline}
+                                collegeAddress={collegeAddress}
+                                programName={progName}
+                                session={sess}
+                              />
+                            )}
+                          </div>
                         </div>
                       );
                     })
