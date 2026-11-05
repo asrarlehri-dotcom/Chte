@@ -134,9 +134,8 @@ function LoginForm() {
         return;
       }
 
-      // Successful login -> Redirect directly to CHTE Master Dashboard or College Dashboard
-      const targetUrl = (loginMode === "CHTE" || email.toLowerCase().includes("chte")) ? "/chte" : "/dashboard";
-      window.location.replace(targetUrl);
+      // Successful login -> Redirect directly to Institutional Dashboard
+      window.location.replace("/dashboard");
     } catch (err: any) {
       setError(err?.message || "An unexpected authentication error occurred.");
       setLoading(false);
