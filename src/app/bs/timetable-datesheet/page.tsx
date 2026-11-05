@@ -672,6 +672,32 @@ export default function BSTimetableDatesheetPage() {
 
   return (
     <div className="space-y-6">
+      {/* Top Header */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between flex-wrap gap-4 print:hidden">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-full bg-[#0d4a22] text-white flex items-center justify-center text-2xl shadow-sm border-2 border-emerald-500/30 shrink-0">
+            📅
+          </div>
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-serif font-black text-[#073619] tracking-tight">
+                Timetable &amp; Datesheet
+              </h1>
+              <span className="px-2.5 py-0.5 text-[11px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full">
+                BS Academic Schedule &amp; Exams
+              </span>
+            </div>
+            <p className="text-slate-500 mt-0.5 font-medium text-xs">
+              Manage weekly class schedules, examination datesheets, faculty invigilation duties, and superintendent hall rosters.
+            </p>
+          </div>
+        </div>
+        <div className="text-xs font-bold px-4 py-1.5 bg-[#0d4a22] text-white rounded-full shadow-2xs flex items-center gap-1.5 shrink-0">
+          <span>🏛️</span>
+          <span>BS Academic ERP</span>
+        </div>
+      </div>
+
       {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 font-semibold text-xs">{error}</div>}
       {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 font-semibold text-xs">{success}</div>}
 
