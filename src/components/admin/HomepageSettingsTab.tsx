@@ -77,20 +77,33 @@ export default function HomepageSettingsTab({
     featuredProfiles: DEFAULT_CHTE_SETTINGS.featuredProfiles as ChteFeaturedProfile[],
   });
 
-  // Direct File Upload Helper
+  // Direct File Upload Helper (with serverless fallback)
   const uploadFile = async (file: File): Promise<string> => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: fd,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "File upload failed");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) return data.url;
+      }
+    } catch (e) {
+      console.warn("Server upload failed, using client FileReader fallback:", e);
     }
-    const data = await res.json();
-    return data.url;
+
+    // Client-side instant Data URL fallback (never fails on Vercel)
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") resolve(reader.result);
+        else reject(new Error("Failed to read file"));
+      };
+      reader.onerror = () => reject(new Error("File read error"));
+      reader.readAsDataURL(file);
+    });
   };
 
   // 1. Fetch current settings from /api/chte-settings

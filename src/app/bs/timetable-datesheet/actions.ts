@@ -48,7 +48,7 @@ import { checkTimetableConflicts } from "@/lib/conflicts";
 export async function generateTimetable(session: string, programId: string, departmentId: string, semester: number, level: string = "BS") {
   const sess = session && session !== "ALL" ? session : "2024";
   const targetSemesters = semester && semester > 0 ? [semester] : [1, 2, 3, 4, 5, 6, 7, 8];
-  
+
   let targetPrograms: any[] = [];
   if (programId && programId !== "ALL") {
     const p = await prisma.program.findUnique({ where: { id: programId } });
@@ -407,7 +407,7 @@ export async function generateDatesheet(
     const teacherId = course.facultyId || "no_fac";
     // Group key combines normalized title/code and assigned teacher
     const key = `${normTitle}_${teacherId}`;
-    
+
     if (!groups.has(key)) {
       groups.set(key, []);
     }

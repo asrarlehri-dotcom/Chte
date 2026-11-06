@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 export type SystemConfig = {
   COLLEGE_NAME?: string;
   COLLEGE_LOGO?: string;
+  COLLEGE_BACKGROUND?: string;
+  COLLEGE_WATERMARK?: string;
   COLLEGE_TAGLINE?: string;
   COLLEGE_ADDRESS?: string;
   COLLEGE_CODE?: string;
@@ -46,6 +48,8 @@ export function useSettings() {
     loading,
     collegeName: sessionUser?.collegeName || settings.COLLEGE_NAME || "Government Post Graduate College Quetta",
     collegeLogo: sessionUser?.collegeLogo || settings.COLLEGE_LOGO || "",
+    collegeBackground: settings.COLLEGE_BACKGROUND || settings.COLLEGE_WATERMARK || sessionUser?.collegeLogo || settings.COLLEGE_LOGO || "",
+    collegeWatermark: settings.COLLEGE_WATERMARK || settings.COLLEGE_BACKGROUND || sessionUser?.collegeLogo || settings.COLLEGE_LOGO || "",
     collegeTagline: settings.COLLEGE_TAGLINE || "College of Higher Education & Research",
     collegeAddress: settings.COLLEGE_ADDRESS || "Quetta, Balochistan, Pakistan",
     collegeCode: sessionUser?.collegeCode || settings.COLLEGE_CODE || "",

@@ -41,6 +41,8 @@ export async function GET(request: Request) {
     const config: Record<string, string> = {
       COLLEGE_NAME: college?.name || "Government Post Graduate College Quetta",
       COLLEGE_LOGO: college?.logoUrl || "",
+      COLLEGE_BACKGROUND: "",
+      COLLEGE_WATERMARK: "",
       COLLEGE_TAGLINE: college?.tagline || "College of Higher Education & Research",
       COLLEGE_ADDRESS: college?.address || "Quetta, Balochistan, Pakistan",
       COLLEGE_CODE: college?.code || "GPGCQ",
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
     const userRole = (session?.user as any)?.role;
     const userCollegeId = (session?.user as any)?.collegeId;
 
-    if (!session || !["SUPER_ADMIN", "CHTE_ADMIN", "COLLEGE_ADMIN"].includes(userRole)) {
+    if (!session || !["SUPER_ADMIN", "CHTE_ADMIN", "COLLEGE_ADMIN", "PRINCIPAL", "BS_CONTROLLER"].includes(userRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
