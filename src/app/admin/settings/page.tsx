@@ -461,6 +461,7 @@ export default function UnifiedSettingsPage() {
   // College Branding & Identity States
   const [collegeName, setCollegeName] = useState("Government Post Graduate College Quetta");
   const [collegeLogo, setCollegeLogo] = useState("");
+  const [collegeBackground, setCollegeBackground] = useState("");
   const [collegeTagline, setCollegeTagline] = useState("College of Higher Education & Research");
   const [collegeAddress, setCollegeAddress] = useState("Quetta, Balochistan, Pakistan");
 
@@ -481,6 +482,7 @@ export default function UnifiedSettingsPage() {
       setFacultyEmailDomain(data.FACULTY_EMAIL_DOMAIN || "@gpgcquetta.edu.pk");
       setCollegeName(data.COLLEGE_NAME || "Government Post Graduate College Quetta");
       setCollegeLogo(data.COLLEGE_LOGO || "");
+      setCollegeBackground(data.COLLEGE_BACKGROUND || data.COLLEGE_WATERMARK || "");
       setCollegeTagline(data.COLLEGE_TAGLINE || "College of Higher Education & Research");
       setCollegeAddress(data.COLLEGE_ADDRESS || "Quetta, Balochistan, Pakistan");
       if (data.ACADEMIC_SESSIONS) {
@@ -539,6 +541,8 @@ export default function UnifiedSettingsPage() {
         FACULTY_EMAIL_DOMAIN: facultyEmailDomain,
         COLLEGE_NAME: collegeName,
         COLLEGE_LOGO: collegeLogo,
+        COLLEGE_BACKGROUND: collegeBackground,
+        COLLEGE_WATERMARK: collegeBackground,
         COLLEGE_TAGLINE: collegeTagline,
         COLLEGE_ADDRESS: collegeAddress,
         ACADEMIC_SESSIONS: academicSessions.join(","),
@@ -1648,23 +1652,76 @@ export default function UnifiedSettingsPage() {
                         )}
                       </div>
                     </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                        Document Background / Watermark (Image File or Direct Image URL)
+                      </label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="https://example.com/watermark.png or Base64"
+                          className="flex-1 px-3 py-2 border rounded-lg text-xs font-mono"
+                          value={collegeBackground}
+                          onChange={(e) => setCollegeBackground(e.target.value)}
+                        />
+                        <label className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg cursor-pointer transition-colors border">
+                          🖼️ Upload Watermark
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCollegeBackground(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                        {collegeBackground && (
+                          <button
+                            type="button"
+                            onClick={() => setCollegeBackground("")}
+                            className="px-2 py-2 text-red-500 hover:text-red-700 text-xs font-bold"
+                            title="Remove watermark"
+                          >
+                            ❌
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Subtle background watermark for Timetables, Datesheets, Transcripts, Gazettes &amp; Challans.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Live Preview Box */}
                   <div className="p-4 bg-gray-50 border rounded-xl space-y-2">
-                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Live Document Header Preview</div>
-                    <div className="bg-white p-4 rounded-lg border shadow-sm flex items-center gap-4">
-                      {collegeLogo ? (
-                        <img src={collegeLogo} alt="College Logo" className="w-12 h-12 object-contain" />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-2xl font-bold">
-                          🏛️
+                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Live Document Header &amp; Watermark Preview</div>
+                    <div className="bg-white p-4 rounded-lg border shadow-sm flex items-center gap-4 relative overflow-hidden">
+                      {(collegeBackground || collegeLogo) && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.05] pointer-events-none select-none z-0">
+                          <img src={collegeBackground || collegeLogo} alt="Watermark" className="w-32 h-32 object-contain grayscale" />
                         </div>
                       )}
-                      <div>
-                        <h3 className="text-base font-extrabold text-gray-900 uppercase tracking-wide">{collegeName || "YOUR COLLEGE NAME"}</h3>
-                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">{collegeTagline}</p>
-                        <p className="text-[10px] text-gray-400">{collegeAddress}</p>
+                      <div className="relative z-10 flex items-center gap-4">
+                        {collegeLogo ? (
+                          <img src={collegeLogo} alt="College Logo" className="w-12 h-12 object-contain" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-2xl font-bold">
+                            🏛️
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="text-base font-extrabold text-gray-900 uppercase tracking-wide">{collegeName || "YOUR COLLEGE NAME"}</h3>
+                          <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">{collegeTagline}</p>
+                          <p className="text-[10px] text-gray-400">{collegeAddress}</p>
+                        </div>
                       </div>
                     </div>
                   </div>

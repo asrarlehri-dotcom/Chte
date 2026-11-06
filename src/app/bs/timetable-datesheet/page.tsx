@@ -45,56 +45,6 @@ function downloadCSV(filename: string, headers: string[], rows: (string | number
 
 export default function BSTimetableDatesheetPage() {
   const { collegeName, collegeLogo, collegeTagline, collegeBackground, collegeWatermark } = useSettings();
-  const [activeLogo, setActiveLogo] = useState<string>("");
-  const [activeWatermark, setActiveWatermark] = useState<string>("");
-  const [showBrandingModal, setShowBrandingModal] = useState(false);
-  const [savingBranding, setSavingBranding] = useState(false);
-
-  useEffect(() => {
-    if (collegeLogo) setActiveLogo(collegeLogo);
-  }, [collegeLogo]);
-
-  useEffect(() => {
-    if (collegeWatermark || collegeBackground) {
-      setActiveWatermark(collegeWatermark || collegeBackground || "");
-    }
-  }, [collegeWatermark, collegeBackground]);
-
-  const handleFileToDataUrl = (file: File, callback: (url: string) => void) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        callback(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSaveBranding = async () => {
-    setSavingBranding(true);
-    try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          COLLEGE_LOGO: activeLogo,
-          COLLEGE_WATERMARK: activeWatermark,
-          COLLEGE_BACKGROUND: activeWatermark,
-        }),
-      });
-      if (res.ok) {
-        setSuccess("College logo and background watermark saved successfully!");
-        setShowBrandingModal(false);
-      } else {
-        setError("Failed to save branding settings.");
-      }
-    } catch {
-      setError("Error saving branding settings.");
-    } finally {
-      setSavingBranding(false);
-    }
-  };
-
   const [activeTab, setActiveTab] = useState("timetable");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -726,8 +676,8 @@ export default function BSTimetableDatesheetPage() {
       <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between flex-wrap gap-4 print:hidden">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-full bg-[#0d4a22] text-white flex items-center justify-center text-2xl shadow-sm border-2 border-emerald-500/30 shrink-0 overflow-hidden bg-white">
-            {activeLogo ? (
-              <img src={activeLogo} alt="Logo" className="w-full h-full object-contain p-1" />
+            {collegeLogo ? (
+              <img src={collegeLogo} alt="Logo" className="w-full h-full object-contain p-1" />
             ) : (
               <span>📅</span>
             )}
@@ -746,20 +696,9 @@ export default function BSTimetableDatesheetPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setShowBrandingModal(true)}
-            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-xs font-bold border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-            title="Upload College Logo & Background Watermark"
-          >
-            <span>🎨</span>
-            <span>Logo &amp; Watermark</span>
-          </button>
-          <div className="text-xs font-bold px-4 py-1.5 bg-[#0d4a22] text-white rounded-full shadow-2xs flex items-center gap-1.5 shrink-0">
-            <span>🏛️</span>
-            <span>BS Academic ERP</span>
-          </div>
+        <div className="text-xs font-bold px-4 py-1.5 bg-[#0d4a22] text-white rounded-full shadow-2xs flex items-center gap-1.5 shrink-0">
+          <span>🏛️</span>
+          <span>BS Academic ERP</span>
         </div>
       </div>
 
@@ -962,7 +901,7 @@ export default function BSTimetableDatesheetPage() {
 
               {/* Printable Header */}
               <div className="hidden print:block text-center border-b-2 border-gray-800 pb-3 space-y-1">
-                {(activeLogo || collegeLogo) && <img src={activeLogo || collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
                 <h2 className="text-xl font-black text-gray-900 uppercase">{collegeName}</h2>
                 <p className="text-xs font-bold text-blue-600 uppercase">{collegeTagline}</p>
                 <h3 className="text-sm font-bold text-gray-800 uppercase pt-1">
@@ -971,10 +910,10 @@ export default function BSTimetableDatesheetPage() {
               </div>
 
               <div className="overflow-x-auto border rounded-xl mt-4 relative">
-                {(activeWatermark || activeLogo || collegeBackground || collegeLogo) && (
+                {(collegeBackground || collegeWatermark || collegeLogo) && (
                   <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
                     <img
-                      src={activeWatermark || activeLogo || collegeBackground || collegeLogo}
+                      src={collegeBackground || collegeWatermark || collegeLogo}
                       alt="Watermark"
                       className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
                     />
@@ -1249,7 +1188,7 @@ export default function BSTimetableDatesheetPage() {
 
               {/* Printable Header */}
               <div className="hidden print:block text-center border-b-2 border-gray-800 pb-3 space-y-1">
-                {(activeLogo || collegeLogo) && <img src={activeLogo || collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
                 <h2 className="text-xl font-black text-gray-900 uppercase">{collegeName}</h2>
                 <p className="text-xs font-bold text-blue-600 uppercase">{collegeTagline}</p>
                 <h3 className="text-sm font-bold text-gray-800 uppercase pt-1">
@@ -1258,10 +1197,10 @@ export default function BSTimetableDatesheetPage() {
               </div>
 
               <div className="overflow-x-auto border rounded-xl mt-4 relative">
-                {(activeWatermark || activeLogo || collegeBackground || collegeLogo) && (
+                {(collegeBackground || collegeWatermark || collegeLogo) && (
                   <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
                     <img
-                      src={activeWatermark || activeLogo || collegeBackground || collegeLogo}
+                      src={collegeBackground || collegeWatermark || collegeLogo}
                       alt="Watermark"
                       className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
                     />
@@ -1468,10 +1407,10 @@ export default function BSTimetableDatesheetPage() {
 
               {/* Duty Table */}
               <div className="overflow-x-auto border rounded-xl mt-2 relative">
-                {(activeWatermark || activeLogo || collegeBackground || collegeLogo) && (
+                {(collegeBackground || collegeWatermark || collegeLogo) && (
                   <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
                     <img
-                      src={activeWatermark || activeLogo || collegeBackground || collegeLogo}
+                      src={collegeBackground || collegeWatermark || collegeLogo}
                       alt="Watermark"
                       className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
                     />
@@ -1856,7 +1795,7 @@ export default function BSTimetableDatesheetPage() {
               {/* Official Superintendent Roster Document */}
               <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
                 <div className="text-center border-b-2 border-gray-800 pb-4 space-y-1">
-                  {(activeLogo || collegeLogo) && <img src={activeLogo || collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                  {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
                   <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
                   <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
                   <h2 className="text-base font-extrabold text-gray-900 uppercase pt-2">
@@ -2145,7 +2084,7 @@ export default function BSTimetableDatesheetPage() {
 
               {/* Printable Official Duty Roster Header */}
               <div className="hidden print:block text-center border-b-2 border-gray-800 pb-4 space-y-1">
-                {(activeLogo || collegeLogo) && <img src={activeLogo || collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
                 <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
                 <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
                 <h2 className="text-base font-extrabold text-gray-800 uppercase pt-1">
@@ -2159,10 +2098,10 @@ export default function BSTimetableDatesheetPage() {
               </div>
 
               <div className="overflow-x-auto border rounded-xl mt-4 relative">
-                {(activeWatermark || activeLogo || collegeBackground || collegeLogo) && (
+                {(collegeBackground || collegeWatermark || collegeLogo) && (
                   <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
                     <img
-                      src={activeWatermark || activeLogo || collegeBackground || collegeLogo}
+                      src={collegeBackground || collegeWatermark || collegeLogo}
                       alt="Watermark"
                       className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
                     />
@@ -2870,159 +2809,6 @@ export default function BSTimetableDatesheetPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── LOGO & WATERMARK BRANDING MODAL ── */}
-      {showBrandingModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 space-y-5 shadow-2xl border border-gray-100 animate-fadeIn">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="text-2xl p-2 bg-emerald-50 rounded-xl border border-emerald-100">🎨</span>
-                <div>
-                  <h3 className="font-extrabold text-base text-gray-900">
-                    College Logo &amp; Background Watermark
-                  </h3>
-                  <p className="text-xs text-gray-500 font-medium">
-                    Upload institutional logo and watermark background for timetables &amp; datesheets.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowBrandingModal(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center text-sm font-bold transition-all"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* 1. College Logo */}
-              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <span>🏛️</span>
-                    <span>College Crest / Official Logo</span>
-                  </label>
-                  {activeLogo && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveLogo("")}
-                      className="text-[11px] text-red-600 font-bold hover:underline"
-                    >
-                      Remove Logo
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                    {activeLogo ? (
-                      <img src={activeLogo} alt="Logo" className="w-full h-full object-contain p-1" />
-                    ) : (
-                      <span className="text-2xl text-gray-400">📅</span>
-                    )}
-                  </div>
-
-                  <div className="flex-1 space-y-2">
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0d4a22] hover:bg-[#093518] text-white rounded-xl text-xs font-bold shadow-2xs transition-all">
-                      <span>📤 Direct Upload Logo (JPG / PNG)</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileToDataUrl(file, setActiveLogo);
-                        }}
-                      />
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Or paste direct image URL (https://...)"
-                      value={activeLogo}
-                      onChange={(e) => setActiveLogo(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Background Watermark */}
-              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <span>🖼️</span>
-                    <span>Document Background Watermark</span>
-                  </label>
-                  {activeWatermark && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveWatermark("")}
-                      className="text-[11px] text-red-600 font-bold hover:underline"
-                    >
-                      Remove Watermark
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                    {activeWatermark ? (
-                      <img src={activeWatermark} alt="Watermark" className="w-full h-full object-contain opacity-50 p-1" />
-                    ) : (
-                      <span className="text-2xl text-gray-400">🛡️</span>
-                    )}
-                  </div>
-
-                  <div className="flex-1 space-y-2">
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-all">
-                      <span>📤 Direct Upload Watermark (PNG / JPG)</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileToDataUrl(file, setActiveWatermark);
-                        }}
-                      />
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Or paste watermark URL"
-                      value={activeWatermark}
-                      onChange={(e) => setActiveWatermark(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-500 font-medium pt-0.5">
-                  ✨ The background watermark displays subtly behind all printed schedules, datesheets, and on-screen tables.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-gray-100">
-              <button
-                type="button"
-                onClick={() => setShowBrandingModal(false)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveBranding}
-                disabled={savingBranding}
-                className="px-5 py-2 bg-[#059669] hover:bg-[#047857] text-white text-xs font-bold rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5 transition-all"
-              >
-                <span>{savingBranding ? "Saving..." : "💾 Save Branding Changes"}</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
