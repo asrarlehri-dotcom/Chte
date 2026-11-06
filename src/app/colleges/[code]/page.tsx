@@ -134,16 +134,62 @@ type CollegeData = {
   };
 };
 
+function getInitialCollegeTheme(codeParam: string): string {
+  // 1. Check URL query param if present (e.g. ?theme=%232563eb)
+  if (typeof window !== "undefined") {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const qTheme = sp.get("theme") || sp.get("color");
+      if (qTheme) {
+        return qTheme.startsWith("#") ? qTheme : `#${qTheme}`;
+      }
+    } catch {}
+
+    // 2. Check localStorage cache
+    try {
+      const cached = localStorage.getItem(`college_theme_${codeParam.toLowerCase()}`);
+      if (cached) return cached;
+    } catch {}
+  }
+
+  // 3. Intelligent code-based presets
+  const c = (codeParam || "").toLowerCase();
+  // Science Colleges -> Blue
+  if (c.includes("gsc") || c.includes("science")) return "#2563eb";
+  // Degree / Mastung / Agri / Forest Colleges -> Green
+  if (c.includes("gdc") || c.includes("mastung") || c.includes("agri") || c.includes("forest")) return "#059669";
+  // Post Graduate Colleges -> Red
+  if (c.includes("gpgc") || c.includes("postgraduate")) return "#dc2626";
+  // Women / Girls Colleges -> Purple
+  if (c.includes("women") || c.includes("girls") || c.includes("female")) return "#7c3aed";
+  // Polytechnic / Commerce / Technical -> Amber
+  if (c.includes("poly") || c.includes("tech") || c.includes("commerce")) return "#d97706";
+  // Law Colleges -> Sky Blue
+  if (c.includes("law")) return "#0284c7";
+
+  return "#dc2626";
+}
+
 export default function CollegePortalHomePage() {
   const params = useParams();
   const codeParam = (params?.code as string) || "";
 
+  const [themeColor, setThemeColor] = useState<string>(() => getInitialCollegeTheme(codeParam));
   const [college, setCollege] = useState<CollegeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"ALL" | "BS" | "INTERMEDIATE">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [topSearch, setTopSearch] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && codeParam) {
+      const current = getInitialCollegeTheme(codeParam);
+      if (current && current !== themeColor) {
+        setThemeColor(current);
+      }
+    }
+  }, [codeParam]);
 
   useEffect(() => {
     if (!codeParam) return;
@@ -153,9 +199,22 @@ export default function CollegePortalHomePage() {
         if (!res.ok) throw new Error("College not found or could not be loaded");
         return res.json();
       })
-      .then((data) => {
+      .then((data: CollegeData) => {
         setCollege(data);
         setError(null);
+        const resolved =
+          data.portalSettings?.ribbonColor ||
+          data.portalSettings?.primaryColor;
+        if (resolved) {
+          setThemeColor(resolved);
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(`college_theme_${codeParam.toLowerCase()}`, resolved);
+              if (data.code) localStorage.setItem(`college_theme_${data.code.toLowerCase()}`, resolved);
+              if (data.id) localStorage.setItem(`college_theme_${data.id.toLowerCase()}`, resolved);
+            } catch {}
+          }
+        }
       })
       .catch((err) => {
         console.error(err);
@@ -167,7 +226,14 @@ export default function CollegePortalHomePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#070d19] flex flex-col items-center justify-center p-6 text-center text-white">
-        <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <div
+          className="w-16 h-16 border-4 rounded-full animate-spin mb-4 transition-all duration-300"
+          style={{
+            borderColor: themeColor,
+            borderTopColor: "transparent",
+            filter: `drop-shadow(0 0 14px ${themeColor}66)`
+          }}
+        />
         <h2 className="text-xl font-black tracking-tight">Connecting to College Portal...</h2>
         <p className="text-slate-400 text-xs mt-1">Loading customized theme, live records & campus structure</p>
       </div>
@@ -177,7 +243,14 @@ export default function CollegePortalHomePage() {
   if (error || !college) {
     return (
       <div className="min-h-screen bg-[#070d19] flex flex-col items-center justify-center p-6 text-center text-white">
-        <div className="w-16 h-16 rounded-3xl bg-red-950/60 text-red-500 flex items-center justify-center mx-auto mb-4 border border-red-800">
+        <div
+          className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4 border transition-colors"
+          style={{
+            backgroundColor: `${themeColor}20`,
+            color: themeColor,
+            borderColor: `${themeColor}50`
+          }}
+        >
           <Landmark className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-black">College Portal Not Found</h2>
@@ -186,7 +259,8 @@ export default function CollegePortalHomePage() {
         </p>
         <Link
           href="/"
-          className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-md transition-all"
+          className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-white font-bold text-sm shadow-md transition-all hover:brightness-110"
+          style={{ backgroundColor: themeColor }}
         >
           <span>Back to Central Portal</span>
         </Link>
@@ -518,7 +592,7 @@ export default function CollegePortalHomePage() {
               href={loginUrl}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white text-slate-900 font-black text-sm shadow-xl hover:bg-slate-100 transition-all hover:scale-105"
             >
-              <LogIn className="w-4.5 h-4.5 text-red-600" />
+              <LogIn className="w-4.5 h-4.5" style={{ color: s.ribbonColor || "#dc2626" }} />
               <span>Login by Institute / CMS</span>
             </Link>
 
@@ -810,22 +884,28 @@ export default function CollegePortalHomePage() {
             <div className="flex items-center bg-[#0b1324] p-1 rounded-xl border border-white/10 shadow-xs">
               <button
                 onClick={() => setActiveTab("ALL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "ALL" ? "bg-red-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === "ALL" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
+                }`}
+                style={activeTab === "ALL" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
               >
                 All Programs ({college.programs.length})
               </button>
               <button
                 onClick={() => setActiveTab("BS")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "BS" ? "bg-red-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === "BS" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
+                }`}
+                style={activeTab === "BS" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
               >
                 BS 4-Year
               </button>
               <button
                 onClick={() => setActiveTab("INTERMEDIATE")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "INTERMEDIATE" ? "bg-red-600 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === "INTERMEDIATE" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
+                }`}
+                style={activeTab === "INTERMEDIATE" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
               >
                 Intermediate
               </button>

@@ -269,6 +269,12 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       const resData = await res.json();
       if (res.ok) {
         setMsg({ type: "success", text: "College Portal, Photos, Videos & Featured Profiles saved successfully!" });
+        if (typeof window !== "undefined" && selectedCollege) {
+          try {
+            if (selectedCollege.code) localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, formData.ribbonColor);
+            if (selectedCollege.id) localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, formData.ribbonColor);
+          } catch {}
+        }
       } else {
         setMsg({ type: "error", text: resData.error || "Failed to save settings." });
       }
@@ -389,7 +395,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
           {selectedCollege && (
             <a
-              href={`/colleges/${selectedCollege.code.toLowerCase()}`}
+              href={`/colleges/${selectedCollege.code.toLowerCase()}${formData.ribbonColor ? `?theme=${encodeURIComponent(formData.ribbonColor)}` : ""}`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs hover:scale-105"
@@ -416,7 +422,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
       {loading ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
-          <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div
+            className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-3"
+            style={{
+              borderColor: formData.ribbonColor || "#dc2626",
+              borderTopColor: "transparent"
+            }}
+          />
           <p className="text-xs text-slate-500 font-bold">Loading portal settings...</p>
         </div>
       ) : (

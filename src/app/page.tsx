@@ -46,6 +46,7 @@ interface PublicCollege {
   principalName: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  themeColor?: string;
   _count: {
     students: number;
     faculty: number;
@@ -86,6 +87,16 @@ export default function ChteHomePage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setColleges(data);
+          if (typeof window !== "undefined") {
+            try {
+              data.forEach((c: PublicCollege) => {
+                if (c.code && c.themeColor) {
+                  localStorage.setItem(`college_theme_${c.code.toLowerCase()}`, c.themeColor);
+                  if (c.id) localStorage.setItem(`college_theme_${c.id.toLowerCase()}`, c.themeColor);
+                }
+              });
+            } catch {}
+          }
         }
       })
       .catch((err) => console.error(err))
@@ -714,7 +725,10 @@ export default function ChteHomePage() {
                         <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-[#0c5938] font-mono text-[10px] font-bold border border-emerald-200">
                           {college.code}
                         </span>
-                        <Link href={`/colleges/${college.code.toLowerCase()}`} className="block group/link">
+                        <Link
+                          href={`/colleges/${college.code.toLowerCase()}${college.themeColor ? `?theme=${encodeURIComponent(college.themeColor)}` : ""}`}
+                          className="block group/link"
+                        >
                           <h3 className="text-sm font-bold text-slate-900 mt-1 leading-snug line-clamp-2 group-hover/link:text-[#0c5938] transition-colors cursor-pointer">
                             {college.name}
                           </h3>
@@ -762,7 +776,7 @@ export default function ChteHomePage() {
                       </Link>
 
                       <Link
-                        href={`/colleges/${college.code.toLowerCase()}`}
+                        href={`/colleges/${college.code.toLowerCase()}${college.themeColor ? `?theme=${encodeURIComponent(college.themeColor)}` : ""}`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0c5938] hover:bg-[#09472d] text-white text-xs font-bold shadow-xs transition-all hover:scale-105"
                       >
                         <span>Visit College Portal</span>
