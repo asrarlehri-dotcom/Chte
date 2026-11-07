@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getGPValue, calculateStudentCGPA } from "@/lib/cgpa";
 import { useSettings } from "@/lib/useSettings";
+import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
 
 type MarkEntry = {
   courseId?: string;
@@ -684,7 +685,7 @@ function DMCPrintCard({
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * OFFICIAL ACADEMIC DEGREE TRANSCRIPT PRINT CARD
- * Dynamically generated from Live Gazette Results Data — Zero Hardcoding
+ * University of Balochistan Standard Official Format
  * ═══════════════════════════════════════════════════════════════════════════
  */
 function TranscriptPrintCard({
@@ -710,285 +711,16 @@ function TranscriptPrintCard({
   programName: string;
   session: string;
 }) {
-  const startSem = fromSemester || 1;
-  const endSem = toSemester || maxSemester || 8;
-
-  // Extract all distinct semesters present in student.marks within [startSem, endSem]
-  const semestersMap: Record<number, MarkEntry[]> = {};
-  (student.marks || []).forEach((m) => {
-    const sem = m.course?.semester ?? m.semester ?? 1;
-    if (sem >= startSem && sem <= endSem) {
-      if (!semestersMap[sem]) semestersMap[sem] = [];
-      semestersMap[sem].push(m);
-    }
-  });
-
-  const availableSemesters = Object.keys(semestersMap)
-    .map(Number)
-    .sort((a, b) => a - b);
-
-  if (availableSemesters.length === 0) {
-    for (let s = startSem; s <= endSem; s++) {
-      availableSemesters.push(s);
-    }
-  }
-
-  let grandTotalCredits = 0;
-  let grandTotalMax = 0;
-  let grandTotalObtained = 0;
-  let grandTotalGPPoints = 0;
-
-  const semesterCards = availableSemesters.map((sem) => {
-    const marks = semestersMap[sem] || [];
-    let semCredits = 0;
-    let semMax = 0;
-    let semObt = 0;
-    let semGPPoints = 0;
-
-    const items = marks.map((m, idx) => {
-      const isAbsent = (m as any).status === "ABSENT" || (m as any).status === "A";
-      const credit = m.course?.creditHours || 3;
-      const max = m.totalMarks || 100;
-      const obt = isAbsent ? 0 : m.obtainedMarks;
-      const gp = isAbsent ? 0.0 : getGPValue(obt, max);
-      const pct = max > 0 ? (obt / max) * 100 : 0;
-      const grade = isAbsent ? "F (A)" : getGrade(gp, pct);
-
-      semCredits += credit;
-      semMax += max;
-      semObt += obt;
-      semGPPoints += gp * credit;
-
-      return {
-        sr: idx + 1,
-        code: m.course?.code || `BS-${sem}0${idx + 1}`,
-        title: m.course?.title || "Subject",
-        credit,
-        max,
-        obt: isAbsent ? "A" : obt,
-        isAbsent,
-        grade,
-        gp: gp.toFixed(2),
-      };
-    });
-
-    const sgpa = semCredits > 0 ? (semGPPoints / semCredits).toFixed(2) : "0.00";
-
-    grandTotalCredits += semCredits;
-    grandTotalMax += semMax;
-    grandTotalObtained += semObt;
-    grandTotalGPPoints += semGPPoints;
-
-    return {
-      semester: sem,
-      items,
-      semCredits,
-      semMax,
-      semObt,
-      sgpa,
-    };
-  });
-
-  // Calculate CGPA across relevant semesters
-  const semestersData = semesterCards.map((sc) => ({
-    semester: sc.semester,
-    gpa: parseFloat(sc.sgpa),
-    creditHours: sc.semCredits,
-  }));
-
-  const { cgpa, totalCredits } = calculateStudentCGPA(
-    { bsAdmissionType: student.bsAdmissionType },
-    semestersData
-  );
-
-  const overallPct = grandTotalMax > 0 ? ((grandTotalObtained / grandTotalMax) * 100).toFixed(1) : "0.0";
-  const issueDate = new Date().toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
   return (
-    <div className="page-break-student bg-white border-2 border-slate-900 rounded-2xl p-6 sm:p-8 flex flex-col justify-between text-slate-900 shadow-md print:shadow-none print:border-2 print:border-slate-900 print:rounded-none relative overflow-hidden font-sans">
-      <div className="space-y-4 relative z-10">
-        {/* Header */}
-        <div className="border-b-2 border-slate-900 pb-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="w-16 h-16 flex items-center justify-center shrink-0">
-              {collegeLogo ? (
-                <img src={collegeLogo} alt="Logo" className="w-16 h-16 object-contain" />
-              ) : (
-                <div className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center text-xl font-bold">
-                  🏛️
-                </div>
-              )}
-            </div>
-
-            <div className="text-center flex-1">
-              <div className="text-[10px] font-extrabold text-slate-600 uppercase tracking-widest">
-                Government of Balochistan
-              </div>
-              <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                Department of Higher &amp; Technical Education
-              </div>
-              <h1 className="text-lg sm:text-xl font-black text-slate-950 uppercase tracking-tight mt-0.5">
-                {collegeName}
-              </h1>
-              <p className="text-[9.5px] font-semibold text-slate-500 italic">
-                {collegeAddress || collegeTagline || "Quetta, Balochistan, Pakistan"}
-              </p>
-            </div>
-
-            <div className="w-24 h-16 flex flex-col items-center justify-center border border-slate-300 rounded-lg p-1 bg-slate-50 text-center shrink-0">
-              <span className="text-[7px] font-extrabold uppercase text-slate-400">Official</span>
-              <span className="text-xs font-black text-purple-900">Transcript</span>
-              <span className="text-[7.5px] font-bold text-slate-600">
-                Semesters {startSem} – {endSem}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-2.5 py-1 px-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white rounded-lg flex items-center justify-between flex-wrap gap-2 text-[11px] font-black uppercase tracking-wider print:bg-slate-900 print:text-white">
-            <span>Official Academic Degree Transcript (Semesters {startSem} – {endSem})</span>
-            <span>
-              {endSem === 2
-                ? "First Year Academic Record (2 Semesters)"
-                : endSem === 4
-                ? "Associate Degree Equivalent (4 Semesters)"
-                : endSem === 6
-                ? "Third Year Cumulative Record (6 Semesters)"
-                : endSem >= 8
-                ? "Bachelor of Science (BS 4-Year Full Degree)"
-                : `Semesters ${startSem} to ${endSem} Transcript`}
-            </span>
-          </div>
-        </div>
-
-        {/* Student Profile Info */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
-          <div>
-            <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Student Name</span>
-            <strong className="text-slate-950 text-xs font-black">{student.user?.name}</strong>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Father's Name</span>
-            <strong className="text-slate-800 font-bold">{student.fatherName || "—"}</strong>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Roll Number</span>
-            <strong className="text-purple-900 font-mono font-black text-xs">{student.rollNumber}</strong>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Degree Program</span>
-            <strong className="text-slate-900 font-bold">{student.program?.name || programName}</strong>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Batch / Session</span>
-            <strong className="text-slate-800 font-bold">{student.session || session}</strong>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">Admission Mode</span>
-            <strong className="text-slate-800 font-bold">
-              {student.bsAdmissionType === "BRIDGING_5TH" ? "Bridging (5th Sem Intake)" : "Regular (4-Year)"}
-            </strong>
-          </div>
-        </div>
-
-        {/* Semester-by-Semester Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {semesterCards.map((sc) => (
-            <div key={sc.semester} className="border border-slate-300 rounded-xl overflow-hidden bg-white shadow-xs">
-              <div className="bg-slate-800 text-white px-2.5 py-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider print:bg-slate-800 print:text-white">
-                <span>Semester {sc.semester}</span>
-                <span className="text-[9px] font-semibold text-slate-300">SGPA: {sc.sgpa} &bull; {sc.semCredits} Cr</span>
-              </div>
-              <table className="w-full text-[9.5px] text-left border-collapse">
-                <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[8px] border-b">
-                  <tr>
-                    <th className="p-1 w-14">Code</th>
-                    <th className="p-1">Course Title</th>
-                    <th className="p-1 text-center w-8">Cr</th>
-                    <th className="p-1 text-center w-10">Obt</th>
-                    <th className="p-1 text-center w-10">GP</th>
-                    <th className="p-1 text-center w-10">Grd</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sc.items.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-2.5 text-center text-slate-400 font-semibold italic text-[8.5px]">
-                        No courses recorded
-                      </td>
-                    </tr>
-                  ) : (
-                    sc.items.map((item) => (
-                      <tr key={item.sr} className={item.isAbsent ? "bg-rose-50/50" : ""}>
-                        <td className="p-1 font-mono text-slate-600 font-bold">{item.code}</td>
-                        <td className="p-1 font-semibold text-slate-900 truncate max-w-[130px]">{item.title}</td>
-                        <td className="p-1 text-center text-slate-700">{item.credit}</td>
-                        <td className={`p-1 text-center font-bold ${item.isAbsent ? "text-rose-700" : "text-slate-900"}`}>{item.obt}</td>
-                        <td className="p-1 text-center font-bold text-slate-800">{item.gp}</td>
-                        <td className={`p-1 text-center font-black ${item.grade.startsWith("F") ? "text-rose-600" : "text-emerald-700"}`}>{item.grade}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
-
-        {/* Cumulative Degree Summary */}
-        <div className="bg-purple-50/60 p-3 rounded-xl border border-purple-200 grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs">
-          <div>
-            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">
-              Completed Credits (Sem {startSem}–{endSem})
-            </span>
-            <span className="text-sm font-black text-purple-950">{totalCredits} Credit Hours</span>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">Cumulative Marks</span>
-            <span className="text-sm font-black text-purple-950">{grandTotalObtained} / {grandTotalMax}</span>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">Overall Percentage</span>
-            <span className="text-sm font-black text-purple-950">{overallPct}%</span>
-          </div>
-          <div>
-            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">
-              {endSem >= 8 ? "Final CGPA" : `Cumulative CGPA (Sem 1–${endSem})`}
-            </span>
-            <span className="text-lg font-black text-purple-900">{cgpa.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Official Signatures Footer */}
-      <div className="mt-6 pt-5 border-t-2 border-slate-900 grid grid-cols-4 gap-4 text-center text-[9.5px] font-black uppercase tracking-wider text-slate-800 relative z-10">
-        <div>
-          <div className="h-9 border-b border-dashed border-slate-400 mb-1"></div>
-          <span>Tabulator / Clerk</span>
-        </div>
-        <div>
-          <div className="h-9 border-b border-dashed border-slate-400 mb-1"></div>
-          <span>Assistant Controller</span>
-        </div>
-        <div>
-          <div className="h-9 border-b border-dashed border-slate-400 mb-1"></div>
-          <span>Controller of Examinations</span>
-        </div>
-        <div>
-          <div className="h-9 border-b border-dashed border-slate-400 mb-1 flex items-center justify-center">
-            <span className="text-[7px] text-slate-300 uppercase tracking-widest">[ College Stamp ]</span>
-          </div>
-          <span>Principal</span>
-        </div>
-      </div>
-
-      <div className="mt-2.5 flex justify-between items-center text-[7.5px] text-slate-400 font-semibold border-t border-slate-200 pt-1">
-        <span>Verified from Official Results Gazette &bull; University of Balochistan Affiliated Standards</span>
-        <span>Issue Date: {issueDate}</span>
-      </div>
+    <div className="page-break-student mb-6 print:mb-0">
+      <OfficialTranscriptDocument
+        student={student}
+        fromSemester={fromSemester}
+        toSemester={toSemester || maxSemester || 8}
+        collegeName={collegeName}
+        collegeAddress={collegeAddress}
+        universityName="University of Balochistan, Quetta"
+      />
     </div>
   );
 }

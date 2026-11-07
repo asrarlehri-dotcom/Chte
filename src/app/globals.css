@@ -162,4 +162,26 @@ body {
   animation-play-state: paused;
 }
 
+/* Print Optimization for Official Degree Transcripts & DMCs */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 6mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .page-break-student,
+  .official-transcript-root {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
 
