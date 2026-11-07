@@ -689,6 +689,8 @@ function DMCPrintCard({
  */
 function TranscriptPrintCard({
   student,
+  fromSemester = 1,
+  toSemester,
   maxSemester,
   collegeName,
   collegeLogo,
@@ -698,7 +700,9 @@ function TranscriptPrintCard({
   session,
 }: {
   student: StudentData;
-  maxSemester: number;
+  fromSemester?: number;
+  toSemester?: number;
+  maxSemester?: number;
   collegeName: string;
   collegeLogo?: string;
   collegeTagline?: string;
@@ -706,11 +710,14 @@ function TranscriptPrintCard({
   programName: string;
   session: string;
 }) {
-  // Extract all distinct semesters present in student.marks
+  const startSem = fromSemester || 1;
+  const endSem = toSemester || maxSemester || 8;
+
+  // Extract all distinct semesters present in student.marks within [startSem, endSem]
   const semestersMap: Record<number, MarkEntry[]> = {};
   (student.marks || []).forEach((m) => {
     const sem = m.course?.semester ?? m.semester ?? 1;
-    if (sem <= maxSemester) {
+    if (sem >= startSem && sem <= endSem) {
       if (!semestersMap[sem]) semestersMap[sem] = [];
       semestersMap[sem].push(m);
     }
@@ -721,7 +728,9 @@ function TranscriptPrintCard({
     .sort((a, b) => a - b);
 
   if (availableSemesters.length === 0) {
-    availableSemesters.push(1);
+    for (let s = startSem; s <= endSem; s++) {
+      availableSemesters.push(s);
+    }
   }
 
   let grandTotalCredits = 0;
@@ -830,16 +839,28 @@ function TranscriptPrintCard({
               </p>
             </div>
 
-            <div className="w-20 h-16 flex flex-col items-center justify-center border border-slate-300 rounded-lg p-1 bg-slate-50 text-center shrink-0">
+            <div className="w-24 h-16 flex flex-col items-center justify-center border border-slate-300 rounded-lg p-1 bg-slate-50 text-center shrink-0">
               <span className="text-[7px] font-extrabold uppercase text-slate-400">Official</span>
               <span className="text-xs font-black text-purple-900">Transcript</span>
-              <span className="text-[7px] font-bold text-slate-500">Degree Record</span>
+              <span className="text-[7.5px] font-bold text-slate-600">
+                Semesters {startSem} – {endSem}
+              </span>
             </div>
           </div>
 
           <div className="mt-2.5 py-1 px-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white rounded-lg flex items-center justify-between flex-wrap gap-2 text-[11px] font-black uppercase tracking-wider print:bg-slate-900 print:text-white">
-            <span>Official Academic Degree Transcript</span>
-            <span>Bachelor of Science (BS 4-Year)</span>
+            <span>Official Academic Degree Transcript (Semesters {startSem} – {endSem})</span>
+            <span>
+              {endSem === 2
+                ? "First Year Academic Record (2 Semesters)"
+                : endSem === 4
+                ? "Associate Degree Equivalent (4 Semesters)"
+                : endSem === 6
+                ? "Third Year Cumulative Record (6 Semesters)"
+                : endSem >= 8
+                ? "Bachelor of Science (BS 4-Year Full Degree)"
+                : `Semesters ${startSem} to ${endSem} Transcript`}
+            </span>
           </div>
         </div>
 
@@ -920,7 +941,9 @@ function TranscriptPrintCard({
         {/* Cumulative Degree Summary */}
         <div className="bg-purple-50/60 p-3 rounded-xl border border-purple-200 grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs">
           <div>
-            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">Total Completed Credits</span>
+            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">
+              Completed Credits (Sem {startSem}–{endSem})
+            </span>
             <span className="text-sm font-black text-purple-950">{totalCredits} Credit Hours</span>
           </div>
           <div>
@@ -932,7 +955,9 @@ function TranscriptPrintCard({
             <span className="text-sm font-black text-purple-950">{overallPct}%</span>
           </div>
           <div>
-            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">Final CGPA</span>
+            <span className="block text-[9px] font-extrabold text-purple-700 uppercase">
+              {endSem >= 8 ? "Final CGPA" : `Cumulative CGPA (Sem 1–${endSem})`}
+            </span>
             <span className="text-lg font-black text-purple-900">{cgpa.toFixed(2)}</span>
           </div>
         </div>
@@ -996,6 +1021,9 @@ export default function GazetteCompilerPage() {
     session: string;
     programId: string;
     semester: number;
+    transcriptSpan?: string;
+    fromSemester?: number;
+    toSemester?: number;
     rollSearch: string;
     selectedStudentId: string | null;
     bulkSelectedIds: string[];
@@ -1033,6 +1061,9 @@ export default function GazetteCompilerPage() {
       session: initSession,
       programId: initProgId,
       semester: initSemester,
+      transcriptSpan: "1-8",
+      fromSemester: 1,
+      toSemester: 8,
       rollSearch: preselectedStudent ? preselectedStudent.rollNumber : "",
       selectedStudentId: preselectedStudent ? preselectedStudent.id : null,
       bulkSelectedIds: [],
@@ -1079,6 +1110,9 @@ export default function GazetteCompilerPage() {
       session: initSess,
       programId: initProg,
       semester: selectedSemester,
+      transcriptSpan: "1-8",
+      fromSemester: 1,
+      toSemester: 8,
       rollSearch: "",
       selectedStudentId: first ? first.id : null,
       bulkSelectedIds: candidateIds.length > 0 ? candidateIds : allStudents.map((s) => s.id),
@@ -2053,26 +2087,120 @@ export default function GazetteCompilerPage() {
                   </select>
                 </div>
 
-                {/* Semester Filter */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
-                    <span>📚</span>
-                    <span>SEMESTER</span>
-                  </label>
-                  <select
-                    value={certModal.semester}
-                    onChange={(e) =>
-                      setCertModal((prev) => (prev ? { ...prev, semester: parseInt(e.target.value) } : null))
-                    }
-                    className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
-                  >
-                    {semesterOptions.map((sem) => (
-                      <option key={sem} value={sem}>
-                        Semester {sem}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Semester or Transcript Scope Filter */}
+                {certModal.type === "dmc" ? (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+                      <span>📚</span>
+                      <span>EXAM SEMESTER (DMC)</span>
+                    </label>
+                    <select
+                      value={certModal.semester}
+                      onChange={(e) =>
+                        setCertModal((prev) => (prev ? { ...prev, semester: parseInt(e.target.value) } : null))
+                      }
+                      className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
+                    >
+                      {semesterOptions.map((sem) => (
+                        <option key={sem} value={sem}>
+                          Semester {sem}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-[#0a5228] flex items-center gap-1.5">
+                        <span>📚</span>
+                        <span>TRANSCRIPT SEMESTERS</span>
+                      </label>
+                      <span className="text-[10px] font-extrabold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-full">
+                        Semesters {certModal.fromSemester || 1} – {certModal.toSemester || certModal.semester}
+                      </span>
+                    </div>
+
+                    <select
+                      value={certModal.transcriptSpan || (certModal.toSemester ? `1-${certModal.toSemester}` : "1-8")}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let from = 1;
+                        let to = 8;
+                        if (val === "1-2") { from = 1; to = 2; }
+                        else if (val === "1-4") { from = 1; to = 4; }
+                        else if (val === "1-6") { from = 1; to = 6; }
+                        else if (val === "1-8") { from = 1; to = 8; }
+                        else if (val.startsWith("1-")) {
+                          const parsedTo = parseInt(val.replace("1-", ""));
+                          if (!isNaN(parsedTo)) { to = parsedTo; }
+                        }
+                        setCertModal((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                transcriptSpan: val,
+                                fromSemester: from,
+                                toSemester: to,
+                                semester: to,
+                              }
+                            : null
+                        );
+                      }}
+                      className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 shadow-2xs transition-all"
+                    >
+                      <option value="1-8">Semesters 1 – 8 (Complete 4-Year Final Degree)</option>
+                      <option value="1-6">Semesters 1 – 6 (3rd Year Transcript)</option>
+                      <option value="1-4">Semesters 1 – 4 (2nd Year / Associate Degree)</option>
+                      <option value="1-2">Semesters 1 – 2 (1st Year Transcript)</option>
+                      <option value="1-1">Semester 1 Only</option>
+                      <option value="1-3">Semesters 1 – 3</option>
+                      <option value="1-5">Semesters 1 – 5</option>
+                      <option value="1-7">Semesters 1 – 7</option>
+                    </select>
+
+                    {/* Quick Span Buttons: 1-2, 1-4, 1-6, 1-8 */}
+                    <div className="flex items-center gap-1 pt-0.5 flex-wrap">
+                      {[
+                        { label: "1-2", sub: "1st Yr", to: 2 },
+                        { label: "1-4", sub: "2nd Yr/AD", to: 4 },
+                        { label: "1-6", sub: "3rd Yr", to: 6 },
+                        { label: "1-8", sub: "Final 4-Yr", to: 8 },
+                      ].map((item) => {
+                        const isCurrent =
+                          (certModal.toSemester || certModal.semester) === item.to &&
+                          (certModal.fromSemester || 1) === 1;
+                        return (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() =>
+                              setCertModal((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      transcriptSpan: item.label,
+                                      fromSemester: 1,
+                                      toSemester: item.to,
+                                      semester: item.to,
+                                    }
+                                  : null
+                              )
+                            }
+                            className={`flex-1 min-w-[50px] py-1 px-1 rounded-lg text-[10.5px] font-black text-center transition-all border ${
+                              isCurrent
+                                ? "bg-[#0d4a22] text-white border-[#0d4a22] shadow-xs"
+                                : "bg-emerald-50/70 hover:bg-emerald-100 text-[#073619] border-emerald-200"
+                            }`}
+                            title={`Select Semesters ${item.label}`}
+                          >
+                            <span>{item.label}</span>
+                            <span className="block text-[8px] font-semibold opacity-75">{item.sub}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Single Mode: Roll Number Search */}
                 <div className="flex flex-col gap-1">
@@ -2179,7 +2307,13 @@ export default function GazetteCompilerPage() {
                     <span className="text-slate-400">|</span>
                     <span>Session: {currentSingleStudent.session || certModal.session}</span>
                     <span className="text-slate-400">|</span>
-                    <span className="text-[#0a5228] font-extrabold">Exam Semester: {certModal.semester}</span>
+                    {certModal.type === "dmc" ? (
+                      <span className="text-[#0a5228] font-extrabold">Exam Semester: {certModal.semester}</span>
+                    ) : (
+                      <span className="text-purple-900 font-black">
+                        Transcript Scope: Semesters {certModal.fromSemester || 1} – {certModal.toSemester || certModal.semester}
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -2261,7 +2395,9 @@ export default function GazetteCompilerPage() {
                         ) : (
                           <TranscriptPrintCard
                             student={currentSingleStudent}
-                            maxSemester={certModal.semester}
+                            fromSemester={certModal.fromSemester || 1}
+                            toSemester={certModal.toSemester || certModal.semester}
+                            maxSemester={certModal.toSemester || certModal.semester}
                             collegeName={collegeName}
                             collegeLogo={collegeLogo}
                             collegeTagline={collegeTagline}
@@ -2426,7 +2562,9 @@ export default function GazetteCompilerPage() {
                             ) : (
                               <TranscriptPrintCard
                                 student={student}
-                                maxSemester={certModal.semester}
+                                fromSemester={certModal.fromSemester || 1}
+                                toSemester={certModal.toSemester || certModal.semester}
+                                maxSemester={certModal.toSemester || certModal.semester}
                                 collegeName={collegeName}
                                 collegeLogo={collegeLogo}
                                 collegeTagline={collegeTagline}

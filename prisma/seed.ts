@@ -367,22 +367,63 @@ async function main() {
           progCode: "GPGCQ-BSCS",
           deptCode: "GPGCQ-CS",
           courses: [
+            // Semester 1 (6 papers)
             { sem: 1, code: "CS101", title: "Programming Fundamentals (C++)", ch: 4, desc: "Syntax, logic building, functions, arrays, pointers." },
             { sem: 1, code: "ENG101", title: "Functional English", ch: 3, desc: "Reading comprehension, technical writing, grammar." },
+            { sem: 1, code: "MTH101", title: "Calculus & Analytical Geometry", ch: 3, desc: "Functions, limits, derivatives, integrals, coordinate geometry." },
+            { sem: 1, code: "ICT101", title: "Information & Communication Tech", ch: 3, desc: "Hardware architecture, networking basics, cloud computing, office tools." },
+            { sem: 1, code: "ISL101", title: "Islamic Studies / Ethics", ch: 2, desc: "Quranic foundations, Hadith literature, Islamic ethics and jurisprudence." },
+            { sem: 1, code: "PHY101", title: "Basic Electronics & Applied Physics", ch: 3, desc: "Semiconductors, PN junctions, diodes, analog and digital electronics." },
+
+            // Semester 2 (6 papers)
             { sem: 2, code: "CS102", title: "Object Oriented Programming (OOP)", ch: 4, desc: "Classes, inheritance, polymorphism, templates in C++." },
             { sem: 2, code: "MTH102", title: "Discrete Mathematics", ch: 3, desc: "Sets, graphs, trees, combinatorics, proof techniques." },
+            { sem: 2, code: "CS104", title: "Digital Logic Design (DLD)", ch: 3, desc: "Boolean algebra, Karnaugh maps, combinational & sequential circuits." },
+            { sem: 2, code: "ENG102", title: "Communication & Presentation Skills", ch: 3, desc: "Oral presentations, business communications, professional reporting." },
+            { sem: 2, code: "PKS101", title: "Pakistan Studies", ch: 2, desc: "Ideology of Pakistan, historical struggle, constitution and foreign policy." },
+            { sem: 2, code: "PHY102", title: "Circuit Analysis & Signals", ch: 3, desc: "Kirchhoff laws, AC/DC analysis, RL/RC network responses." },
+
+            // Semester 3 (5 papers)
             { sem: 3, code: "CS201", title: "Data Structures & Algorithms", ch: 4, desc: "Stacks, queues, linked lists, binary trees, sorting." },
             { sem: 3, code: "CS202", title: "Computer Organization & Assembly", ch: 3, desc: "Microprocessors, x86 assembly, registers, memory." },
+            { sem: 3, code: "MTH201", title: "Linear Algebra", ch: 3, desc: "Vector spaces, matrices, determinants, eigenvalues, linear transformations." },
+            { sem: 3, code: "ENG201", title: "Technical & Report Writing", ch: 3, desc: "Research proposals, executive summaries, technical documentation." },
+            { sem: 3, code: "STAT201", title: "Probability & Statistics", ch: 3, desc: "Random variables, probability distributions, hypothesis testing, regression." },
+
+            // Semester 4 (5 papers)
             { sem: 4, code: "CS203", title: "Database Systems", ch: 4, desc: "ER modeling, relational algebra, SQL, normalization, ACID." },
             { sem: 4, code: "CS204", title: "Operating Systems", ch: 3, desc: "Processes, threads, CPU scheduling, virtual memory, deadlocks." },
+            { sem: 4, code: "CS205", title: "Software Engineering & Architecture", ch: 3, desc: "SDLC, agile scrum, design patterns, UML modeling." },
+            { sem: 4, code: "MTH202", title: "Differential Equations", ch: 3, desc: "First and second order ODEs, Laplace transforms, Fourier series." },
+            { sem: 4, code: "HUM201", title: "Professional Ethics & Human Values", ch: 2, desc: "Intellectual property, ACM/IEEE ethics code, digital rights." },
+
+            // Semester 5 (5 papers)
             { sem: 5, code: "CS301", title: "Computer Communication & Networks", ch: 4, desc: "OSI model, TCP/IP, IP subnetting, socket programming." },
             { sem: 5, code: "CS302", title: "Web Technologies & Full-Stack", ch: 3, desc: "HTML5, CSS3, modern JavaScript, Node.js, Next.js, REST APIs." },
-            { sem: 6, code: "CS303", title: "Theory of Automata & Computation", ch: 3, desc: "Regular languages, DFA/NFA, context-free grammars, Turing machines." },
-            { sem: 6, code: "CS304", title: "Software Engineering & Architecture", ch: 3, desc: "SDLC, agile scrum, design patterns, UML modeling." },
-            { sem: 7, code: "CS401", title: "Artificial Intelligence & Expert Systems", ch: 4, desc: "Search algorithms, heuristic search, neural networks, prolog." },
-            { sem: 7, code: "CS402", title: "Final Year Capstone Project - Part I", ch: 3, desc: "Problem statement, requirement specification, system design." },
-            { sem: 8, code: "CS403", title: "Cloud Computing & Distributed Systems", ch: 3, desc: "Virtualization, AWS, Docker, Kubernetes, microservices." },
-            { sem: 8, code: "CS404", title: "Final Year Capstone Project - Part II", ch: 3, desc: "Implementation, testing, final defense and viva-voce." },
+            { sem: 5, code: "CS303", title: "Theory of Automata & Computation", ch: 3, desc: "Regular languages, DFA/NFA, context-free grammars, Turing machines." },
+            { sem: 5, code: "CS304", title: "Design & Analysis of Algorithms", ch: 3, desc: "Divide & conquer, dynamic programming, greedy algorithms, NP-completeness." },
+            { sem: 5, code: "MTH301", title: "Numerical Computing", ch: 3, desc: "Root finding, numerical integration, polynomial interpolation, error analysis." },
+
+            // Semester 6 (5 papers)
+            { sem: 6, code: "CS305", title: "Artificial Intelligence & Expert Systems", ch: 4, desc: "Search algorithms, heuristic search, neural networks, prolog." },
+            { sem: 6, code: "CS306", title: "Compiler Construction", ch: 3, desc: "Lexical analysis, syntax trees, semantic checking, code generation." },
+            { sem: 6, code: "CS307", title: "Information Security & Cryptography", ch: 3, desc: "Symmetric/asymmetric encryption, hashing, network security, firewalls." },
+            { sem: 6, code: "CS308", title: "Mobile Application Development", ch: 3, desc: "React Native, Android architecture, state management, mobile UI/UX." },
+            { sem: 6, code: "CS309", title: "Data Science & Big Data Analytics", ch: 3, desc: "Pandas, NumPy, data pipelines, exploratory analysis, visualization." },
+
+            // Semester 7 (5 papers)
+            { sem: 7, code: "CS401", title: "Final Year Capstone Project - Part I", ch: 3, desc: "Problem statement, requirement specification, system design." },
+            { sem: 7, code: "CS402", title: "Cloud Computing & Distributed Systems", ch: 3, desc: "Virtualization, AWS, Docker, Kubernetes, microservices." },
+            { sem: 7, code: "CS403", title: "Parallel & Distributed Computing", ch: 3, desc: "MPI, OpenMP, multi-core programming, GPU acceleration." },
+            { sem: 7, code: "CS404", title: "Machine Learning & Deep Learning", ch: 3, desc: "Supervised/unsupervised learning, CNN, RNN, model evaluation." },
+            { sem: 7, code: "MGT401", title: "Entrepreneurship & Innovation", ch: 3, desc: "Business models, startup financing, tech incubator scaling." },
+
+            // Semester 8 (5 papers)
+            { sem: 8, code: "CS405", title: "Final Year Capstone Project - Part II", ch: 3, desc: "Implementation, testing, final defense and viva-voce." },
+            { sem: 8, code: "CS406", title: "Human Computer Interaction (HCI)", ch: 3, desc: "User-centered design, usability testing, accessibility standards." },
+            { sem: 8, code: "CS407", title: "Natural Language Processing", ch: 3, desc: "Tokenization, POS tagging, sentiment analysis, transformers, LLMs." },
+            { sem: 8, code: "LAW401", title: "Cyber Law & Digital Forensics", ch: 3, desc: "Electronic transactions act, cyber crime investigation, evidence handling." },
+            { sem: 8, code: "CS408", title: "Software Project Management", ch: 3, desc: "Agile methodologies, risk management, cost estimation, Jira workflows." },
           ],
         },
       ],
@@ -422,14 +463,61 @@ async function main() {
           progCode: "GSCQ-BSPHY",
           deptCode: "GSCQ-PHY",
           courses: [
+            // Semester 1 (5 papers)
             { sem: 1, code: "PHY101", title: "Mechanics & Wave Motion", ch: 4, desc: "Newtonian mechanics, harmonic motion, wave equations." },
+            { sem: 1, code: "MTH101", title: "Calculus-I", ch: 3, desc: "Limits, continuity, differentiation, integration techniques." },
+            { sem: 1, code: "CHM101", title: "General Chemistry-I", ch: 3, desc: "Atomic structure, chemical bonding, periodic table trends." },
+            { sem: 1, code: "ENG101", title: "Functional English", ch: 3, desc: "Reading comprehension, sentence structure, essay writing." },
+            { sem: 1, code: "ISL101", title: "Islamic Studies / Ethics", ch: 2, desc: "Fundamental Islamic concepts, moral philosophy, ethics." },
+
+            // Semester 2 (5 papers)
             { sem: 2, code: "PHY102", title: "Electricity & Magnetism", ch: 4, desc: "Gauss's law, Maxwell equations, magnetic induction." },
+            { sem: 2, code: "MTH102", title: "Calculus-II & Analytical Geometry", ch: 3, desc: "Multivariate functions, coordinate systems, line integrals." },
+            { sem: 2, code: "CHM102", title: "General Chemistry-II", ch: 3, desc: "Thermodynamics, chemical equilibria, reaction kinetics." },
+            { sem: 2, code: "ENG102", title: "Communication & Presentation Skills", ch: 3, desc: "Effective communication, oral presentations, rhetoric." },
+            { sem: 2, code: "PKS101", title: "Pakistan Studies", ch: 2, desc: "Freedom movement, political geography, national institutions." },
+
+            // Semester 3 (5 papers)
             { sem: 3, code: "PHY201", title: "Thermodynamics & Statistical Physics", ch: 3, desc: "Laws of thermodynamics, entropy, partition functions." },
-            { sem: 4, code: "PHY202", title: "Electronics & Circuit Theory", ch: 4, desc: "Semiconductors, diodes, operational amplifiers, logic gates." },
+            { sem: 3, code: "PHY202", title: "Waves, Optics & Acoustics", ch: 3, desc: "Interference, diffraction, polarization, acoustic waves." },
+            { sem: 3, code: "MTH201", title: "Linear Algebra & Differential Equations", ch: 3, desc: "Matrices, eigenvalues, ordinary differential equations." },
+            { sem: 3, code: "CS101", title: "Introduction to Computer Programming", ch: 3, desc: "C++ fundamentals, logic, algorithms for scientists." },
+            { sem: 3, code: "ENG201", title: "Technical & Scientific Writing", ch: 3, desc: "Lab report writing, research proposals, citations." },
+
+            // Semester 4 (5 papers)
+            { sem: 4, code: "PHY203", title: "Electronics & Circuit Theory", ch: 4, desc: "Semiconductors, diodes, operational amplifiers, logic gates." },
+            { sem: 4, code: "PHY204", title: "Modern Physics & Relativity", ch: 3, desc: "Special relativity, photoelectric effect, Bohr model, wave-particle duality." },
+            { sem: 4, code: "MTH202", title: "Multivariable Calculus & Vectors", ch: 3, desc: "Green's theorem, Stokes' theorem, divergence theorem." },
+            { sem: 4, code: "STAT201", title: "Probability & Applied Statistics", ch: 3, desc: "Distributions, error analysis, hypothesis testing." },
+            { sem: 4, code: "SOC101", title: "Introduction to Sociology & Civics", ch: 2, desc: "Social structures, civic responsibility, community ethics." },
+
+            // Semester 5 (5 papers)
             { sem: 5, code: "PHY301", title: "Quantum Mechanics - I", ch: 3, desc: "Schrodinger wave equation, wave packets, quantum wells." },
-            { sem: 6, code: "PHY302", title: "Solid State Physics", ch: 3, desc: "Crystal lattices, X-ray diffraction, superconductivity." },
+            { sem: 5, code: "PHY302", title: "Mathematical Methods of Physics - I", ch: 3, desc: "Complex variables, Fourier transforms, special functions." },
+            { sem: 5, code: "PHY303", title: "Classical Mechanics", ch: 3, desc: "Lagrangian & Hamiltonian mechanics, central force motion." },
+            { sem: 5, code: "PHY304", title: "Electrodynamics - I", ch: 3, desc: "Electrostatics, magnetostatics, boundary-value problems." },
+            { sem: 5, code: "PHY305", title: "Advanced Experimental Physics Lab - I", ch: 3, desc: "Spectroscopy, Hall effect, interferometer experiments." },
+
+            // Semester 6 (5 papers)
+            { sem: 6, code: "PHY306", title: "Solid State Physics", ch: 3, desc: "Crystal lattices, X-ray diffraction, superconductivity." },
+            { sem: 6, code: "PHY307", title: "Quantum Mechanics - II", ch: 3, desc: "Perturbation theory, angular momentum, identical particles." },
+            { sem: 6, code: "PHY308", title: "Electrodynamics - II", ch: 3, desc: "Electromagnetic radiation, waveguides, relativistic electrodynamics." },
+            { sem: 6, code: "PHY309", title: "Mathematical Methods of Physics - II", ch: 3, desc: "Green's functions, tensor analysis, group theory." },
+            { sem: 6, code: "PHY310", title: "Advanced Experimental Physics Lab - II", ch: 3, desc: "Nuclear instrumentation, semiconductor testing, thin films." },
+
+            // Semester 7 (5 papers)
             { sem: 7, code: "PHY401", title: "Nuclear & Particle Physics", ch: 3, desc: "Radioactive decay, nuclear reactors, standard model." },
-            { sem: 8, code: "PHY402", title: "Research Thesis & Final Project", ch: 4, desc: "Experimental physics laboratory research and dissertation." },
+            { sem: 7, code: "PHY402", title: "Solid State Physics - II", ch: 3, desc: "Band structure, semiconductors, dielectric properties." },
+            { sem: 7, code: "PHY403", title: "Statistical Mechanics & Thermal Physics", ch: 3, desc: "Ensembles, Bose-Einstein and Fermi-Dirac statistics." },
+            { sem: 7, code: "PHY404", title: "Laser Physics & Quantum Optics", ch: 3, desc: "Stimulated emission, optical cavities, photonics." },
+            { sem: 7, code: "PHY405", title: "Undergraduate Research Project - I", ch: 3, desc: "Literature review, research proposal, baseline modeling." },
+
+            // Semester 8 (5 papers)
+            { sem: 8, code: "PHY406", title: "Research Thesis & Final Project", ch: 4, desc: "Experimental physics laboratory research and dissertation." },
+            { sem: 8, code: "PHY407", title: "Computational Physics & Simulation", ch: 3, desc: "Monte Carlo methods, numerical ODE solvers, lattice models." },
+            { sem: 8, code: "PHY408", title: "Plasma Physics & Fusion Energy", ch: 3, desc: "Debye shielding, plasma waves, magnetohydrodynamics." },
+            { sem: 8, code: "PHY409", title: "Atomic & Molecular Spectroscopy", ch: 3, desc: "Zeeman effect, Raman spectroscopy, molecular orbitals." },
+            { sem: 8, code: "PHY410", title: "Environmental & Medical Physics", ch: 3, desc: "Radiation detection, medical imaging, dosimetric techniques." },
           ],
         },
       ],
@@ -465,14 +553,61 @@ async function main() {
           progCode: "GDCM-BSPOL",
           deptCode: "GDCM-POL",
           courses: [
+            // Semester 1 (5 papers)
             { sem: 1, code: "POL101", title: "Introduction to Political Science", ch: 3, desc: "Foundational theories, state models, forms of government." },
-            { sem: 2, code: "POL102", title: "Western Political Philosophy", ch: 3, desc: "Plato, Aristotle, Machiavelli, Hobbes, Locke, Rousseau." },
+            { sem: 1, code: "HIS101", title: "History of Civilizations", ch: 3, desc: "Ancient near east, Greco-Roman empires, Islamic golden age, Enlightenment." },
+            { sem: 1, code: "SOC101", title: "Introduction to Sociology", ch: 3, desc: "Social organization, culture, institutions, social change." },
+            { sem: 1, code: "ENG101", title: "Functional English", ch: 3, desc: "Grammar, syntax, reading comprehension, composition." },
+            { sem: 1, code: "ISL101", title: "Islamic Studies / Ethics", ch: 2, desc: "Islamic ethics, Quranic worldview, contemporary religious discourses." },
+
+            // Semester 2 (5 papers)
+            { sem: 2, code: "POL102", title: "Western Political Philosophy - I", ch: 3, desc: "Plato, Aristotle, Machiavelli, classical civic thought." },
+            { sem: 2, code: "ECO101", title: "Principles of Microeconomics", ch: 3, desc: "Market equilibrium, consumer choice, production functions." },
+            { sem: 2, code: "GEO101", title: "World Political Geography", ch: 3, desc: "Territoriality, border disputes, geopolitical chokepoints." },
+            { sem: 2, code: "ENG102", title: "Communication & Presentation Skills", ch: 3, desc: "Public speaking, persuasive arguments, academic presentations." },
+            { sem: 2, code: "PKS101", title: "Pakistan Studies", ch: 2, desc: "Pakistan movement, founding fathers, geopolitical significance." },
+
+            // Semester 3 (5 papers)
             { sem: 3, code: "POL201", title: "Muslim Political Thought", ch: 3, desc: "Al-Farabi, Al-Mawardi, Nizam-ul-Mulk, Ibn Khaldun." },
-            { sem: 4, code: "POL202", title: "International Relations & Diplomacy", ch: 3, desc: "Realism, liberalism, international law, UN governance." },
-            { sem: 5, code: "POL301", title: "Constitutional Development in Pakistan", ch: 3, desc: "1956, 1962, 1973 constitutions and constitutional amendments." },
-            { sem: 6, code: "POL302", title: "Comparative Politics & Governance", ch: 3, desc: "Political systems of UK, USA, China, and France." },
+            { sem: 3, code: "POL202", title: "Western Political Philosophy - II", ch: 3, desc: "Hobbes, Locke, Rousseau, Mill, Marx, modern ideologies." },
+            { sem: 3, code: "ECO201", title: "Principles of Macroeconomics", ch: 3, desc: "Fiscal policy, monetary dynamics, inflation, trade balances." },
+            { sem: 3, code: "ENG201", title: "Academic & Report Writing", ch: 3, desc: "Research proposals, book reviews, academic citations." },
+            { sem: 3, code: "ICT101", title: "Computer Applications in Social Sciences", ch: 3, desc: "Data processing, statistical software, digital humanities." },
+
+            // Semester 4 (5 papers)
+            { sem: 4, code: "POL203", title: "International Relations & Diplomacy", ch: 3, desc: "Realism, liberalism, international law, UN governance." },
+            { sem: 4, code: "POL204", title: "Comparative Political Systems (UK & USA)", ch: 3, desc: "Parliamentary vs presidential models, checks and balances." },
+            { sem: 4, code: "STAT201", title: "Quantitative Research Methods", ch: 3, desc: "Survey design, sampling, hypothesis testing in politics." },
+            { sem: 4, code: "PSY101", title: "Political Psychology & Behavior", ch: 3, desc: "Voter behavior, political propaganda, leadership psychology." },
+            { sem: 4, code: "HUM201", title: "Human Rights & International Humanitarian Law", ch: 2, desc: "Geneva conventions, UDHR, rights enforcement mechanisms." },
+
+            // Semester 5 (5 papers)
+            { sem: 5, code: "POL301", title: "Constitutional Development in Pakistan - I", ch: 3, desc: "1956, 1962 constitutions and early legal frameworks." },
+            { sem: 5, code: "POL302", title: "Comparative Politics & Modern Governments", ch: 3, desc: "Political systems of China, France, Turkey, and Russia." },
+            { sem: 5, code: "POL303", title: "Public Administration & Public Policy", ch: 3, desc: "Bureaucratic theories, policy formation, civil service reform." },
+            { sem: 5, code: "POL304", title: "International Law", ch: 3, desc: "Treaties, state sovereignty, maritime law, ICJ jurisprudence." },
+            { sem: 5, code: "POL305", title: "Political Economy of Development", ch: 3, desc: "Bretton Woods institutions, globalization, South-South cooperation." },
+
+            // Semester 6 (5 papers)
+            { sem: 6, code: "POL306", title: "Constitutional Development in Pakistan - II", ch: 3, desc: "1973 Constitution, 18th Amendment, judicial review." },
+            { sem: 6, code: "POL307", title: "Foreign Policy Analysis", ch: 3, desc: "Decision making models, national interest, diplomatic negotiations." },
+            { sem: 6, code: "POL308", title: "Regional & International Organizations", ch: 3, desc: "SCO, ECO, SAARC, EU, OIC, African Union." },
+            { sem: 6, code: "POL309", title: "Research Methodology in Political Science", ch: 3, desc: "Qualitative analysis, case studies, interviewing techniques." },
+            { sem: 6, code: "POL310", title: "International Political Economy", ch: 3, desc: "Trade regimes, WTO, monetary unions, supply chain geopolitics." },
+
+            // Semester 7 (5 papers)
             { sem: 7, code: "POL401", title: "Foreign Policy of Major Powers", ch: 3, desc: "Geopolitics, South Asia security dynamics, CPEC." },
-            { sem: 8, code: "POL402", title: "Research Monograph & Seminar", ch: 4, desc: "Balochistan political developments and policy thesis." },
+            { sem: 7, code: "POL402", title: "Foreign Policy of Pakistan", ch: 3, desc: "Bilateral ties with neighbors, Kashmir dispute, Muslim world." },
+            { sem: 7, code: "POL403", title: "Peace & Conflict Resolution Studies", ch: 3, desc: "Mediation, peacekeeping, conflict transformation." },
+            { sem: 7, code: "POL404", title: "Politics of Middle East & Central Asia", ch: 3, desc: "Resource politics, regional conflicts, post-Soviet transitions." },
+            { sem: 7, code: "POL405", title: "Seminar on Contemporary Global Crises", ch: 3, desc: "Nuclear proliferation, terrorism, digital surveillance, multipolarity." },
+
+            // Semester 8 (5 papers)
+            { sem: 8, code: "POL406", title: "Research Monograph & Seminar", ch: 4, desc: "Balochistan political developments and policy thesis." },
+            { sem: 8, code: "POL407", title: "Balochistan Politics & Regional Security Dynamics", ch: 3, desc: "Provincial autonomy, mineral resources, Gwadar port economics." },
+            { sem: 8, code: "POL408", title: "Strategic Studies & Defense Policy", ch: 3, desc: "Deterrence theory, hybrid warfare, cyber conflict." },
+            { sem: 8, code: "POL409", title: "Local Government & Decentralization", ch: 3, desc: "Municipal governance, fiscal federalism, grassroots democracy." },
+            { sem: 8, code: "POL410", title: "Environmental Politics & Climate Diplomacy", ch: 3, desc: "Climate change accords, COP negotiations, water security." },
           ],
         },
       ],

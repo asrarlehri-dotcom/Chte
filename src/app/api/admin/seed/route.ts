@@ -142,13 +142,69 @@ export async function POST() {
       seededFaculty.push(fac);
     }
 
-    // 7. BS Courses
+    // 7. BS Courses (Every semester has between 4 and 7 papers: strictly 5 to 6 accredited HEC courses)
     const courseData = [
-      { id: "cs101-demo", title: "Programming Fundamentals", code: "CS-101", creditHours: 3, semester: 1, session: "2024", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
-      { id: "cs102-demo", title: "Data Structures & Algorithms", code: "CS-102", creditHours: 3, semester: 2, session: "2024", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
-      { id: "math101-demo", title: "Calculus & Analytical Geometry", code: "MATH-101", creditHours: 3, semester: 1, session: "2024", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
-      { id: "phy101-demo", title: "Mechanics & Heat", code: "PHY-101", creditHours: 4, creditHoursFormat: "4(3-1)", theoryHours: 3, labHours: 1, courseType: "LAB_PRACTICAL", semester: 1, session: "2024", programId: bsPhy.id, departmentId: phyDept.id, facultyId: seededFaculty[1].id },
-      { id: "eng101-demo", title: "Functional English", code: "ENG-101", creditHours: 3, creditHoursFormat: "3(3-0)", theoryHours: 3, labHours: 0, courseType: "THEORY", semester: 1, session: "2024", programId: bsEng.id, departmentId: engDept.id, facultyId: seededFaculty[4].id }
+      // Semester 1 (6 papers)
+      { id: "cs101-demo", title: "Programming Fundamentals", code: "CS-101", creditHours: 3, semester: 1, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs101L-demo", title: "Programming Fundamentals Lab", code: "CS-101L", creditHours: 1, semester: 1, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "math101-demo", title: "Calculus & Analytical Geometry", code: "MATH-101", creditHours: 3, semester: 1, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
+      { id: "eng101-demo", title: "Functional English", code: "ENG-101", creditHours: 3, semester: 1, session: "2024-2028", programId: bsCS.id, departmentId: engDept.id, facultyId: seededFaculty[4].id },
+      { id: "cs103-demo", title: "Information & Communication Tech", code: "CS-103", creditHours: 3, semester: 1, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "isl101-demo", title: "Islamic Studies / Professional Ethics", code: "ISL-101", creditHours: 2, semester: 1, session: "2024-2028", programId: bsCS.id, departmentId: engDept.id, facultyId: seededFaculty[4].id },
+
+      // Semester 2 (6 papers)
+      { id: "cs102-demo", title: "Object Oriented Programming (OOP)", code: "CS-102", creditHours: 3, semester: 2, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs102L-demo", title: "Object Oriented Programming Lab", code: "CS-102L", creditHours: 1, semester: 2, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs104-demo", title: "Digital Logic Design (DLD)", code: "CS-104", creditHours: 3, semester: 2, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "math102-demo", title: "Discrete Structures", code: "MATH-102", creditHours: 3, semester: 2, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
+      { id: "eng102-demo", title: "Communication & Presentation Skills", code: "ENG-102", creditHours: 3, semester: 2, session: "2024-2028", programId: bsCS.id, departmentId: engDept.id, facultyId: seededFaculty[4].id },
+      { id: "pks101-demo", title: "Pakistan Studies", code: "PKS-101", creditHours: 2, semester: 2, session: "2024-2028", programId: bsCS.id, departmentId: engDept.id, facultyId: seededFaculty[4].id },
+
+      // Semester 3 (5 papers)
+      { id: "cs201-demo", title: "Data Structures & Algorithms", code: "CS-201", creditHours: 3, semester: 3, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs201L-demo", title: "Data Structures Lab", code: "CS-201L", creditHours: 1, semester: 3, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs202-demo", title: "Computer Organization & Assembly", code: "CS-202", creditHours: 3, semester: 3, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "math201-demo", title: "Linear Algebra", code: "MATH-201", creditHours: 3, semester: 3, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
+      { id: "stat201-demo", title: "Probability & Statistics", code: "STAT-201", creditHours: 3, semester: 3, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
+
+      // Semester 4 (5 papers)
+      { id: "cs203-demo", title: "Database Systems", code: "CS-203", creditHours: 3, semester: 4, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs203L-demo", title: "Database Systems Lab", code: "CS-203L", creditHours: 1, semester: 4, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs204-demo", title: "Operating Systems", code: "CS-204", creditHours: 3, semester: 4, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs205-demo", title: "Software Engineering", code: "CS-205", creditHours: 3, semester: 4, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "math202-demo", title: "Differential Equations", code: "MATH-202", creditHours: 3, semester: 4, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
+
+      // Semester 5 (5 papers)
+      { id: "cs301-demo", title: "Computer Communication & Networks", code: "CS-301", creditHours: 3, semester: 5, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs302-demo", title: "Web Technologies & Full-Stack", code: "CS-302", creditHours: 3, semester: 5, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs303-demo", title: "Design & Analysis of Algorithms", code: "CS-303", creditHours: 3, semester: 5, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs304-demo", title: "Theory of Automata & Computation", code: "CS-304", creditHours: 3, semester: 5, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "math301-demo", title: "Numerical Computing", code: "MATH-301", creditHours: 3, semester: 5, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
+
+      // Semester 6 (5 papers)
+      { id: "cs305-demo", title: "Artificial Intelligence & Expert Systems", code: "CS-305", creditHours: 3, semester: 6, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs306-demo", title: "Compiler Construction", code: "CS-306", creditHours: 3, semester: 6, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs307-demo", title: "Information Security & Cryptography", code: "CS-307", creditHours: 3, semester: 6, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs308-demo", title: "Mobile Application Development", code: "CS-308", creditHours: 3, semester: 6, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "eng301-demo", title: "Technical & Report Writing", code: "ENG-301", creditHours: 3, semester: 6, session: "2024-2028", programId: bsCS.id, departmentId: engDept.id, facultyId: seededFaculty[4].id },
+
+      // Semester 7 (5 papers)
+      { id: "cs401-demo", title: "Final Year Capstone Project - Part I", code: "CS-401", creditHours: 3, semester: 7, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs402-demo", title: "Cloud Computing & Distributed Systems", code: "CS-402", creditHours: 3, semester: 7, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs403-demo", title: "Parallel & Distributed Computing", code: "CS-403", creditHours: 3, semester: 7, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs404-demo", title: "Machine Learning & Data Science", code: "CS-404", creditHours: 3, semester: 7, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "mgt401-demo", title: "Entrepreneurship & Technology Incubation", code: "MGT-401", creditHours: 3, semester: 7, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[3].id },
+
+      // Semester 8 (5 papers)
+      { id: "cs405-demo", title: "Final Year Capstone Project - Part II", code: "CS-405", creditHours: 3, semester: 8, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs406-demo", title: "Human Computer Interaction (HCI)", code: "CS-406", creditHours: 3, semester: 8, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "cs407-demo", title: "Natural Language Processing", code: "CS-407", creditHours: 3, semester: 8, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+      { id: "law401-demo", title: "Cyber Law & Digital Ethics", code: "LAW-401", creditHours: 3, semester: 8, session: "2024-2028", programId: bsCS.id, departmentId: engDept.id, facultyId: seededFaculty[4].id },
+      { id: "cs408-demo", title: "Software Project Management", code: "CS-408", creditHours: 3, semester: 8, session: "2024-2028", programId: bsCS.id, departmentId: csDept.id, facultyId: seededFaculty[0].id },
+
+      // Physics Demo Courses
+      { id: "phy101-demo", title: "Mechanics & Heat", code: "PHY-101", creditHours: 4, creditHoursFormat: "4(3-1)", theoryHours: 3, labHours: 1, courseType: "LAB_PRACTICAL", semester: 1, session: "2024-2028", programId: bsPhy.id, departmentId: phyDept.id, facultyId: seededFaculty[1].id },
+      { id: "phy102-demo", title: "Electricity & Magnetism", code: "PHY-102", creditHours: 4, creditHoursFormat: "4(3-1)", theoryHours: 3, labHours: 1, courseType: "LAB_PRACTICAL", semester: 2, session: "2024-2028", programId: bsPhy.id, departmentId: phyDept.id, facultyId: seededFaculty[1].id }
     ];
 
     const seededCourses: any[] = [];
@@ -177,20 +233,20 @@ export async function POST() {
       });
     }
 
-    // 9. Students & Approved Admissions
+    // 9. Students & Approved Admissions across Semesters (1 to 8)
     const studentData = [
       {
         name: "Ali Hamza Baloch",
         email: "ali.baloch@student.edu.pk",
         rollNumber: "2024-BSCS-001",
         educationLevel: "BS",
-        session: "2024",
+        session: "2024-2028",
         cnic: "54400-1234567-1",
         fatherName: "Hamza Khan Baloch",
         contactNumber: "0333-7891234",
         residentAddress: "House 12, Zarghoon Road, Quetta",
         programId: bsCS.id,
-        semester: 1,
+        semester: 2,
         bsType: "REGULAR",
         gender: "MALE"
       },
@@ -199,28 +255,73 @@ export async function POST() {
         email: "fatima.khan@student.edu.pk",
         rollNumber: "2024-BSCS-002",
         educationLevel: "BS",
-        session: "2024",
+        session: "2024-2028",
         cnic: "54400-2345678-2",
         fatherName: "Muhammad Khan",
         contactNumber: "0300-9876543",
         residentAddress: "Sariab Road, Quetta",
         programId: bsCS.id,
-        semester: 1,
+        semester: 4,
         bsType: "REGULAR",
         gender: "FEMALE"
+      },
+      {
+        name: "Maryam Jamaldini",
+        email: "maryam.jamaldini@student.edu.pk",
+        rollNumber: "2022-GPGCQ-018",
+        educationLevel: "BS",
+        session: "2022-2026",
+        cnic: "54701-8901234-2",
+        fatherName: "Senator Jamaldini",
+        contactNumber: "0333-8901018",
+        residentAddress: "Model Town, Quetta",
+        programId: bsCS.id,
+        semester: 6,
+        bsType: "REGULAR",
+        gender: "FEMALE"
+      },
+      {
+        name: "Saifullah Mengal",
+        email: "saifullah.mengal@student.edu.pk",
+        rollNumber: "2021-BSCS-010",
+        educationLevel: "BS",
+        session: "2021-2025",
+        cnic: "54101-7878787-3",
+        fatherName: "Mir Mengal",
+        contactNumber: "0334-7878787",
+        residentAddress: "Brewery Road, Quetta",
+        programId: bsCS.id,
+        semester: 8,
+        bsType: "REGULAR",
+        gender: "MALE"
+      },
+      {
+        name: "Danish Achakzai",
+        email: "danish.achakzai@student.edu.pk",
+        rollNumber: "2023-BSCS-015",
+        educationLevel: "BS",
+        session: "2023-2027",
+        cnic: "54302-8901234-1",
+        fatherName: "Haji Abdul Baqi",
+        contactNumber: "0300-8901008",
+        residentAddress: "Chaman Road, Quetta",
+        programId: bsCS.id,
+        semester: 4,
+        bsType: "REGULAR",
+        gender: "MALE"
       },
       {
         name: "Bilal Ahmed Bugti",
         email: "bilal.bugti@student.edu.pk",
         rollNumber: "2024-BSPHY-001",
         educationLevel: "BS",
-        session: "2024",
+        session: "2024-2028",
         cnic: "54400-3456789-3",
         fatherName: "Sardar Ahmed Bugti",
         contactNumber: "0312-4567890",
         residentAddress: "Model Town, Quetta",
         programId: bsPhy.id,
-        semester: 1,
+        semester: 2,
         bsType: "REGULAR",
         gender: "MALE"
       },
@@ -229,7 +330,7 @@ export async function POST() {
         email: "zainab.aziz@student.edu.pk",
         rollNumber: "2024-FSC-101",
         educationLevel: "INTERMEDIATE",
-        session: "2024",
+        session: "2024-2026",
         cnic: "54400-4567890-4",
         fatherName: "Abdul Aziz",
         contactNumber: "0345-1234567",
@@ -243,7 +344,7 @@ export async function POST() {
         email: "mustafa.shah@student.edu.pk",
         rollNumber: "2024-FSC-102",
         educationLevel: "INTERMEDIATE",
-        session: "2024",
+        session: "2024-2026",
         cnic: "54400-5678901-5",
         fatherName: "Syed Anwar Shah",
         contactNumber: "0321-6543210",
@@ -400,65 +501,106 @@ export async function POST() {
       }
     }
 
-    // 11. Course Enrollments, Attendance & Marks
-    const bsStudents = seededStudents.filter(s => s.educationLevel === "BS");
-    const cs101Course = seededCourses.find(c => c.code === "CS-101");
-    const math101Course = seededCourses.find(c => c.code === "MATH-101");
+    // 11. Course Enrollments, Attendance & Marks (4 to 7 papers per semester)
+    const bsStudents = seededStudents.filter((s) => s.educationLevel === "BS");
 
     for (const std of bsStudents) {
-      if (cs101Course) {
-        await prisma.enrollment.upsert({
-          where: { studentId_courseId: { studentId: std.id, courseId: cs101Course.id } },
-          update: { semester: 1, status: "ACTIVE" },
-          create: { studentId: std.id, courseId: cs101Course.id, semester: 1, status: "ACTIVE" }
-        });
+      const studentSemester = std.currentSemester || 1;
+      const targetCourses = seededCourses.filter(
+        (c) => c.programId === std.programId && c.semester <= studentSemester
+      );
 
-        // Attendance
-        await prisma.attendance.create({
-          data: {
-            studentId: std.id,
-            courseId: cs101Course.id,
-            date: new Date(),
-            status: "PRESENT",
-            educationLevel: "BS"
-          }
-        });
+      let cumulativeQP = 0;
+      let cumulativeCredits = 0;
 
-        // Marks
-        await prisma.marks.upsert({
-          where: { studentId_courseId: { studentId: std.id, courseId: cs101Course.id } },
-          update: { assignmentMarks: 18, quizMarks: 9, midtermMarks: 27, finalMarks: 45, obtainedMarks: 99, totalMarks: 100 },
-          create: { studentId: std.id, courseId: cs101Course.id, assignmentMarks: 18, quizMarks: 9, midtermMarks: 27, finalMarks: 45, obtainedMarks: 99, totalMarks: 100 }
-        });
-      }
+      for (let sem = 1; sem <= studentSemester; sem++) {
+        const semCourses = targetCourses.filter((c) => c.semester === sem);
+        let semQP = 0;
+        let semCredits = 0;
 
-      if (math101Course && std.programId === bsCS.id) {
-        await prisma.enrollment.upsert({
-          where: { studentId_courseId: { studentId: std.id, courseId: math101Course.id } },
-          update: { semester: 1, status: "ACTIVE" },
-          create: { studentId: std.id, courseId: math101Course.id, semester: 1, status: "ACTIVE" }
-        });
+        for (const course of semCourses) {
+          await prisma.enrollment.upsert({
+            where: { studentId_courseId: { studentId: std.id, courseId: course.id } },
+            update: { semester: sem, status: "ACTIVE" },
+            create: { studentId: std.id, courseId: course.id, semester: sem, status: "ACTIVE" },
+          });
 
-        await prisma.marks.upsert({
-          where: { studentId_courseId: { studentId: std.id, courseId: math101Course.id } },
-          update: { assignmentMarks: 16, quizMarks: 8, midtermMarks: 24, finalMarks: 40, obtainedMarks: 88, totalMarks: 100 },
-          create: { studentId: std.id, courseId: math101Course.id, assignmentMarks: 16, quizMarks: 8, midtermMarks: 24, finalMarks: 40, obtainedMarks: 88, totalMarks: 100 }
-        });
-      }
+          // Generate realistic marks between 62 and 96
+          const rollSeed = (std.rollNumber || "0").charCodeAt(std.rollNumber.length - 1);
+          const courseSeed = course.code.charCodeAt(course.code.length - 1);
+          const baseScore = 65 + ((rollSeed * 3 + courseSeed * 7 + sem * 5) % 29);
+          const score = Math.min(96, Math.max(58, baseScore));
+          const midMarks = Math.round((score * 30) / 100);
+          const finalMarks = Math.round((score * 50) / 100);
+          const sessional = score - midMarks - finalMarks;
+          const assign = Math.round(sessional / 2);
+          const quiz = sessional - assign;
 
-      // Result
-      await prisma.result.create({
-        data: {
-          studentId: std.id,
-          semester: 1,
-          gpa: 3.85,
-          cgpa: 3.85,
-          status: "PROMOTED"
+          await prisma.marks.upsert({
+            where: { studentId_courseId: { studentId: std.id, courseId: course.id } },
+            update: {
+              assignmentMarks: assign,
+              quizMarks: quiz,
+              midtermMarks: midMarks,
+              finalMarks: finalMarks,
+              obtainedMarks: score,
+              totalMarks: 100,
+              status: "SUBMITTED",
+              isLocked: true,
+            },
+            create: {
+              studentId: std.id,
+              courseId: course.id,
+              assignmentMarks: assign,
+              quizMarks: quiz,
+              midtermMarks: midMarks,
+              finalMarks: finalMarks,
+              obtainedMarks: score,
+              totalMarks: 100,
+              status: "SUBMITTED",
+              isLocked: true,
+            },
+          });
+
+          // Standard HEC GP calculation
+          let gp = 0;
+          if (score >= 85) gp = 4.0;
+          else if (score >= 80) gp = 3.66;
+          else if (score >= 75) gp = 3.33;
+          else if (score >= 70) gp = 3.0;
+          else if (score >= 65) gp = 2.66;
+          else if (score >= 60) gp = 2.0;
+          else if (score >= 50) gp = 1.0;
+
+          const cr = course.creditHours || 3;
+          semQP += gp * cr;
+          semCredits += cr;
         }
-      });
+
+        cumulativeQP += semQP;
+        cumulativeCredits += semCredits;
+
+        const sgpa = semCredits > 0 ? parseFloat((semQP / semCredits).toFixed(2)) : 0;
+        const cgpa = cumulativeCredits > 0 ? parseFloat((cumulativeQP / cumulativeCredits).toFixed(2)) : 0;
+
+        const existingResult = await prisma.result.findFirst({
+          where: { studentId: std.id, semester: sem },
+        });
+        if (existingResult) {
+          await prisma.result.update({
+            where: { id: existingResult.id },
+            data: { gpa: sgpa, cgpa: cgpa, status: "PROMOTED" },
+          });
+        } else {
+          await prisma.result.create({
+            data: { studentId: std.id, semester: sem, gpa: sgpa, cgpa: cgpa, status: "PROMOTED" },
+          });
+        }
+      }
     }
 
     // 12. Timetable Entries
+    const cs101Course = seededCourses.find((c) => c.code === "CS-101");
     if (cs101Course) {
       await prisma.timetable.create({
         data: {

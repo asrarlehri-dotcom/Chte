@@ -25,6 +25,7 @@ export default function TranscriptGeneratorPage() {
   const { collegeName, collegeLogo, collegeTagline } = useSettings();
   const [students, setStudents] = useState<StudentData[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
+  const [transcriptSpan, setTranscriptSpan] = useState<"1-2" | "1-4" | "1-6" | "1-8">("1-8");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,13 +44,21 @@ export default function TranscriptGeneratorPage() {
   const getTranscriptData = () => {
     if (!selectedStudent) return { semesters: [], cgpa: 0, totalCredits: 0 };
 
-    // Group marks by semester
+    const maxSem =
+      transcriptSpan === "1-2" ? 2 :
+      transcriptSpan === "1-4" ? 4 :
+      transcriptSpan === "1-6" ? 6 : 8;
+
+    // Group marks by semester within scope
     const semestersMap: Record<number, typeof selectedStudent.marks> = {};
     selectedStudent.marks?.forEach((m) => {
-      if (!semestersMap[m.semester]) {
-        semestersMap[m.semester] = [];
+      const sem = m.semester || (m as any).course?.semester || 1;
+      if (sem >= 1 && sem <= maxSem) {
+        if (!semestersMap[sem]) {
+          semestersMap[sem] = [];
+        }
+        semestersMap[sem].push(m);
       }
-      semestersMap[m.semester].push(m);
     });
 
     const relevantSemesters = Object.entries(semestersMap).map(([semStr, marks]) => {
@@ -103,22 +112,54 @@ export default function TranscriptGeneratorPage() {
         </button>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 print:hidden">
-        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Select Student</label>
-        <select
-          value={selectedStudent?.id || ""}
-          onChange={(e) => {
-            const s = students.find((item) => item.id === e.target.value);
-            setSelectedStudent(s || null);
-          }}
-          className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-blue-500 bg-white"
-        >
-          {students.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.user?.name} ({s.rollNumber})
-            </option>
-          ))}
-        </select>
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 print:hidden space-y-4">
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Select Student</label>
+          <select
+            value={selectedStudent?.id || ""}
+            onChange={(e) => {
+              const s = students.find((item) => item.id === e.target.value);
+              setSelectedStudent(s || null);
+            }}
+            className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-blue-500 bg-white font-bold"
+          >
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.user?.name} ({s.rollNumber})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Quick Transcript Span Buttons: 1-2, 1-4, 1-6, 1-8 */}
+        <div className="pt-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
+          <span className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+            <span>📑</span>
+            <span>Transcript Semesters Scope (ایک ساتھ سمسٹرز):</span>
+          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { label: "1 – 2", sub: "1st Year", val: "1-2" },
+              { label: "1 – 4", sub: "2nd Year / AD", val: "1-4" },
+              { label: "1 – 6", sub: "3rd Year", val: "1-6" },
+              { label: "1 – 8", sub: "Final Degree", val: "1-8" },
+            ].map((item) => (
+              <button
+                key={item.val}
+                type="button"
+                onClick={() => setTranscriptSpan(item.val as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border flex items-center gap-1.5 ${
+                  transcriptSpan === item.val
+                    ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                    : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                }`}
+              >
+                <span>📑 {item.label}</span>
+                <span className="opacity-75 font-normal text-[10px]">({item.sub})</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {selectedStudent && (
@@ -131,7 +172,9 @@ export default function TranscriptGeneratorPage() {
             )}
             <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h2>
             <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
-            <p className="text-sm font-bold text-gray-800 uppercase pt-1">Official Transcript of Record</p>
+            <p className="text-sm font-black text-gray-800 uppercase pt-1">
+              Official Transcript of Record ({transcriptSpan === "1-2" ? "Semesters 1 – 2 (1st Year)" : transcriptSpan === "1-4" ? "Semesters 1 – 4 (Associate Degree)" : transcriptSpan === "1-6" ? "Semesters 1 – 6 (3rd Year)" : "Semesters 1 – 8 (BS 4-Year Full Degree)"})
+            </p>
           </div>
 
           {/* Metadata */}
