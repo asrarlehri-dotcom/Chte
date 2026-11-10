@@ -175,7 +175,8 @@ body {
     print-color-adjust: exact !important;
   }
   .page-break-student,
-  .official-transcript-root {
+  .official-transcript-root,
+  .official-dmc-root {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     margin: 0 !important;
