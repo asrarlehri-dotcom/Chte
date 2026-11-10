@@ -39,6 +39,7 @@ export interface OfficialTranscriptDocumentProps {
   toSemester?: number;
   maxSemester?: number;
   collegeName?: string;
+  collegeLogo?: string;
   collegeAddress?: string;
   universityName?: string;
   issueDate?: string;
@@ -89,6 +90,7 @@ export default function OfficialTranscriptDocument({
   toSemester,
   maxSemester,
   collegeName,
+  collegeLogo,
   collegeAddress,
   universityName,
   issueDate,
@@ -107,6 +109,11 @@ export default function OfficialTranscriptDocument({
     (student as any)?.college?.address ||
     collegeAddress ||
     "Quetta, Balochistan, Pakistan";
+
+  const activeCollegeLogo =
+    collegeLogo ||
+    (student as any)?.college?.logoUrl ||
+    "/logo.png";
 
   // Extract all marks within [startSem, endSem]
   const semestersMap: Record<number, NonNullable<TranscriptStudentData["marks"]>> = {};
@@ -353,8 +360,23 @@ export default function OfficialTranscriptDocument({
         <span>No. {serialNoStr}</span>
       </div>
 
-      {/* ─── 2. MAIN HEADER (CONCERNED COLLEGE NAME) ─── */}
-      <div className="text-center space-y-0.5 mb-3">
+      {/* ─── 2. MAIN HEADER (CONCERNED COLLEGE LOGO & NAME) ─── */}
+      <div className="text-center space-y-1 mb-3">
+        {activeCollegeLogo && (
+          <div className="flex justify-center mb-1">
+            <img
+              src={activeCollegeLogo}
+              alt="College Logo"
+              className="w-16 h-16 sm:w-20 sm:h-20 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (!target.src.includes("/logo.png")) {
+                  target.src = "/logo.png";
+                }
+              }}
+            />
+          </div>
+        )}
         <h1 className="font-serif text-2xl sm:text-[26px] font-black tracking-tight text-black uppercase">
           {activeCollegeName}
         </h1>
@@ -464,18 +486,14 @@ export default function OfficialTranscriptDocument({
       <div className="grid grid-cols-2 gap-4 items-end pt-2 text-[10.5px]">
         {/* Left Signature Column */}
         <div className="space-y-2">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-center gap-1">
               <span className="w-24 shrink-0 font-normal">Prepared By:</span>
-              <div className="border-b border-black flex-1 h-3 flex items-end">
-                <span className="font-serif italic text-xs tracking-widest text-gray-700 pl-4">H.A</span>
-              </div>
+              <div className="border-b border-black flex-1 h-3"></div>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-24 shrink-0 font-normal">Checked By:</span>
-              <div className="border-b border-black flex-1 h-3 flex items-end">
-                <span className="font-serif italic text-xs tracking-widest text-gray-700 pl-4">N.K</span>
-              </div>
+              <div className="border-b border-black flex-1 h-3"></div>
             </div>
           </div>
 
@@ -493,12 +511,8 @@ export default function OfficialTranscriptDocument({
 
         {/* Right Signature Column */}
         <div className="text-center space-y-1">
-          {/* Controller Signature Area */}
-          <div className="h-10 flex items-center justify-center">
-            <span className="font-serif italic text-base tracking-widest text-gray-800 -rotate-3 select-none">
-              A.K. Lehri
-            </span>
-          </div>
+          {/* Controller Signature Blank Area */}
+          <div className="h-10"></div>
 
           <div className="border-t border-black pt-1">
             <p className="font-bold text-[10.5px] leading-tight text-black">

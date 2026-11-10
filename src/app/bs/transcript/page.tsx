@@ -5,7 +5,7 @@ import { useSettings } from "@/lib/useSettings";
 import OfficialTranscriptDocument, { TranscriptStudentData } from "@/components/OfficialTranscriptDocument";
 
 export default function TranscriptGeneratorPage() {
-  const { collegeName, collegeAddress } = useSettings();
+  const { collegeName, collegeLogo, collegeAddress } = useSettings();
   const [students, setStudents] = useState<TranscriptStudentData[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<TranscriptStudentData | null>(null);
   const [transcriptSpan, setTranscriptSpan] = useState<"1-2" | "1-4" | "1-6" | "1-8">("1-8");
@@ -143,6 +143,7 @@ export default function TranscriptGeneratorPage() {
             fromSemester={1}
             toSemester={maxSem}
             collegeName={collegeName}
+            collegeLogo={collegeLogo}
             collegeAddress={collegeAddress}
           />
         </div>
