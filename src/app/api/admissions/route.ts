@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { sanitizeCNIC, sanitizeContact, parseDateSafe } from "@/lib/admissionParser";
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
     const data = await request.json();
-    const { 
+    let { 
       studentName, 
       fatherName, 
       cnic, 
@@ -20,7 +24,7 @@ export async function POST(request: Request) {
       groupId,
       bsAdmissionType,
       migrationSemester,
-      session,
+      session: sessionYear,
       gender,
       sscGroup,
       sscObtained,
@@ -41,6 +45,10 @@ export async function POST(request: Request) {
       collegeId,
     } = data;
 
+    // Sanitize and auto-format CNIC and contact if provided
+    if (cnic) cnic = sanitizeCNIC(cnic) || cnic;
+    if (contactNumber) contactNumber = sanitizeContact(contactNumber) || contactNumber;
+
     // Fetch system settings for validation
     const settings = await prisma.systemSetting.findMany({
       where: { key: { in: ["ADMISSION_REQUIRED_FIELDS", "ADMISSION_CNIC_LENGTH", "ADMISSION_CONTACT_LENGTH"] } }
@@ -60,8 +68,11 @@ export async function POST(request: Request) {
     const cnicLen = parseInt(cnicLenStr) || 15;
     const contactLen = parseInt(contactLenStr) || 11;
 
+    // Update data with sanitized values for check
+    const checkData: Record<string, any> = { ...data, cnic, contactNumber };
+
     for (const field of requiredFields) {
-      if (data[field] === undefined || data[field] === null || data[field] === "") {
+      if (checkData[field] === undefined || checkData[field] === null || checkData[field] === "") {
         return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
       }
     }
@@ -98,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     // Resolve target College ID
-    let targetCollegeId: string | null = collegeId || null;
+    let targetCollegeId: string | null = sessionCollegeId || collegeId || null;
     if (!targetCollegeId && programId) {
       const prog = await prisma.program.findUnique({ where: { id: programId }, select: { collegeId: true } });
       if (prog?.collegeId) targetCollegeId = prog.collegeId;
@@ -110,12 +121,14 @@ export async function POST(request: Request) {
 
     // Ensure session is strictly a 4-year or 2-year span, never a single year
     const { isValidSession, calculateSessionFromYear } = await import("@/lib/sessionHelper");
-    let computedSession = session;
+    let computedSession = sessionYear;
     if (!isValidSession(computedSession)) {
-      const year = session && /^\d{4}$/.test(session) ? session : new Date().getFullYear();
+      const year = sessionYear && /^\d{4}$/.test(sessionYear) ? sessionYear : new Date().getFullYear();
       const type = educationLevel === "INTERMEDIATE" ? "INTERMEDIATE" : (bsAdmissionType || "REGULAR");
       computedSession = calculateSessionFromYear(year, type as any, migrationSemester);
     }
+
+    const resolvedDob = parseDateSafe(dateOfBirth);
 
     const result = await prisma.$transaction(async (tx) => {
       const admission = await tx.admission.create({
@@ -123,7 +136,7 @@ export async function POST(request: Request) {
           studentName,
           fatherName,
           cnic: cnic || null,
-          dateOfBirth: new Date(dateOfBirth),
+          dateOfBirth: resolvedDob,
           contactNumber,
           email: email || null,
           residentAddress: residentAddress || null,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
 import {
@@ -15,8 +15,13 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  FileSpreadsheet,
+  AlertCircle,
+  Loader2,
+  X
 } from "lucide-react";
+import { parseCSVToRows, getSampleCSV } from "@/lib/admissionParser";
 
 type Admission = {
   id: string;
@@ -57,6 +62,16 @@ export default function BsAdmissionsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<{
+    total: number;
+    imported: number;
+    skipped: number;
+    failed: number;
+    errors: { row: number; student: string; reason: string }[];
+  } | null>(null);
 
   const toggleSelect = (id: string) =>
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -181,74 +196,99 @@ export default function BsAdmissionsPage() {
     setUpdating(false);
   };
 
-  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const text = evt.target?.result as string;
-      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-      if (lines.length < 2) {
-        setMsg({ type: "error", text: "Invalid CSV file format." });
+
+    setIsImporting(true);
+    setMsg({ type: "", text: "" });
+
+    try {
+      const text = await file.text();
+      const parsedAdmissions = parseCSVToRows(text);
+
+      if (parsedAdmissions.length === 0) {
+        setMsg({ type: "error", text: "Invalid or empty CSV file. Please make sure the CSV contains headers and data rows." });
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
-      const headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
 
-      const parsedAdmissions = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map(v => v.trim().replace(/^["']|["']$/g, ""));
-        const row: Record<string, string> = {};
-        headers.forEach((h, idx) => {
-          row[h] = values[idx] || "";
+      const res = await fetch("/api/admissions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          records: parsedAdmissions,
+          educationLevel: "BS"
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setImportSummary({
+          total: data.total,
+          imported: data.imported,
+          skipped: data.skipped || 0,
+          failed: data.failed,
+          errors: data.errors || []
         });
-        parsedAdmissions.push(row);
-      }
-
-      let successCount = 0;
-      let failCount = 0;
-      for (const item of parsedAdmissions) {
-        const prog = programs.find(p => p.name.toLowerCase() === item.programName?.toLowerCase() || p.code?.toLowerCase() === item.programCode?.toLowerCase());
-        const payload = {
-          studentName: item.studentName || item.name,
-          fatherName: item.fatherName,
-          cnic: item.cnic,
-          dateOfBirth: item.dateOfBirth,
-          contactNumber: item.contactNumber || item.contact,
-          email: item.email,
-          residentAddress: item.residentAddress || item.address,
-          educationLevel: "BS",
-          programId: prog ? prog.id : (item.programId || null),
-          bsAdmissionType: item.bsAdmissionType || "REGULAR",
-          session: item.session || "2026-2030",
-          gender: item.gender || "MALE"
-        };
-
-        try {
-          const res = await fetch("/api/admissions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+        if (data.imported > 0) {
+          setMsg({
+            type: "success",
+            text: `Successfully imported ${data.imported} out of ${data.total} admissions!`
           });
-          if (res.ok) successCount++;
-          else failCount++;
-        } catch (err) {
-          failCount++;
+        } else {
+          setMsg({
+            type: "error",
+            text: `Import finished: 0 imported, ${data.skipped || 0} skipped, ${data.failed} failed. See summary details.`
+          });
         }
+        fetchAdmissions();
+        fetchChallans();
+      } else {
+        setMsg({ type: "error", text: data.error || "Failed to process admissions import." });
       }
-      setMsg({ type: "success", text: `Imported admissions: ${successCount} successful, ${failCount} failed.` });
-      fetchAdmissions();
-      fetchChallans();
-    };
-    reader.readAsText(file);
+    } catch (err: any) {
+      console.error("CSV import error:", err);
+      setMsg({ type: "error", text: "An unexpected error occurred while reading or uploading the CSV file." });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const sampleProg = programs[0]?.name || "BS Computer Science";
+    const templateContent = getSampleCSV("BS", sampleProg);
+    const blob = new Blob(["\uFEFF" + templateContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `BS_Admissions_Template.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleExportCSV = () => {
-    const headers = ["Student Name", "Father Name", "CNIC", "Contact", "Email", "Program", "Session", "Status", "Challan No", "Fee Status"];
+    const headers = [
+      "Student Name",
+      "Father Name",
+      "CNIC",
+      "Contact",
+      "Email",
+      "Program",
+      "Session",
+      "Status",
+      "Challan No",
+      "Fee Status"
+    ];
     const rows = filtered.map(a => [
-      a.studentName,
-      a.fatherName,
+      a.studentName || "",
+      a.fatherName || "",
       a.cnic || "N/A",
-      a.contactNumber,
+      a.contactNumber || "",
       a.email || "N/A",
       a.program?.name || "N/A",
       a.session || "N/A",
@@ -257,16 +297,18 @@ export default function BsAdmissionsPage() {
       challanMap[a.cnic]?.status || "N/A"
     ]);
 
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFF"
-      + [headers.join(","), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
+    const csvContent = "\uFEFF"
+      + [headers.join(","), ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))].join("\n");
 
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `admissions_export_${Date.now()}.csv`);
+    link.href = url;
+    link.setAttribute("download", `BS_Admissions_Export_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleExportPDF = () => {
@@ -274,11 +316,15 @@ export default function BsAdmissionsPage() {
   };
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return admissions.filter(a => {
       const matchSearch =
-        a.studentName.toLowerCase().includes(search.toLowerCase()) ||
-        a.cnic.includes(search) ||
-        a.email.toLowerCase().includes(search.toLowerCase());
+        !q ||
+        (a.studentName || "").toLowerCase().includes(q) ||
+        (a.fatherName || "").toLowerCase().includes(q) ||
+        (a.cnic || "").includes(q) ||
+        (a.email || "").toLowerCase().includes(q) ||
+        (a.program?.name || "").toLowerCase().includes(q);
       const matchFilter = filter === "ALL" || a.status === filter;
       return matchSearch && matchFilter;
     });
@@ -326,18 +372,35 @@ export default function BsAdmissionsPage() {
 
         <div className="flex gap-2.5 items-center flex-wrap self-end sm:self-auto">
           {/* CSV Import */}
-          <label className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-2 shadow-xs">
-            <Download className="w-4 h-4 text-blue-600" />
-            Import CSV
-            <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+          <label className={`px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-2 shadow-xs ${isImporting ? "opacity-60 pointer-events-none" : ""}`}>
+            {isImporting ? <Loader2 className="w-4 h-4 text-blue-600 animate-spin" /> : <Upload className="w-4 h-4 text-blue-600" />}
+            {isImporting ? "Importing Admissions..." : "Import CSV"}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              disabled={isImporting}
+              onChange={handleImportCSV}
+              className="hidden"
+            />
           </label>
+
+          {/* Download Sample Template */}
+          <button
+            onClick={handleDownloadTemplate}
+            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            title="Download CSV format template with sample rows"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            Template CSV
+          </button>
 
           {/* CSV Export */}
           <button
             onClick={handleExportCSV}
             className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
           >
-            <Upload className="w-4 h-4 text-blue-600" />
+            <FileSpreadsheet className="w-4 h-4 text-blue-600" />
             Export CSV
           </button>
 
@@ -361,6 +424,66 @@ export default function BsAdmissionsPage() {
           )}
         </div>
       </div>
+
+      {/* Import Summary Modal */}
+      {importSummary && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Admission Import Summary
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Results of batch admissions processing</p>
+              </div>
+              <button
+                onClick={() => setImportSummary(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5 text-center">
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-xl font-bold text-emerald-700">{importSummary.imported}</div>
+                <div className="text-xs text-emerald-600 font-medium">Imported</div>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                <div className="text-xl font-bold text-amber-700">{importSummary.skipped}</div>
+                <div className="text-xs text-amber-600 font-medium">Skipped (Duplicate)</div>
+              </div>
+              <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                <div className="text-xl font-bold text-red-700">{importSummary.failed}</div>
+                <div className="text-xs text-red-600 font-medium">Failed</div>
+              </div>
+            </div>
+
+            {importSummary.errors.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-gray-700">Notice / Errors Log:</div>
+                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs space-y-1.5 font-mono">
+                  {importSummary.errors.map((e, idx) => (
+                    <div key={idx} className="flex gap-2 text-gray-700">
+                      <span className="font-bold text-gray-900">Row {e.row}:</span>
+                      <span className="font-semibold text-blue-700">{e.student}</span> —
+                      <span className="text-gray-600">{e.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setImportSummary(null)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Alert message */}
       {msg.text && (
