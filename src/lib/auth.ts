@@ -83,6 +83,9 @@ export const authOptions: NextAuthOptions = {
         const isValidPassword = await bcrypt.compare(credentials.password, user.password);
         if (!isValidPassword) return null;
 
+        const rawLogo = user.college?.logoUrl;
+        const safeLogo = typeof rawLogo === "string" && !rawLogo.startsWith("data:") && rawLogo.length < 256 ? rawLogo : null;
+
         return {
           id:          user.id,
           email:       user.email,
@@ -90,7 +93,7 @@ export const authOptions: NextAuthOptions = {
           role:        user.role,
           collegeId:   user.collegeId || null,
           collegeName: user.college?.name || null,
-          collegeLogo: user.college?.logoUrl || null,
+          collegeLogo: safeLogo,
           collegeCode: user.college?.code || null,
         } as any;
       }
@@ -104,8 +107,14 @@ export const authOptions: NextAuthOptions = {
         token.id          = user.id;
         token.collegeId   = (user as any).collegeId;
         token.collegeName = (user as any).collegeName;
-        token.collegeLogo = (user as any).collegeLogo;
+        const logo = (user as any).collegeLogo;
+        // Never put base64 data URLs in JWT cookies as they cause 494 REQUEST_HEADER_TOO_LARGE
+        token.collegeLogo = typeof logo === "string" && !logo.startsWith("data:") && logo.length < 256 ? logo : null;
         token.collegeCode = (user as any).collegeCode;
+      }
+      // Sanitize existing incoming tokens so bloated cookies get stripped
+      if (typeof token.collegeLogo === "string" && (token.collegeLogo.startsWith("data:") || token.collegeLogo.length >= 256)) {
+        token.collegeLogo = null;
       }
       return token;
     },
