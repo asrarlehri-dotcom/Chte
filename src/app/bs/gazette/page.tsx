@@ -719,7 +719,6 @@ function TranscriptPrintCard({
         toSemester={toSemester || maxSemester || 8}
         collegeName={collegeName}
         collegeAddress={collegeAddress}
-        universityName="University of Balochistan, Quetta"
       />
     </div>
   );

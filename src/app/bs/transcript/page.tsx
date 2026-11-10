@@ -144,7 +144,6 @@ export default function TranscriptGeneratorPage() {
             toSemester={maxSem}
             collegeName={collegeName}
             collegeAddress={collegeAddress}
-            universityName="University of Balochistan, Quetta"
           />
         </div>
       ) : (

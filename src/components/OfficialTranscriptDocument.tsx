@@ -88,14 +88,25 @@ export default function OfficialTranscriptDocument({
   fromSemester = 1,
   toSemester,
   maxSemester,
-  collegeName = "Govt. Boys Postgraduate College, Sariab Road, Quetta",
+  collegeName,
   collegeAddress,
-  universityName = "University of Balochistan, Quetta",
+  universityName,
   issueDate,
   serialNumber,
 }: OfficialTranscriptDocumentProps) {
   const startSem = fromSemester || 1;
   const endSem = toSemester || maxSemester || 8;
+
+  // Active concerned college details
+  const activeCollegeName =
+    (student as any)?.college?.name ||
+    collegeName ||
+    "Government Post Graduate College Quetta";
+
+  const activeCollegeAddress =
+    (student as any)?.college?.address ||
+    collegeAddress ||
+    "Quetta, Balochistan, Pakistan";
 
   // Extract all marks within [startSem, endSem]
   const semestersMap: Record<number, NonNullable<TranscriptStudentData["marks"]>> = {};
@@ -237,20 +248,23 @@ export default function OfficialTranscriptDocument({
   const progAbbr = (programName.replace(/[^A-Z]/g, "").slice(0, 4) || "ZOOL");
   const regNo =
     student.registrationNo ||
-    `UB/BS-${sessionStr.slice(2, 4)}/${progAbbr}-${rollNo.replace(/\D/g, "").slice(-3).padStart(3, "0") || "306"}`;
+    `REG/BS-${sessionStr.slice(2, 4)}/${progAbbr}-${rollNo.replace(/\D/g, "").slice(-3).padStart(3, "0") || "306"}`;
 
   // Declaration Date
   const declDateStr = issueDate || formatOrdinalDate(new Date());
 
   // Serial Number
+  const collegeCode =
+    (student as any)?.college?.code ||
+    (rollNo.includes("-") ? rollNo.split("-")[1] : "COL");
   const serialNoStr =
     serialNumber ||
-    `UB ${String((rollNo.replace(/\D/g, "") || "706")).padStart(9, "0")}`;
+    `${collegeCode}-${String((rollNo.replace(/\D/g, "") || "706")).padStart(6, "0")}`;
 
   // Department / Institute address
-  const fullInstituteName = collegeAddress
-    ? `${collegeName}, ${collegeAddress}`
-    : collegeName;
+  const fullInstituteName = activeCollegeAddress
+    ? `${activeCollegeName}, ${activeCollegeAddress}`
+    : activeCollegeName;
 
   // Render a single semester table
   const renderSemesterTable = (sem: number) => {
@@ -339,12 +353,17 @@ export default function OfficialTranscriptDocument({
         <span>No. {serialNoStr}</span>
       </div>
 
-      {/* ─── 2. MAIN HEADER ─── */}
+      {/* ─── 2. MAIN HEADER (CONCERNED COLLEGE NAME) ─── */}
       <div className="text-center space-y-0.5 mb-3">
-        <h1 className="font-serif text-2xl sm:text-[26px] font-black tracking-tight text-black capitalize">
-          {universityName}
+        <h1 className="font-serif text-2xl sm:text-[26px] font-black tracking-tight text-black uppercase">
+          {activeCollegeName}
         </h1>
-        <h2 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-black uppercase">
+        {activeCollegeAddress && (
+          <p className="text-[10px] font-semibold text-gray-700 tracking-wide uppercase">
+            {activeCollegeAddress}
+          </p>
+        )}
+        <h2 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-black uppercase mt-1">
           STUDENT TRANSCRIPT
         </h2>
       </div>
@@ -441,9 +460,9 @@ export default function OfficialTranscriptDocument({
         </div>
       </div>
 
-      {/* ─── 7. FOOTER / SIGNATURES & OFFICIAL EMBOSSED SEAL ─── */}
+      {/* ─── 7. FOOTER / SIGNATURES ─── */}
       <div className="grid grid-cols-2 gap-4 items-end pt-2 text-[10.5px]">
-        {/* Left Signature Column + Embossed Starburst Seal */}
+        {/* Left Signature Column */}
         <div className="space-y-2">
           <div className="space-y-1">
             <div className="flex items-center gap-1">
@@ -464,48 +483,10 @@ export default function OfficialTranscriptDocument({
             */** Repeated/Improved Marks
           </div>
 
-          {/* Embossed Metallic Gold / Black Starburst Seal */}
-          <div className="pt-2">
-            <div className="relative w-24 h-24 flex items-center justify-center">
-              {/* Outer Serrated Starburst Badge */}
-              <svg viewBox="0 0 100 100" className="w-24 h-24 drop-shadow-sm">
-                <defs>
-                  <radialGradient id="goldSeal" cx="45%" cy="40%" r="60%">
-                    <stop offset="0%" stopColor="#fef08a" />
-                    <stop offset="45%" stopColor="#ca8a04" />
-                    <stop offset="85%" stopColor="#854d0e" />
-                    <stop offset="100%" stopColor="#713f12" />
-                  </radialGradient>
-                </defs>
-                {/* 24-point Starburst */}
-                <path
-                  d="M 50,2 L 54,12 L 64,6 L 65,17 L 76,14 L 74,25 L 86,25 L 80,35 L 91,38 L 83,48 L 93,52 L 83,60 L 91,66 L 79,71 L 84,81 L 72,82 L 73,93 L 62,90 L 59,100 L 50,94 L 41,100 L 38,90 L 27,93 L 28,82 L 16,81 L 21,71 L 9,66 L 17,60 L 7,52 L 17,48 L 9,38 L 20,35 L 14,25 L 26,25 L 24,14 L 35,17 L 36,6 L 46,12 Z"
-                  fill="url(#goldSeal)"
-                  stroke="#713f12"
-                  strokeWidth="0.8"
-                />
-                {/* Concentric Embossed Rings */}
-                <circle cx="50" cy="50" r="38" fill="none" stroke="#fef08a" strokeWidth="1" strokeDasharray="1.5,1.5" />
-                <circle cx="50" cy="50" r="35" fill="none" stroke="#713f12" strokeWidth="1" />
-                <circle cx="50" cy="50" r="26" fill="none" stroke="#fef08a" strokeWidth="0.8" />
-                
-                {/* Center Star / Emblem */}
-                <polygon
-                  points="50,34 53,42 61,42 55,47 57,55 50,50 43,55 45,47 39,42 47,42"
-                  fill="#fef08a"
-                  stroke="#713f12"
-                  strokeWidth="0.5"
-                />
-              </svg>
-              {/* Inner Circular Seal Text */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                <span className="text-[5.5px] font-black uppercase tracking-wider text-amber-950 mt-9">
-                  SEMESTER CELL
-                </span>
-                <span className="text-[5px] font-bold uppercase tracking-tight text-amber-950">
-                  UOB QUETTA
-                </span>
-              </div>
+          {/* Clean Official Stamp Area */}
+          <div className="pt-3">
+            <div className="w-28 h-14 border border-dashed border-gray-400 rounded flex items-center justify-center text-center">
+              <span className="text-[7.5px] font-semibold text-gray-400 uppercase tracking-widest">[ College Stamp ]</span>
             </div>
           </div>
         </div>
@@ -521,15 +502,15 @@ export default function OfficialTranscriptDocument({
 
           <div className="border-t border-black pt-1">
             <p className="font-bold text-[10.5px] leading-tight text-black">
-              Assistant Controller of Examination
+              Controller / Incharge Examinations
             </p>
             <p className="text-[9.5px] font-medium text-black">
-              (Semester Cell)
+              (Examination Cell)
             </p>
           </div>
 
           <div className="pt-2 text-[9px] leading-tight text-gray-800">
-            <p className="font-medium">Issued by Examinations (Semester Cell)</p>
+            <p className="font-medium">Issued by Examination Cell</p>
             <p className="italic text-gray-600">Errors and Omissions are expected</p>
           </div>
         </div>
