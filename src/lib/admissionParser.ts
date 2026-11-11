@@ -1,12 +1,25 @@
 /**
- * Admission CSV Parser, Normalizer & Template Generator
+ * Admission CSV/TSV Parser, Normalizer & Template Generator
  */
 
-export function parseCSVToRows(csvText: string): Record<string, string>[] {
+export function detectDelimiter(text: string): string {
+  const firstLine = text.split(/\r\n|\r|\n/)[0] || "";
+  const tabCount = (firstLine.match(/\t/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semiCount = (firstLine.match(/;/g) || []).length;
+
+  if (tabCount > commaCount && tabCount > semiCount) return "\t";
+  if (semiCount > commaCount && semiCount > tabCount) return ";";
+  return ",";
+}
+
+export function parseCSVToRows(csvText: string, customDelimiter?: string): Record<string, string>[] {
   if (!csvText) return [];
   // Strip BOM
   const cleanText = csvText.replace(/^\uFEFF/, "").trim();
   if (!cleanText) return [];
+
+  const delimiter = customDelimiter || detectDelimiter(cleanText);
 
   const rows: string[][] = [];
   let currentRow: string[] = [];
@@ -24,7 +37,7 @@ export function parseCSVToRows(csvText: string): Record<string, string>[] {
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (char === ',' && !inQuotes) {
+    } else if (char === delimiter && !inQuotes) {
       currentRow.push(currentField.trim());
       currentField = "";
     } else if ((char === '\r' || char === '\n') && !inQuotes) {
@@ -84,6 +97,9 @@ export function canonicalizeAdmissionHeader(raw: string): string {
   if (["session", "batch", "academicsession"].includes(s)) return "session";
   if (["gender", "sex"].includes(s)) return "gender";
   if (["admissiontype", "type", "mode", "bsadmissiontype"].includes(s)) return "bsAdmissionType";
+  if (["status", "admissionstatus", "appstatus"].includes(s)) return "status";
+  if (["challanno", "challannumber", "challan", "challanslip"].includes(s)) return "challanNumber";
+  if (["feestatus", "fee", "paymentstatus"].includes(s)) return "feeStatus";
   if (["address", "residentaddress", "domicile", "city"].includes(s)) return "residentAddress";
   if (["sscgroup", "matricgroup"].includes(s)) return "sscGroup";
   if (["sscobtained", "matricobtained", "matricmarks"].includes(s)) return "sscObtained";

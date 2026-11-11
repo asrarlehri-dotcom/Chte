@@ -54,16 +54,25 @@ export async function POST(request: Request) {
       select: { id: true, name: true, code: true, collegeId: true }
     });
 
-    // Pre-fetch all active CNICs in this college to check duplicates
+    // Pre-fetch all active CNICs in this college to check duplicates / upsert
     const cnicsInPayload = rawRecords
       .map(r => sanitizeCNIC(r.cnic))
       .filter(Boolean) as string[];
 
     const existingByCnic = await prisma.admission.findMany({
       where: { cnic: { in: cnicsInPayload } },
-      select: { cnic: true }
+      select: {
+        id: true,
+        cnic: true,
+        email: true,
+        status: true,
+        programId: true,
+        session: true,
+        gender: true,
+        residentAddress: true
+      }
     });
-    const existingCnicSet = new Set(existingByCnic.map(e => e.cnic));
+    const existingAdmissionsMap = new Map(existingByCnic.map(e => [e.cnic!, e]));
 
     // Pre-fetch existing emails
     const emailsInPayload = rawRecords
@@ -102,6 +111,7 @@ export async function POST(request: Request) {
     dueDate.setDate(dueDate.getDate() + 14);
 
     let importedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
     let failedCount = 0;
     const errors: { row: number; student: string; reason: string }[] = [];
@@ -122,38 +132,12 @@ export async function POST(request: Request) {
 
       // Sanitize CNIC
       let cnic = sanitizeCNIC(raw.cnic);
-      if (cnic && existingCnicSet.has(cnic)) {
-        skippedCount++;
-        errors.push({ row: rowIdx, student: studentName, reason: `CNIC ${cnic} already exists in admissions.` });
-        continue;
-      }
-
-      // If CNIC is empty, generate an official placeholder
-      if (!cnic) {
-        const randomMid = Math.floor(1000000 + Math.random() * 9000000);
-        const randomEnd = Math.floor(1 + Math.random() * 9);
-        cnic = `54400-${randomMid}-${randomEnd}`;
-      }
-      existingCnicSet.add(cnic);
 
       // Contact
       const contactNumber = sanitizeContact(raw.contactNumber || raw.contact || raw.phone);
 
       // Date of Birth
       const dateOfBirth = parseDateSafe(raw.dateOfBirth || raw.dob);
-
-      // Email
-      let email = sanitizeEmail(raw.email);
-      if (email && existingEmailSet.has(email)) {
-        // Append unique suffix so import does not break
-        const [userPart, domainPart] = email.split("@");
-        email = `${userPart}+${Date.now().toString().slice(-4)}${i}@${domainPart}`;
-      } else if (!email) {
-        const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const cleanCnicDigits = cnic.replace(/\D/g, "").slice(-4);
-        email = `${cleanName || "student"}.${cleanCnicDigits || i}@college.edu.pk`;
-      }
-      existingEmailSet.add(email);
 
       // Match Program
       const rawProg = (raw.program || raw.programName || raw.course || "").trim().toLowerCase();
@@ -164,7 +148,6 @@ export async function POST(request: Request) {
       );
 
       if (!matchedProgram && rawProg) {
-        // Fuzzy contains
         matchedProgram = programs.find(p =>
           p.name.toLowerCase().includes(rawProg) ||
           rawProg.includes(p.name.toLowerCase()) ||
@@ -172,7 +155,6 @@ export async function POST(request: Request) {
         );
       }
 
-      // Fallback to first program if not matched
       if (!matchedProgram && programs.length > 0) {
         matchedProgram = programs[0];
       }
@@ -187,10 +169,75 @@ export async function POST(request: Request) {
       const gender = sanitizeGender(raw.gender);
       const bsAdmissionType = raw.bsAdmissionType || "REGULAR";
       const residentAddress = raw.residentAddress || raw.address || null;
+      const rawStatus = (raw.status || "").toUpperCase();
+      const targetStatus = ["APPROVED", "REJECTED", "PENDING"].includes(rawStatus) ? rawStatus : "PENDING";
+      const feeStatusUpper = (raw.feeStatus || "").toUpperCase();
+
+      // Case 1: Existing student (CNIC matches in database) -> UPDATE details
+      if (cnic && existingAdmissionsMap.has(cnic)) {
+        try {
+          const existing = existingAdmissionsMap.get(cnic)!;
+          await prisma.$transaction(async (tx) => {
+            await tx.admission.update({
+              where: { id: existing.id },
+              data: {
+                studentName,
+                fatherName,
+                contactNumber,
+                email: raw.email ? (sanitizeEmail(raw.email) || existing.email) : existing.email,
+                programId: matchedProgram?.id || existing.programId,
+                session: sessionVal || existing.session,
+                gender: gender || existing.gender,
+                status: ["APPROVED", "REJECTED", "PENDING"].includes(rawStatus) ? rawStatus : existing.status,
+                residentAddress: residentAddress || existing.residentAddress,
+              }
+            });
+
+            if (feeStatusUpper === "PAID" || feeStatusUpper === "PENDING") {
+              await tx.challan.updateMany({
+                where: { cnic: cnic! },
+                data: {
+                  status: feeStatusUpper,
+                  ...(feeStatusUpper === "PAID" ? { paidAt: new Date() } : {})
+                }
+              });
+            }
+          });
+
+          updatedCount++;
+        } catch (err: any) {
+          failedCount++;
+          errors.push({
+            row: rowIdx,
+            student: studentName,
+            reason: `Update failed: ${err?.message || "Unknown error"}`
+          });
+        }
+        continue;
+      }
+
+      // Case 2: Brand new student -> INSERT
+      if (!cnic) {
+        const randomMid = Math.floor(1000000 + Math.random() * 9000000);
+        const randomEnd = Math.floor(1 + Math.random() * 9);
+        cnic = `54400-${randomMid}-${randomEnd}`;
+      }
+
+      // Email
+      let email = sanitizeEmail(raw.email);
+      if (email && existingEmailSet.has(email)) {
+        const [userPart, domainPart] = email.split("@");
+        email = `${userPart}+${Date.now().toString().slice(-4)}${i}@${domainPart}`;
+      } else if (!email) {
+        const cleanName = studentName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const cleanCnicDigits = cnic.replace(/\D/g, "").slice(-4);
+        email = `${cleanName || "student"}.${cleanCnicDigits || i}@college.edu.pk`;
+      }
+      existingEmailSet.add(email);
 
       try {
         currentSequence++;
-        const challanNumber = String(currentSequence);
+        const challanNumber = raw.challanNumber || String(currentSequence);
 
         await prisma.$transaction(async (tx) => {
           const admission = await tx.admission.create({
@@ -208,7 +255,7 @@ export async function POST(request: Request) {
               session: sessionVal,
               gender,
               collegeId: targetCollegeId,
-              status: "PENDING",
+              status: targetStatus,
             }
           });
 
@@ -229,10 +276,14 @@ export async function POST(request: Request) {
               programId: matchedProgram?.id || null,
               admissionId: admission.id,
               collegeId: targetCollegeId,
+              status: feeStatusUpper === "PAID" ? "PAID" : "PENDING",
+              ...(feeStatusUpper === "PAID" ? { paidAt: new Date() } : {})
             }
           });
         });
 
+        // Add newly created cnic to map to prevent duplicates in same batch
+        existingAdmissionsMap.set(cnic, { id: "new", cnic, email, status: targetStatus, programId: matchedProgram?.id || null, session: sessionVal, gender, residentAddress });
         importedCount++;
       } catch (err: any) {
         failedCount++;
@@ -254,6 +305,7 @@ export async function POST(request: Request) {
       success: true,
       total: rawRecords.length,
       imported: importedCount,
+      updated: updatedCount,
       skipped: skippedCount,
       failed: failedCount,
       errors

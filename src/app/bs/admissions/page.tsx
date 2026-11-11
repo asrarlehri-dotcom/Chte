@@ -19,7 +19,8 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Loader2,
-  X
+  X,
+  ClipboardList
 } from "lucide-react";
 import { parseCSVToRows, getSampleCSV } from "@/lib/admissionParser";
 
@@ -65,9 +66,12 @@ export default function BsAdmissionsPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
   const [importSummary, setImportSummary] = useState<{
     total: number;
     imported: number;
+    updated: number;
     skipped: number;
     failed: number;
     errors: { row: number; student: string; reason: string }[];
@@ -228,21 +232,21 @@ export default function BsAdmissionsPage() {
         setImportSummary({
           total: data.total,
           imported: data.imported,
+          updated: data.updated || 0,
           skipped: data.skipped || 0,
           failed: data.failed,
           errors: data.errors || []
         });
-        if (data.imported > 0) {
-          setMsg({
-            type: "success",
-            text: `Successfully imported ${data.imported} out of ${data.total} admissions!`
-          });
-        } else {
-          setMsg({
-            type: "error",
-            text: `Import finished: 0 imported, ${data.skipped || 0} skipped, ${data.failed} failed. See summary details.`
-          });
-        }
+
+        const summaryParts = [];
+        if (data.imported > 0) summaryParts.push(`${data.imported} new imported`);
+        if (data.updated > 0) summaryParts.push(`${data.updated} updated`);
+        if (data.failed > 0) summaryParts.push(`${data.failed} failed`);
+
+        setMsg({
+          type: data.failed > 0 && data.imported === 0 && data.updated === 0 ? "error" : "success",
+          text: `Import finished: ${summaryParts.join(", ") || "processed"}.`
+        });
         fetchAdmissions();
         fetchChallans();
       } else {
@@ -250,10 +254,67 @@ export default function BsAdmissionsPage() {
       }
     } catch (err: any) {
       console.error("CSV import error:", err);
-      setMsg({ type: "error", text: "An unexpected error occurred while reading or uploading the CSV file." });
+      setMsg({ type: "error", text: "An unexpected error occurred while reading or uploading the file." });
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleProcessPastedText = async () => {
+    if (!pasteText.trim()) return;
+    setIsImporting(true);
+    setMsg({ type: "", text: "" });
+
+    try {
+      const parsedAdmissions = parseCSVToRows(pasteText);
+      if (parsedAdmissions.length === 0) {
+        setMsg({ type: "error", text: "Could not parse any student records. Ensure headers like Student Name, CNIC, Program are included." });
+        setIsImporting(false);
+        return;
+      }
+
+      const res = await fetch("/api/admissions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          records: parsedAdmissions,
+          educationLevel: "BS"
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setImportSummary({
+          total: data.total,
+          imported: data.imported,
+          updated: data.updated || 0,
+          skipped: data.skipped || 0,
+          failed: data.failed,
+          errors: data.errors || []
+        });
+
+        const summaryParts = [];
+        if (data.imported > 0) summaryParts.push(`${data.imported} new imported`);
+        if (data.updated > 0) summaryParts.push(`${data.updated} updated`);
+        if (data.failed > 0) summaryParts.push(`${data.failed} failed`);
+
+        setMsg({
+          type: data.failed > 0 && data.imported === 0 && data.updated === 0 ? "error" : "success",
+          text: `Pasted data import finished: ${summaryParts.join(", ") || "processed"}.`
+        });
+        setPasteModalOpen(false);
+        setPasteText("");
+        fetchAdmissions();
+        fetchChallans();
+      } else {
+        setMsg({ type: "error", text: data.error || "Failed to process pasted data." });
+      }
+    } catch (err: any) {
+      console.error("Paste import error:", err);
+      setMsg({ type: "error", text: "An unexpected error occurred while processing pasted data." });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -371,19 +432,29 @@ export default function BsAdmissionsPage() {
         </div>
 
         <div className="flex gap-2.5 items-center flex-wrap self-end sm:self-auto">
-          {/* CSV Import */}
+          {/* CSV/TSV File Import */}
           <label className={`px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-2 shadow-xs ${isImporting ? "opacity-60 pointer-events-none" : ""}`}>
             {isImporting ? <Loader2 className="w-4 h-4 text-blue-600 animate-spin" /> : <Upload className="w-4 h-4 text-blue-600" />}
-            {isImporting ? "Importing Admissions..." : "Import CSV"}
+            {isImporting ? "Importing Admissions..." : "Import File"}
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept=".csv, .tsv, .txt, text/csv, text/tab-separated-values, text/plain"
               disabled={isImporting}
               onChange={handleImportCSV}
               className="hidden"
             />
           </label>
+
+          {/* Paste Excel Data */}
+          <button
+            onClick={() => setPasteModalOpen(true)}
+            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            title="Paste copied rows directly from Excel or Google Sheets"
+          >
+            <ClipboardList className="w-4 h-4 text-indigo-600" />
+            Paste Excel Data
+          </button>
 
           {/* Download Sample Template */}
           <button
@@ -425,6 +496,56 @@ export default function BsAdmissionsPage() {
         </div>
       </div>
 
+      {/* Paste Excel Data Modal */}
+      {pasteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  Paste Excel / TSV / CSV Data
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Copy table rows directly from Excel or Google Sheets (Ctrl+C) and paste below (Ctrl+V).
+                </p>
+              </div>
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              rows={9}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"Student Name\tFather Name\tCNIC\tContact\tEmail\tProgram\tSession\nMuhammad Ali\tGhulam Ali\t54400-1234567-1\t03001234567\tm.ali@test.com\tBS Computer Science\t2026-2030"}
+              className="w-full p-3 font-mono text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50 resize-y"
+            />
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!pasteText.trim() || isImporting}
+                onClick={handleProcessPastedText}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 disabled:opacity-50"
+              >
+                {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {isImporting ? "Processing..." : "Import Pasted Records"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Import Summary Modal */}
       {importSummary && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
@@ -445,18 +566,22 @@ export default function BsAdmissionsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-2.5 text-center">
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <div className="text-xl font-bold text-emerald-700">{importSummary.imported}</div>
-                <div className="text-xs text-emerald-600 font-medium">Imported</div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-lg font-bold text-emerald-700">{importSummary.imported}</div>
+                <div className="text-[11px] text-emerald-600 font-medium">New Added</div>
               </div>
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <div className="text-xl font-bold text-amber-700">{importSummary.skipped}</div>
-                <div className="text-xs text-amber-600 font-medium">Skipped (Duplicate)</div>
+              <div className="p-2.5 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="text-lg font-bold text-blue-700">{importSummary.updated}</div>
+                <div className="text-[11px] text-blue-600 font-medium">Updated</div>
               </div>
-              <div className="p-3 bg-red-50 rounded-xl border border-red-100">
-                <div className="text-xl font-bold text-red-700">{importSummary.failed}</div>
-                <div className="text-xs text-red-600 font-medium">Failed</div>
+              <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
+                <div className="text-lg font-bold text-amber-700">{importSummary.skipped}</div>
+                <div className="text-[11px] text-amber-600 font-medium">Skipped</div>
+              </div>
+              <div className="p-2.5 bg-red-50 rounded-xl border border-red-100">
+                <div className="text-lg font-bold text-red-700">{importSummary.failed}</div>
+                <div className="text-[11px] text-red-600 font-medium">Failed</div>
               </div>
             </div>
 
