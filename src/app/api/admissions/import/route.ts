@@ -126,15 +126,58 @@ export async function POST(request: Request) {
 
       if (!studentName) {
         failedCount++;
-        errors.push({ row: rowIdx, student: "Unknown", reason: "Student name is required." });
+        errors.push({ row: rowIdx, student: "Unknown", reason: "Missing Student Name: Student name is required but was left blank." });
         continue;
       }
 
-      // Sanitize CNIC
-      let cnic = sanitizeCNIC(raw.cnic);
+      // Check CNIC
+      const rawCnic = (raw.cnic || "").trim();
+      if (!rawCnic || rawCnic.toUpperCase() === "N/A" || rawCnic === "-" || rawCnic === "NONE") {
+        failedCount++;
+        errors.push({
+          row: rowIdx,
+          student: studentName,
+          reason: "Missing CNIC: CNIC / B-Form is required but was left empty or missing."
+        });
+        continue;
+      }
+
+      const cnicDigits = rawCnic.replace(/\D/g, "");
+      if (cnicDigits.length < 13) {
+        failedCount++;
+        errors.push({
+          row: rowIdx,
+          student: studentName,
+          reason: `Invalid CNIC: '${rawCnic}' has only ${cnicDigits.length} digits (standard CNIC requires 13 digits).`
+        });
+        continue;
+      }
+
+      // Sanitize CNIC (handles Excel auto-fill drag increments like -10, -11)
+      let cnic = sanitizeCNIC(rawCnic) || rawCnic;
 
       // Contact
-      const contactNumber = sanitizeContact(raw.contactNumber || raw.contact || raw.phone);
+      const rawContact = (raw.contactNumber || raw.contact || raw.phone || "").trim();
+      const contactDigits = rawContact.replace(/\D/g, "");
+      if (!rawContact || rawContact.toUpperCase() === "N/A" || rawContact === "-") {
+        failedCount++;
+        errors.push({
+          row: rowIdx,
+          student: studentName,
+          reason: "Missing Contact Number: Student mobile number is required but was left blank."
+        });
+        continue;
+      }
+      if (contactDigits.length < 10 || contactDigits.length > 13) {
+        failedCount++;
+        errors.push({
+          row: rowIdx,
+          student: studentName,
+          reason: `Invalid Contact Number: '${rawContact}' must be 11 digits (e.g. 03001234567).`
+        });
+        continue;
+      }
+      const contactNumber = sanitizeContact(rawContact);
 
       // Date of Birth
       const dateOfBirth = parseDateSafe(raw.dateOfBirth || raw.dob);
@@ -153,6 +196,14 @@ export async function POST(request: Request) {
           rawProg.includes(p.name.toLowerCase()) ||
           (p.code && rawProg.includes(p.code.toLowerCase()))
         );
+      }
+
+      if (!matchedProgram && rawProg) {
+        const words = rawProg.split(/\s+/).filter(w => w.length > 2 && !["bs", "fsc", "and", "the"].includes(w));
+        matchedProgram = programs.find(p => {
+          const pLower = p.name.toLowerCase();
+          return words.some(w => pLower.includes(w));
+        });
       }
 
       if (!matchedProgram && programs.length > 0) {

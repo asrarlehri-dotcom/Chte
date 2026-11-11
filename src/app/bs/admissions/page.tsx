@@ -22,7 +22,8 @@ import {
   X,
   ClipboardList
 } from "lucide-react";
-import { parseCSVToRows, getSampleCSV } from "@/lib/admissionParser";
+import { parseCSVToRows, getSampleCSV, validateAdmissionsBatch } from "@/lib/admissionParser";
+import ImportValidationModal from "@/components/ImportValidationModal";
 
 type Admission = {
   id: string;
@@ -68,6 +69,9 @@ export default function BsAdmissionsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
+  const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationData, setValidationData] = useState<ReturnType<typeof validateAdmissionsBatch> | null>(null);
+  const [importSourceName, setImportSourceName] = useState("");
   const [importSummary, setImportSummary] = useState<{
     total: number;
     imported: number;
@@ -204,7 +208,6 @@ export default function BsAdmissionsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsImporting(true);
     setMsg({ type: "", text: "" });
 
     try {
@@ -212,23 +215,65 @@ export default function BsAdmissionsPage() {
       const parsedAdmissions = parseCSVToRows(text);
 
       if (parsedAdmissions.length === 0) {
-        setMsg({ type: "error", text: "Invalid or empty CSV file. Please make sure the CSV contains headers and data rows." });
-        setIsImporting(false);
+        setMsg({ type: "error", text: "Invalid or empty CSV/TSV file. Please ensure the file contains valid headers and student rows." });
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
 
+      // Pre-validate all rows and field diagnostics
+      const validation = validateAdmissionsBatch(parsedAdmissions, programs, "BS");
+      setValidationData(validation);
+      setImportSourceName(file.name);
+      setValidationModalOpen(true);
+    } catch (err: any) {
+      console.error("CSV import parse error:", err);
+      setMsg({ type: "error", text: "An unexpected error occurred while reading the file." });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleProcessPastedText = () => {
+    if (!pasteText.trim()) return;
+    setMsg({ type: "", text: "" });
+
+    try {
+      const parsedAdmissions = parseCSVToRows(pasteText);
+      if (parsedAdmissions.length === 0) {
+        setMsg({ type: "error", text: "Could not parse any student records. Ensure headers like Student Name, CNIC, Program are included." });
+        return;
+      }
+
+      // Pre-validate all rows and field diagnostics
+      const validation = validateAdmissionsBatch(parsedAdmissions, programs, "BS");
+      setValidationData(validation);
+      setImportSourceName("Pasted Excel Data");
+      setPasteModalOpen(false);
+      setValidationModalOpen(true);
+    } catch (err: any) {
+      console.error("Paste import parse error:", err);
+      setMsg({ type: "error", text: "An unexpected error occurred while processing pasted data." });
+    }
+  };
+
+  const handleConfirmBatchImport = async (validRows: Record<string, string>[]) => {
+    if (validRows.length === 0) return;
+    setIsImporting(true);
+
+    try {
       const res = await fetch("/api/admissions/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          records: parsedAdmissions,
+          records: validRows,
           educationLevel: "BS"
         })
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
+        setValidationModalOpen(false);
+        setPasteText("");
         setImportSummary({
           total: data.total,
           imported: data.imported,
@@ -253,66 +298,8 @@ export default function BsAdmissionsPage() {
         setMsg({ type: "error", text: data.error || "Failed to process admissions import." });
       }
     } catch (err: any) {
-      console.error("CSV import error:", err);
-      setMsg({ type: "error", text: "An unexpected error occurred while reading or uploading the file." });
-    } finally {
-      setIsImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleProcessPastedText = async () => {
-    if (!pasteText.trim()) return;
-    setIsImporting(true);
-    setMsg({ type: "", text: "" });
-
-    try {
-      const parsedAdmissions = parseCSVToRows(pasteText);
-      if (parsedAdmissions.length === 0) {
-        setMsg({ type: "error", text: "Could not parse any student records. Ensure headers like Student Name, CNIC, Program are included." });
-        setIsImporting(false);
-        return;
-      }
-
-      const res = await fetch("/api/admissions/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          records: parsedAdmissions,
-          educationLevel: "BS"
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setImportSummary({
-          total: data.total,
-          imported: data.imported,
-          updated: data.updated || 0,
-          skipped: data.skipped || 0,
-          failed: data.failed,
-          errors: data.errors || []
-        });
-
-        const summaryParts = [];
-        if (data.imported > 0) summaryParts.push(`${data.imported} new imported`);
-        if (data.updated > 0) summaryParts.push(`${data.updated} updated`);
-        if (data.failed > 0) summaryParts.push(`${data.failed} failed`);
-
-        setMsg({
-          type: data.failed > 0 && data.imported === 0 && data.updated === 0 ? "error" : "success",
-          text: `Pasted data import finished: ${summaryParts.join(", ") || "processed"}.`
-        });
-        setPasteModalOpen(false);
-        setPasteText("");
-        fetchAdmissions();
-        fetchChallans();
-      } else {
-        setMsg({ type: "error", text: data.error || "Failed to process pasted data." });
-      }
-    } catch (err: any) {
-      console.error("Paste import error:", err);
-      setMsg({ type: "error", text: "An unexpected error occurred while processing pasted data." });
+      console.error("Batch import execution error:", err);
+      setMsg({ type: "error", text: "An unexpected error occurred while communicating with the server." });
     } finally {
       setIsImporting(false);
     }
@@ -546,6 +533,17 @@ export default function BsAdmissionsPage() {
         </div>
       )}
 
+      {/* Import Pre-Check & Validation Modal */}
+      <ImportValidationModal
+        isOpen={validationModalOpen}
+        onClose={() => setValidationModalOpen(false)}
+        onConfirmImport={handleConfirmBatchImport}
+        validationData={validationData}
+        isImporting={isImporting}
+        educationLevel="BS"
+        sourceName={importSourceName}
+      />
+
       {/* Import Summary Modal */}
       {importSummary && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
@@ -560,7 +558,7 @@ export default function BsAdmissionsPage() {
               </div>
               <button
                 onClick={() => setImportSummary(null)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -587,13 +585,20 @@ export default function BsAdmissionsPage() {
 
             {importSummary.errors.length > 0 && (
               <div className="space-y-1.5">
-                <div className="text-xs font-semibold text-gray-700">Notice / Errors Log:</div>
-                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs space-y-1.5 font-mono">
+                <div className="text-xs font-semibold text-gray-700 flex items-center justify-between">
+                  <span>Import Notices & Failure Diagnostics:</span>
+                  <span className="text-[11px] text-rose-600 font-bold">{importSummary.errors.length} issue(s)</span>
+                </div>
+                <div className="max-h-52 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs space-y-2">
                   {importSummary.errors.map((e, idx) => (
-                    <div key={idx} className="flex gap-2 text-gray-700">
-                      <span className="font-bold text-gray-900">Row {e.row}:</span>
-                      <span className="font-semibold text-blue-700">{e.student}</span> —
-                      <span className="text-gray-600">{e.reason}</span>
+                    <div key={idx} className="p-2.5 rounded-lg bg-white border border-rose-200/80 shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-gray-900">Row {e.row}: {e.student}</span>
+                        <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded text-[10px] font-bold border border-rose-200">Blocked</span>
+                      </div>
+                      <div className="text-rose-700 text-xs font-medium">
+                        {e.reason}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -602,7 +607,7 @@ export default function BsAdmissionsPage() {
 
             <button
               onClick={() => setImportSummary(null)}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
             >
               Done
             </button>

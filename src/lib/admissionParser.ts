@@ -223,3 +223,289 @@ Zainab Baloch,Abdul Qadir,54400-3456789-2,03453456789,zainab@example.com,2007-09
   }
 }
 
+export type FieldDiagnostic = {
+  field: "Student Name" | "Father Name" | "CNIC" | "Contact Number" | "Email" | "Program" | "Session" | "Date of Birth" | "General";
+  code: "MISSING_NAME" | "INVALID_NAME" | "MISSING_CNIC" | "INVALID_CNIC" | "DUPLICATE_CNIC" | "MISSING_CONTACT" | "INVALID_CONTACT" | "MISSING_PROGRAM" | "UNRECOGNIZED_PROGRAM" | "INVALID_SESSION" | "INVALID_EMAIL" | "WARNING_NOTICE";
+  message: string;
+  tip?: string;
+  value?: string;
+};
+
+export type RowValidationResult = {
+  row: number;
+  studentName: string;
+  fatherName: string;
+  cnic: string | null;
+  contactNumber: string;
+  email: string | null;
+  program: string;
+  session: string;
+  isValid: boolean;
+  errors: FieldDiagnostic[];
+  warnings: FieldDiagnostic[];
+  raw: Record<string, string>;
+};
+
+export function validateAdmissionRow(
+  raw: Record<string, string>,
+  rowIdx: number,
+  programs: Array<{ id: string; name: string; code?: string }> = [],
+  educationLevel: "BS" | "INTERMEDIATE" = "BS"
+): RowValidationResult {
+  const errors: FieldDiagnostic[] = [];
+  const warnings: FieldDiagnostic[] = [];
+
+  // 1. Student Name
+  const rawStudent = (raw.studentName || raw.name || raw.applicantName || "").trim();
+  if (!rawStudent) {
+    errors.push({
+      field: "Student Name",
+      code: "MISSING_NAME",
+      message: "Missing Student Name: Student name is required but was left empty.",
+      tip: "Ensure the 'Student Name' column contains the applicant's full legal name.",
+      value: ""
+    });
+  } else if (rawStudent.length < 2) {
+    errors.push({
+      field: "Student Name",
+      code: "INVALID_NAME",
+      message: `Invalid Student Name: '${rawStudent}' is too short (min 2 characters).`,
+      tip: "Please enter the applicant's complete legal name.",
+      value: rawStudent
+    });
+  }
+
+  // 2. Father Name
+  const rawFather = (raw.fatherName || raw.father || "").trim();
+  if (!rawFather) {
+    warnings.push({
+      field: "Father Name",
+      code: "WARNING_NOTICE",
+      message: "Father Name is blank (will default to '—').",
+      tip: "Recommended for registration and degree transcripts.",
+      value: ""
+    });
+  }
+
+  // 3. CNIC / B-Form
+  const rawCnic = (raw.cnic || "").trim();
+  let sanitizedCnic = sanitizeCNIC(rawCnic);
+
+  if (!rawCnic || rawCnic.toUpperCase() === "N/A" || rawCnic === "-" || rawCnic === "NONE") {
+    errors.push({
+      field: "CNIC",
+      code: "MISSING_CNIC",
+      message: "Missing CNIC: CNIC / B-Form number is required but was left empty.",
+      tip: "Provide a 13-digit CNIC formatted as 54400-1234567-1.",
+      value: rawCnic
+    });
+  } else {
+    const digits = rawCnic.replace(/\D/g, "");
+    if (digits.length < 13) {
+      errors.push({
+        field: "CNIC",
+        code: "INVALID_CNIC",
+        message: `Invalid CNIC: '${rawCnic}' has only ${digits.length} digits. Standard CNIC requires 13 digits.`,
+        tip: "Example valid format: 54400-1234567-1.",
+        value: rawCnic
+      });
+    } else if (rawCnic.match(/-\d{2,}$/)) {
+      warnings.push({
+        field: "CNIC",
+        code: "WARNING_NOTICE",
+        message: `Auto-formatted CNIC: '${rawCnic}' has 2 digits after last hyphen (Excel auto-fill artifact).`,
+        tip: `Formatted cleanly to standard 15-character CNIC: ${sanitizedCnic}.`,
+        value: rawCnic
+      });
+    }
+  }
+
+  // 4. Contact Number
+  const rawContact = (raw.contactNumber || raw.contact || raw.phone || "").trim();
+  const contactDigits = rawContact.replace(/\D/g, "");
+  if (!rawContact || rawContact.toUpperCase() === "N/A" || rawContact === "-") {
+    errors.push({
+      field: "Contact Number",
+      code: "MISSING_CONTACT",
+      message: "Missing Contact Number: Student mobile phone number is required but was left blank.",
+      tip: "Provide an 11-digit mobile number like 03001234567.",
+      value: rawContact
+    });
+  } else if (contactDigits.length < 10 || contactDigits.length > 13) {
+    errors.push({
+      field: "Contact Number",
+      code: "INVALID_CONTACT",
+      message: `Invalid Contact Number: '${rawContact}' (${contactDigits.length} digits). Standard mobile number must be 11 digits.`,
+      tip: "Format: 03001234567 or 0333-8905018.",
+      value: rawContact
+    });
+  }
+
+  // 5. Program
+  const rawProg = (raw.program || raw.programName || raw.course || "").trim();
+  if (!rawProg) {
+    errors.push({
+      field: "Program",
+      code: "MISSING_PROGRAM",
+      message: "Missing Program: Program / Degree name is required.",
+      tip: "Specify program name (e.g. 'BS Mathematics' or 'F.Sc Pre-Medical').",
+      value: ""
+    });
+  } else if (programs && programs.length > 0) {
+    const rawLower = rawProg.toLowerCase();
+    const matched = programs.find(p =>
+      p.id.toLowerCase() === rawLower ||
+      p.code?.toLowerCase() === rawLower ||
+      p.name.toLowerCase() === rawLower ||
+      p.name.toLowerCase().includes(rawLower) ||
+      rawLower.includes(p.name.toLowerCase()) ||
+      (p.code && rawLower.includes(p.code.toLowerCase()))
+    );
+
+    if (!matched) {
+      // Soft fuzzy match
+      const words = rawLower.split(/\s+/).filter(w => w.length > 2 && !["bs", "fsc", "and", "the"].includes(w));
+      const softMatched = programs.find(p => {
+        const pLower = p.name.toLowerCase();
+        return words.some(w => pLower.includes(w));
+      });
+
+      if (softMatched) {
+        warnings.push({
+          field: "Program",
+          code: "WARNING_NOTICE",
+          message: `Program '${rawProg}' matched to college program '${softMatched.name}'.`,
+          tip: `Auto-mapping to '${softMatched.name}'.`,
+          value: rawProg
+        });
+      } else {
+        errors.push({
+          field: "Program",
+          code: "UNRECOGNIZED_PROGRAM",
+          message: `Unrecognized Program: '${rawProg}' is not active in this college.`,
+          tip: `Available programs: ${programs.map(p => p.name).slice(0, 4).join(", ")}...`,
+          value: rawProg
+        });
+      }
+    }
+  }
+
+  // 6. Session
+  const rawSession = (raw.session || "").trim();
+  if (!rawSession) {
+    warnings.push({
+      field: "Session",
+      code: "WARNING_NOTICE",
+      message: "Session is blank; system will auto-assign current academic session.",
+      tip: "Recommended format: 2022-2026.",
+      value: ""
+    });
+  } else {
+    const spanMatch = rawSession.match(/^(\d{4})-(\d{4})$/);
+    if (!spanMatch) {
+      if (/^\d{4}$/.test(rawSession)) {
+        warnings.push({
+          field: "Session",
+          code: "WARNING_NOTICE",
+          message: `Session '${rawSession}' is a single year. System will convert to '${rawSession}-${parseInt(rawSession) + (educationLevel === "INTERMEDIATE" ? 2 : 4)}'.`,
+          tip: "Use span format like 2022-2026.",
+          value: rawSession
+        });
+      } else {
+        errors.push({
+          field: "Session",
+          code: "INVALID_SESSION",
+          message: `Invalid Session Format: '${rawSession}' is invalid.`,
+          tip: "Session must be formatted as YYYY-YYYY (e.g. 2022-2026).",
+          value: rawSession
+        });
+      }
+    } else {
+      const diff = Math.abs(parseInt(spanMatch[2]) - parseInt(spanMatch[1]));
+      const expectedDiff = educationLevel === "INTERMEDIATE" ? 2 : 4;
+      if (diff !== expectedDiff && diff !== 2 && diff !== 4) {
+        warnings.push({
+          field: "Session",
+          code: "WARNING_NOTICE",
+          message: `Session '${rawSession}' span is ${diff} years instead of expected ${expectedDiff} years.`,
+          tip: `Typically ${expectedDiff} years for ${educationLevel} programs.`,
+          value: rawSession
+        });
+      }
+    }
+  }
+
+  // 7. Email
+  const rawEmail = (raw.email || "").trim();
+  if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+    errors.push({
+      field: "Email",
+      code: "INVALID_EMAIL",
+      message: `Invalid Email: '${rawEmail}' is not formatted correctly.`,
+      tip: "Provide a valid email (e.g. name@gmail.com) or leave blank for auto-generation.",
+      value: rawEmail
+    });
+  }
+
+  return {
+    row: rowIdx,
+    studentName: rawStudent || "—",
+    fatherName: rawFather || "—",
+    cnic: sanitizedCnic || rawCnic || null,
+    contactNumber: rawContact || "—",
+    email: rawEmail || null,
+    program: rawProg || "—",
+    session: rawSession || "—",
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    raw
+  };
+}
+
+export function validateAdmissionsBatch(
+  rows: Record<string, string>[],
+  programs: Array<{ id: string; name: string; code?: string }> = [],
+  educationLevel: "BS" | "INTERMEDIATE" = "BS"
+) {
+  const results: RowValidationResult[] = [];
+  const seenCnics = new Map<string, number>();
+
+  for (let i = 0; i < rows.length; i++) {
+    const rowIdx = i + 1;
+    const res = validateAdmissionRow(rows[i], rowIdx, programs, educationLevel);
+
+    // Cross-row file check: Duplicate CNIC within same file
+    if (res.cnic) {
+      const cleanKey = res.cnic.replace(/\D/g, "");
+      if (seenCnics.has(cleanKey)) {
+        res.errors.push({
+          field: "CNIC",
+          code: "DUPLICATE_CNIC",
+          message: `Duplicate CNIC in File: '${res.cnic}' appears in both Row ${seenCnics.get(cleanKey)} and Row ${rowIdx}.`,
+          tip: "Each student in the import file must have a unique CNIC.",
+          value: res.cnic
+        });
+        res.isValid = false;
+      } else {
+        seenCnics.set(cleanKey, rowIdx);
+      }
+    }
+
+    results.push(res);
+  }
+
+  const validCount = results.filter(r => r.isValid).length;
+  const errorCount = results.filter(r => !r.isValid).length;
+  const warningCount = results.filter(r => r.warnings.length > 0 && r.isValid).length;
+
+  return {
+    total: rows.length,
+    validCount,
+    errorCount,
+    warningCount,
+    results
+  };
+}
+
+
