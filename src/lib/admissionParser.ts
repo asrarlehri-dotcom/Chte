@@ -158,15 +158,18 @@ export function sanitizeCNIC(val: string | null | undefined): string | null {
   const s = val.trim().toUpperCase();
   if (s === "N/A" || s === "-" || s === "NONE" || s === "NULL") return null;
 
+  // If already formatted like XXXXX-XXXXXXX-X (or XXXXX-XXXXXXX-XX from Excel auto-fill drag)
+  const dashedMatch = s.match(/^(\d{5})-(\d{7})-(\d+)$/);
+  if (dashedMatch) {
+    return `${dashedMatch[1]}-${dashedMatch[2]}-${dashedMatch[3].slice(-1)}`;
+  }
+
   const digits = s.replace(/\D/g, "");
   if (digits.length === 13) {
     return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
   }
-  if (digits.length === 15) {
+  if (digits.length >= 13) {
     return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12, 13)}`;
-  }
-  if (/^\d{5}-\d{7}-\d{1}$/.test(s)) {
-    return s;
   }
 
   return null;

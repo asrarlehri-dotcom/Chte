@@ -177,32 +177,30 @@ export async function POST(request: Request) {
       if (cnic && existingAdmissionsMap.has(cnic)) {
         try {
           const existing = existingAdmissionsMap.get(cnic)!;
-          await prisma.$transaction(async (tx) => {
-            await tx.admission.update({
-              where: { id: existing.id },
-              data: {
-                studentName,
-                fatherName,
-                contactNumber,
-                email: raw.email ? (sanitizeEmail(raw.email) || existing.email) : existing.email,
-                programId: matchedProgram?.id || existing.programId,
-                session: sessionVal || existing.session,
-                gender: gender || existing.gender,
-                status: ["APPROVED", "REJECTED", "PENDING"].includes(rawStatus) ? rawStatus : existing.status,
-                residentAddress: residentAddress || existing.residentAddress,
-              }
-            });
-
-            if (feeStatusUpper === "PAID" || feeStatusUpper === "PENDING") {
-              await tx.challan.updateMany({
-                where: { cnic: cnic! },
-                data: {
-                  status: feeStatusUpper,
-                  ...(feeStatusUpper === "PAID" ? { paidAt: new Date() } : {})
-                }
-              });
+          await prisma.admission.update({
+            where: { id: existing.id },
+            data: {
+              studentName,
+              fatherName,
+              contactNumber,
+              email: raw.email ? (sanitizeEmail(raw.email) || existing.email) : existing.email,
+              programId: matchedProgram?.id || existing.programId,
+              session: sessionVal || existing.session,
+              gender: gender || existing.gender,
+              status: ["APPROVED", "REJECTED", "PENDING"].includes(rawStatus) ? rawStatus : existing.status,
+              residentAddress: residentAddress || existing.residentAddress,
             }
           });
+
+          if (feeStatusUpper === "PAID" || feeStatusUpper === "PENDING") {
+            await prisma.challan.updateMany({
+              where: { cnic: cnic! },
+              data: {
+                status: feeStatusUpper,
+                ...(feeStatusUpper === "PAID" ? { paidAt: new Date() } : {})
+              }
+            });
+          }
 
           updatedCount++;
         } catch (err: any) {
@@ -239,51 +237,49 @@ export async function POST(request: Request) {
         currentSequence++;
         const challanNumber = raw.challanNumber || String(currentSequence);
 
-        await prisma.$transaction(async (tx) => {
-          const admission = await tx.admission.create({
-            data: {
-              studentName,
-              fatherName,
-              cnic,
-              dateOfBirth,
-              contactNumber,
-              email,
-              residentAddress,
-              educationLevel,
-              programId: matchedProgram?.id || null,
-              bsAdmissionType: educationLevel === "BS" ? bsAdmissionType : null,
-              session: sessionVal,
-              gender,
-              collegeId: targetCollegeId,
-              status: targetStatus,
-            }
-          });
+        const admission = await prisma.admission.create({
+          data: {
+            studentName,
+            fatherName,
+            cnic,
+            dateOfBirth,
+            contactNumber,
+            email,
+            residentAddress,
+            educationLevel,
+            programId: matchedProgram?.id || null,
+            bsAdmissionType: educationLevel === "BS" ? bsAdmissionType : null,
+            session: sessionVal,
+            gender,
+            collegeId: targetCollegeId,
+            status: targetStatus,
+          }
+        });
 
-          await tx.challan.create({
-            data: {
-              challanNumber,
-              cnic,
-              applicantName: studentName,
-              fatherName,
-              feeType: feeKey,
-              feeLabel,
-              amount: feeAmount,
-              dueDate,
-              educationLevel,
-              semester: 1,
-              session: sessionVal,
-              gender,
-              programId: matchedProgram?.id || null,
-              admissionId: admission.id,
-              collegeId: targetCollegeId,
-              status: feeStatusUpper === "PAID" ? "PAID" : "PENDING",
-              ...(feeStatusUpper === "PAID" ? { paidAt: new Date() } : {})
-            }
-          });
+        await prisma.challan.create({
+          data: {
+            challanNumber,
+            cnic,
+            applicantName: studentName,
+            fatherName,
+            feeType: feeKey,
+            feeLabel,
+            amount: feeAmount,
+            dueDate,
+            educationLevel,
+            semester: 1,
+            session: sessionVal,
+            gender,
+            programId: matchedProgram?.id || null,
+            admissionId: admission.id,
+            collegeId: targetCollegeId,
+            status: feeStatusUpper === "PAID" ? "PAID" : "PENDING",
+            ...(feeStatusUpper === "PAID" ? { paidAt: new Date() } : {})
+          }
         });
 
         // Add newly created cnic to map to prevent duplicates in same batch
-        existingAdmissionsMap.set(cnic, { id: "new", cnic, email, status: targetStatus, programId: matchedProgram?.id || null, session: sessionVal, gender, residentAddress });
+        existingAdmissionsMap.set(cnic, { id: admission.id, cnic, email, status: targetStatus, programId: matchedProgram?.id || null, session: sessionVal, gender, residentAddress });
         importedCount++;
       } catch (err: any) {
         failedCount++;
