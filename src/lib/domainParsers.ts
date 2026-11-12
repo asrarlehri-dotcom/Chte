@@ -37,9 +37,25 @@ export function parseGenericCSV(csvText: string, customDelimiter?: string): Reco
   const lines = cleanText.split("\n").filter(l => l.trim().length > 0);
   if (lines.length < 2) return [];
 
-  const delimiter = customDelimiter || detectDelimiter(lines[0]);
+  let firstLine = lines[0].trim();
+  if ((firstLine.startsWith('"') && firstLine.endsWith('"')) || (firstLine.startsWith("'") && firstLine.endsWith("'"))) {
+    const inner = firstLine.slice(1, -1);
+    if (inner.includes("\t") || inner.includes(",") || inner.includes(";")) {
+      firstLine = inner;
+    }
+  }
+  const delimiter = customDelimiter || detectDelimiter(firstLine);
 
-  const parseLine = (line: string): string[] => {
+  const parseLine = (rawLine: string): string[] => {
+    let line = rawLine.trim();
+    // If the entire line is wrapped in quotes and has delimiters inside, unwrap outer quotes
+    if ((line.startsWith('"') && line.endsWith('"')) || (line.startsWith("'") && line.endsWith("'"))) {
+      const inner = line.slice(1, -1);
+      if (inner.includes("\t") || inner.includes(",") || inner.includes(";")) {
+        line = inner;
+      }
+    }
+
     const entries: string[] = [];
     let current = "";
     let inQuotes = false;
