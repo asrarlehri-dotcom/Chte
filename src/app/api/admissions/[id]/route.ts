@@ -179,7 +179,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY"].includes((session.user as any).role)) {
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY", "PRINCIPAL"].includes((session.user as any).role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -210,7 +210,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY"].includes((session.user as any).role)) {
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY", "PRINCIPAL"].includes((session.user as any).role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -347,7 +347,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN"].includes((session.user as any).role)) {
+    const userRole = (session?.user as any)?.role;
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY", "PRINCIPAL"].includes(userRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -358,27 +359,40 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       return NextResponse.json({ error: "Admission not found" }, { status: 404 });
     }
 
-    await prisma.admission.update({
-      where: { id },
-      data: { status: "CANCELLED" }
+    // Verify college scope for college-level users
+    const sessionCollegeId = (session.user as any)?.collegeId;
+    if (sessionCollegeId && userRole !== "CHTE_ADMIN" && userRole !== "SUPER_ADMIN") {
+      if (admission.collegeId && admission.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Unauthorized: You can only delete admissions belonging to your college." }, { status: 403 });
+      }
+    }
+
+    // 1. Delete associated challans first
+    await prisma.challan.deleteMany({
+      where: { admissionId: id }
     });
 
-    // Log the action
+    // 2. Permanently delete the admission record
+    await prisma.admission.delete({
+      where: { id }
+    });
+
+    // 3. Log the audit
     await prisma.auditLog.create({
       data: {
         userId: (session.user as any)?.id,
         userEmail: session.user?.email,
         userName: session.user?.name,
-        action: "UPDATE",
+        action: "DELETE",
         entity: "Admission",
         entityId: id,
-        description: `Admission cancelled`,
+        description: `Admission deleted: ${admission.studentName} (${admission.cnic || "No CNIC"})`,
       },
-    });
+    }).catch(() => {});
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "Application deleted successfully." });
   } catch (error: any) {
-    console.error("Error cancelling admission:", error);
+    console.error("Error deleting admission:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }

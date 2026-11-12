@@ -17,7 +17,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN"].includes((session.user as any)?.role))
+    const userRole = (session?.user as any)?.role;
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "PRINCIPAL"].includes(userRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { currentSemester, programId, groupId, isActive, rollNumber } = await req.json();
@@ -43,7 +44,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== "SUPER_ADMIN")
+    const userRole = (session?.user as any)?.role;
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "PRINCIPAL"].includes(userRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const student = await prisma.student.findUnique({
