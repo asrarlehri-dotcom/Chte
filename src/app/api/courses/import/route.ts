@@ -91,11 +91,14 @@ export async function POST(request: Request) {
       const sessionYear = raw.session || "2024-2028";
 
       try {
-        // Upsert by code and programId
+        // Upsert matching existing course by programId, code and title/semester
         const existing = await prisma.course.findFirst({
           where: {
-            code,
-            programId: matchedProgramId
+            programId: matchedProgramId,
+            OR: [
+              { code, title: { equals: title, mode: "insensitive" } },
+              { code, semester }
+            ]
           }
         });
 

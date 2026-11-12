@@ -79,14 +79,41 @@ export function parseGenericCSV(csvText: string, customDelimiter?: string): Reco
     return entries;
   };
 
-  const rawHeaders = parseLine(lines[0]).map(h => h.replace(/^["']|["']$/g, "").trim());
-  const rows: Record<string, string>[] = [];
+  const parsedRows = lines.map(parseLine);
+  if (parsedRows.length === 0) return [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseLine(lines[i]);
+  // Determine if row 0 is headers or data
+  const row0 = parsedRows[0].map(h => h.replace(/^["']|["']$/g, "").trim());
+  const row0Clean = row0.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+  const isHeaderWord = (s: string) => [
+    "title", "coursetitle", "name", "coursename", "code", "coursecode", "subjectcode",
+    "credithours", "credits", "ch", "coursetype", "type", "session", "semester", "program", "programname",
+    "faculty", "teacher", "instructor", "department", "dept", "room", "slot", "timeslot", "day",
+    "examdate", "date", "midterm", "assignment", "final", "totalmarks", "marks", "rollno", "rollnumber", "cnic"
+  ].includes(s);
+
+  const headerMatches = row0Clean.filter(isHeaderWord).length;
+  const row0IsHeaders = headerMatches >= Math.min(2, Math.max(1, Math.floor(row0.length * 0.3)));
+
+  let headers: string[] = [];
+  let startIdx = 1;
+
+  if (row0IsHeaders) {
+    headers = row0;
+    startIdx = 1;
+  } else {
+    // Row 0 is raw course data without headers!
+    headers = ["Course Title", "Course Code", "Credit Hours", "Course Type", "Session", "Semester", "Program", "Faculty"];
+    startIdx = 0;
+  }
+
+  const rows: Record<string, string>[] = [];
+  for (let i = startIdx; i < parsedRows.length; i++) {
+    const values = parsedRows[i];
     if (values.every(v => v === "")) continue;
     const obj: Record<string, string> = {};
-    rawHeaders.forEach((header, idx) => {
+    headers.forEach((header, idx) => {
       const cleanHeader = header.toLowerCase().replace(/[^a-z0-9]/g, "");
       obj[cleanHeader] = (values[idx] || "").replace(/^["']|["']$/g, "").trim();
       obj[header] = (values[idx] || "").replace(/^["']|["']$/g, "").trim();
@@ -134,14 +161,14 @@ export function validateCourseBatch(
       });
     }
 
-    // Duplicate check in same file
+    // Duplicate check in same file: Warning so import is not blocked
     if (code) {
       if (seenCodes.has(code)) {
-        errors.push({
+        warnings.push({
           field: "Course Code",
           code: "DUPLICATE_CODE",
-          message: `Duplicate Course Code '${code}' found in both Row ${seenCodes.get(code)} and Row ${rowIdx}.`,
-          tip: "Each course in the scheme must have a distinct code.",
+          message: `Notice: Course Code '${code}' appears in both Row ${seenCodes.get(code)} and Row ${rowIdx}. Ensure unique codes if these are different subjects.`,
+          tip: "Each course in the scheme should ideally have a distinct code.",
           value: code
         });
       } else {
