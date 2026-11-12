@@ -23,6 +23,9 @@ import {
   deleteDutyEntry,
 } from "./actions";
 import { useSettings } from "@/lib/useSettings";
+import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
+import { parseGenericCSV, validateTimetableBatch, validateDatesheetBatch, getTimetableSampleCSV, getDatesheetSampleCSV } from "@/lib/domainParsers";
+import UniversalImportModal from "@/components/UniversalImportModal";
 
 const SELECT_CLS =
   "w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-2xs transition-all";
@@ -90,6 +93,139 @@ export default function BSTimetableDatesheetPage() {
   // Finalization status (computed from timetable/datesheet data)
   const [timetableFinalized, setTimetableFinalized] = useState(false);
   const [datesheetFinalized, setDatesheetFinalized] = useState(false);
+
+  // Universal Import states for Timetable & Datesheet
+  const [importEntity, setImportEntity] = useState<"Timetable" | "Datesheet">("Timetable");
+  const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationData, setValidationData] = useState<any>(null);
+  const [importSourceName, setImportSourceName] = useState("");
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<any>(null);
+
+  const handleImportTimetableCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = parseGenericCSV(text);
+      if (parsed.length === 0) {
+        setError("Invalid or empty CSV file. Please ensure valid headers and class rows exist.");
+        return;
+      }
+      const validation = validateTimetableBatch(parsed, allPrograms, courses);
+      setValidationData(validation);
+      setImportEntity("Timetable");
+      setImportSourceName(file.name);
+      setValidationModalOpen(true);
+    } catch {
+      setError("Failed to read CSV file.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleImportDatesheetCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = parseGenericCSV(text);
+      if (parsed.length === 0) {
+        setError("Invalid or empty CSV file. Please ensure valid headers and exam rows exist.");
+        return;
+      }
+      const validation = validateDatesheetBatch(parsed, allPrograms, courses);
+      setValidationData(validation);
+      setImportEntity("Datesheet");
+      setImportSourceName(file.name);
+      setValidationModalOpen(true);
+    } catch {
+      setError("Failed to read CSV file.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleProcessPastedText = () => {
+    if (!pasteText.trim()) return;
+    try {
+      const parsed = parseGenericCSV(pasteText);
+      if (parsed.length === 0) {
+        setError("Could not parse records from pasted data.");
+        return;
+      }
+      const validation = importEntity === "Timetable"
+        ? validateTimetableBatch(parsed, allPrograms, courses)
+        : validateDatesheetBatch(parsed, allPrograms, courses);
+      setValidationData(validation);
+      setImportSourceName("Pasted Data");
+      setPasteModalOpen(false);
+      setValidationModalOpen(true);
+    } catch {
+      setError("Failed to parse pasted text.");
+    }
+  };
+
+  const handleConfirmEntityImport = async (validRows: Record<string, string>[]) => {
+    if (validRows.length === 0) return;
+    setIsImporting(true);
+
+    try {
+      const endpoint = importEntity === "Timetable" ? "/api/timetable/import" : "/api/datesheet/import";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          records: validRows,
+          educationLevel: "BS"
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setValidationModalOpen(false);
+        setPasteText("");
+        setImportSummary(data);
+        setSuccess(`${importEntity} import completed successfully: ${data.imported} records added.`);
+        loadTimetable();
+        loadDatesheet();
+      } else {
+        setError(data.error || `Failed to import ${importEntity}.`);
+      }
+    } catch {
+      setError(`Communication error during ${importEntity} import.`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadTimetableTemplate = () => {
+    const templateContent = getTimetableSampleCSV();
+    const blob = new Blob(["\uFEFF" + templateContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Timetable_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadDatesheetTemplate = () => {
+    const templateContent = getDatesheetSampleCSV();
+    const blob = new Blob(["\uFEFF" + templateContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Datesheet_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Manual Duty Modal
   const [showManualDutyModal, setShowManualDutyModal] = useState(false);
@@ -864,17 +1000,44 @@ export default function BSTimetableDatesheetPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2.5 items-center">
+                <div className="flex gap-2.5 items-center flex-wrap">
+                  <label className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Import Timetable</span>
+                    <input type="file" accept=".csv, .tsv, .txt" onChange={handleImportTimetableCSV} className="hidden" />
+                  </label>
+
+                  <button
+                    onClick={() => {
+                      setImportEntity("Timetable");
+                      setPasteModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                    title="Paste copied rows from Excel"
+                  >
+                    <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Paste Excel</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadTimetableTemplate}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                    title="Download Timetable CSV format template"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Template</span>
+                  </button>
+
                   <button
                     onClick={exportTimetableCSV}
-                    className="px-3.5 py-2 bg-[#046c4e] hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-[#046c4e] hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>📥</span>
                     <span>Export CSV</span>
                   </button>
                   <button
                     onClick={() => window.print()}
-                    className="px-3.5 py-2 bg-[#111827] hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-[#111827] hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>📄</span>
                     <span>Export PDF / Print</span>
@@ -1151,17 +1314,44 @@ export default function BSTimetableDatesheetPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2.5 items-center">
+                <div className="flex gap-2.5 items-center flex-wrap">
+                  <label className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Import Datesheet</span>
+                    <input type="file" accept=".csv, .tsv, .txt" onChange={handleImportDatesheetCSV} className="hidden" />
+                  </label>
+
+                  <button
+                    onClick={() => {
+                      setImportEntity("Datesheet");
+                      setPasteModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                    title="Paste copied rows from Excel"
+                  >
+                    <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Paste Excel</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadDatesheetTemplate}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                    title="Download Datesheet CSV format template"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Template</span>
+                  </button>
+
                   <button
                     onClick={exportDatesheetCSV}
-                    className="px-3.5 py-2 bg-[#046c4e] hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-[#046c4e] hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>📥</span>
                     <span>Export CSV</span>
                   </button>
                   <button
                     onClick={() => window.print()}
-                    className="px-3.5 py-2 bg-[#111827] hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-[#111827] hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>📄</span>
                     <span>Export PDF / Print</span>
@@ -2809,6 +2999,126 @@ export default function BSTimetableDatesheetPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Paste Excel Data Modal */}
+      {pasteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  Paste {importEntity} Data
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Copy table rows from Excel or Google Sheets (Ctrl+C) and paste below (Ctrl+V).
+                </p>
+              </div>
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              rows={9}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={
+                importEntity === "Timetable"
+                  ? "Day\tStart Time\tEnd Time\tCourse\tSemester\tTeacher\tRoom\tProgram\nMonday\t09:00\t10:00\tCS-101 Programming Fundamentals\t1\tProf. Tariq Mehmood\tLab 1\tBS Computer Science"
+                  : "Exam Date\tStart Time\tEnd Time\tCourse\tSemester\tExam Type\tRoom\tProgram\n2026-06-15\t09:30\t12:30\tCS-101 Programming Fundamentals\t1\tFINAL_TERM\tExamination Hall A\tBS Computer Science"
+              }
+              className="w-full p-3 font-mono text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50 resize-y text-gray-900"
+            />
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!pasteText.trim()}
+                onClick={handleProcessPastedText}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Review & Validate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Check Diagnostics Modal */}
+      <UniversalImportModal
+        isOpen={validationModalOpen}
+        onClose={() => setValidationModalOpen(false)}
+        onConfirmImport={handleConfirmEntityImport}
+        validationData={validationData}
+        isImporting={isImporting}
+        entityName={importEntity}
+        sourceName={importSourceName}
+      />
+
+      {/* Import Summary Modal */}
+      {importSummary && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  {importEntity} Import Summary
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Results of {importEntity.toLowerCase()} batch import</p>
+              </div>
+              <button
+                onClick={() => setImportSummary(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-xl font-bold text-emerald-700">{importSummary.imported || 0}</div>
+                <div className="text-xs text-emerald-600 font-medium">Added to Schedule</div>
+              </div>
+              <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
+                <div className="text-xl font-bold text-rose-700">{importSummary.failed || 0}</div>
+                <div className="text-xs text-rose-600 font-medium">Failed</div>
+              </div>
+            </div>
+
+            {importSummary.errors && importSummary.errors.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-gray-700">Notice / Errors Log:</div>
+                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs space-y-1.5 font-mono">
+                  {importSummary.errors.map((e: any, idx: number) => (
+                    <div key={idx} className="flex gap-2 text-gray-700">
+                      <span className="font-bold text-gray-900">Row {e.row}:</span>
+                      <span className="font-semibold text-blue-700">{e.item}</span> —
+                      <span className="text-rose-600">{e.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setImportSummary(null)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

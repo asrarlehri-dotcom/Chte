@@ -143,7 +143,9 @@ export async function POST(request: Request) {
       }
 
       const cnicDigits = rawCnic.replace(/\D/g, "");
-      if (cnicDigits.length < 13) {
+      let cnic = sanitizeCNIC(rawCnic) || rawCnic;
+
+      if (cnicDigits.length < 12 && !rawCnic.match(/^(\d{4})-(\d{7})-(\d+)$/)) {
         failedCount++;
         errors.push({
           row: rowIdx,
@@ -152,9 +154,6 @@ export async function POST(request: Request) {
         });
         continue;
       }
-
-      // Sanitize CNIC (handles Excel auto-fill drag increments like -10, -11)
-      let cnic = sanitizeCNIC(rawCnic) || rawCnic;
 
       // Contact
       const rawContact = (raw.contactNumber || raw.contact || raw.phone || "").trim();
@@ -168,12 +167,12 @@ export async function POST(request: Request) {
         });
         continue;
       }
-      if (contactDigits.length < 10 || contactDigits.length > 13) {
+      if (contactDigits.length < 7 || contactDigits.length > 13) {
         failedCount++;
         errors.push({
           row: rowIdx,
           student: studentName,
-          reason: `Invalid Contact Number: '${rawContact}' must be 11 digits (e.g. 03001234567).`
+          reason: `Invalid Contact Number: '${rawContact}' must be a valid mobile number.`
         });
         continue;
       }
@@ -183,26 +182,32 @@ export async function POST(request: Request) {
       const dateOfBirth = parseDateSafe(raw.dateOfBirth || raw.dob);
 
       // Match Program
-      const rawProg = (raw.program || raw.programName || raw.course || "").trim().toLowerCase();
+      const rawProg = (raw.program || raw.programName || raw.course || "").trim();
+      const cleanProg = rawProg.replace(/^(department\s+of|dept\s+of|department|dept)\s+/i, "").trim().toLowerCase();
+      const rawLower = rawProg.toLowerCase();
+
       let matchedProgram = programs.find(p =>
-        p.id.toLowerCase() === rawProg ||
-        p.code?.toLowerCase() === rawProg ||
-        p.name.toLowerCase() === rawProg
+        p.id.toLowerCase() === rawLower ||
+        p.code?.toLowerCase() === rawLower ||
+        p.name.toLowerCase() === rawLower ||
+        p.name.toLowerCase() === cleanProg
       );
 
-      if (!matchedProgram && rawProg) {
+      if (!matchedProgram && (rawLower || cleanProg)) {
         matchedProgram = programs.find(p =>
-          p.name.toLowerCase().includes(rawProg) ||
-          rawProg.includes(p.name.toLowerCase()) ||
-          (p.code && rawProg.includes(p.code.toLowerCase()))
+          p.name.toLowerCase().includes(rawLower) ||
+          rawLower.includes(p.name.toLowerCase()) ||
+          p.name.toLowerCase().includes(cleanProg) ||
+          cleanProg.includes(p.name.toLowerCase()) ||
+          (p.code && rawLower.includes(p.code.toLowerCase()))
         );
       }
 
-      if (!matchedProgram && rawProg) {
-        const words = rawProg.split(/\s+/).filter(w => w.length > 2 && !["bs", "fsc", "and", "the"].includes(w));
+      if (!matchedProgram && cleanProg) {
+        const words = cleanProg.split(/\s+/).filter(w => w.length > 2 && !["bs", "fsc", "and", "the", "for", "in"].includes(w));
         matchedProgram = programs.find(p => {
           const pLower = p.name.toLowerCase();
-          return words.some(w => pLower.includes(w));
+          return words.some(w => pLower.includes(w) || (w.length >= 4 && pLower.includes(w.slice(0, 4))));
         });
       }
 

@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
+import { parseGenericCSV, validateMarksBatch, getMarksSampleCSV } from "@/lib/domainParsers";
+import UniversalImportModal from "@/components/UniversalImportModal";
 
 // GP calculation (4.0 scale) based on linear grading policy:
 // 50% = 1.0, 51% = 1.1, ..., 79% = 3.9, 80%+ = 4.0
@@ -75,6 +78,15 @@ export default function AddResultPage() {
   const [unlockReason, setUnlockReason] = useState("");
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [submittingUnlockReq, setSubmittingUnlockReq] = useState(false);
+
+  // Universal Import states for Marks
+  const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationData, setValidationData] = useState<any>(null);
+  const [importSourceName, setImportSourceName] = useState("");
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<any>(null);
 
   const userRole = (session?.user as any)?.role || "";
   const userEmail = session?.user?.email || "";
@@ -242,7 +254,7 @@ export default function AddResultPage() {
 
   // Fetch real students & existing marks whenever selectedCourse updates
   // Students are fetched via Enrollment for the specific course (not all program students)
-  useEffect(() => {
+  const loadCourseMarks = () => {
     if (!selectedCourse) {
       setStudents([]);
       setResultStatus("SAVED");
@@ -346,7 +358,120 @@ export default function AddResultPage() {
       setStudents(mapped);
       setLoading(false);
     }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadCourseMarks();
   }, [selectedCourse, selectedProgram, selectedSession, selectedSemester]);
+
+  const handleImportMarksCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!selectedCourse) {
+      alert("Please select a Course first before importing marks.");
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const parsed = parseGenericCSV(text);
+      if (parsed.length === 0) {
+        setErrorMsg("Invalid or empty CSV file. Ensure headers like Roll Number, Midterm, Final exist.");
+        return;
+      }
+      const validation = validateMarksBatch(parsed, courseTotalMarks, students);
+      setValidationData(validation);
+      setImportSourceName(file.name);
+      setValidationModalOpen(true);
+    } catch {
+      setErrorMsg("Failed to read marks CSV file.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleProcessPastedText = () => {
+    if (!pasteText.trim()) return;
+    if (!selectedCourse) {
+      alert("Please select a Course first before importing marks.");
+      return;
+    }
+
+    try {
+      const parsed = parseGenericCSV(pasteText);
+      if (parsed.length === 0) {
+        setErrorMsg("Could not parse records from pasted marks data.");
+        return;
+      }
+      const validation = validateMarksBatch(parsed, courseTotalMarks, students);
+      setValidationData(validation);
+      setImportSourceName("Pasted Data");
+      setPasteModalOpen(false);
+      setValidationModalOpen(true);
+    } catch {
+      setErrorMsg("Failed to parse pasted text.");
+    }
+  };
+
+  const handleConfirmMarksImport = async (validRows: Record<string, string>[]) => {
+    if (validRows.length === 0) return;
+    setIsImporting(true);
+
+    try {
+      const res = await fetch("/api/marks/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          records: validRows,
+          courseId: selectedCourse
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setValidationModalOpen(false);
+        setPasteText("");
+        setImportSummary(data);
+        setSuccessMsg(`Marks imported successfully: ${data.imported} new scores, ${data.updated} updated.`);
+        loadCourseMarks();
+      } else {
+        setErrorMsg(data.error || "Failed to import marks.");
+      }
+    } catch {
+      setErrorMsg("Communication error while importing marks.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadMarksTemplate = () => {
+    let csvContent = "";
+    if (students.length > 0) {
+      const headers = ["Roll Number", "Student Name", "Midterm", "Final", "Assignment", "Quiz", "Total"];
+      const rows = students.map(s => [
+        `"${s.roll || ""}"`,
+        `"${s.name || ""}"`,
+        s.mid || 0,
+        s.final || 0,
+        s.assignment || 0,
+        s.quiz || 0,
+        courseTotalMarks
+      ]);
+      csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    } else {
+      csvContent = "\uFEFF" + getMarksSampleCSV();
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Marks_Grade_Sheet_${selectedCourse || "Template"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const toggleStudentAttendance = (id: string, newStatus: "PRESENT" | "ABSENT") => {
     if (isFacultyLocked) return;
@@ -1095,14 +1220,38 @@ export default function AddResultPage() {
                 )}
               </div>
 
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center flex-wrap">
                 <input
                   type="text"
                   placeholder="Search by student name or roll..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="px-3 py-1.5 border rounded-xl text-xs font-bold w-64 bg-white"
+                  className="px-3 py-1.5 border rounded-xl text-xs font-bold w-52 bg-white"
                 />
+
+                <label className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Import Marks</span>
+                  <input type="file" accept=".csv, .tsv, .txt" onChange={handleImportMarksCSV} className="hidden" />
+                </label>
+
+                <button
+                  onClick={() => setPasteModalOpen(true)}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                  title="Paste copied scores from Excel"
+                >
+                  <ClipboardList className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Paste Excel</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadMarksTemplate}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                  title="Download marks entry template CSV"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Template</span>
+                </button>
               </div>
             </div>
 
@@ -1692,6 +1841,131 @@ export default function AddResultPage() {
                 Close Manager
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Paste Excel Data Modal */}
+      {pasteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  Paste Student Marks Data
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Copy marks table rows from Excel or Google Sheets (Ctrl+C) and paste below (Ctrl+V).
+                </p>
+              </div>
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              rows={9}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"Roll Number\tStudent Name\tMidterm\tFinal\tAssignment\tQuiz\tTotal\nS17/Zoo-13\tMuhammad Akber\t18\t52\t17\t10\t100\nS17/Zoo-14\tAbdul Baseer\t16\t48\t15\t10\t100"}
+              className="w-full p-3 font-mono text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50 resize-y text-gray-900"
+            />
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!pasteText.trim()}
+                onClick={handleProcessPastedText}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Review & Validate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Check Diagnostics Modal */}
+      <UniversalImportModal
+        isOpen={validationModalOpen}
+        onClose={() => setValidationModalOpen(false)}
+        onConfirmImport={handleConfirmMarksImport}
+        validationData={validationData}
+        isImporting={isImporting}
+        entityName="Marks"
+        sourceName={importSourceName}
+        extraNotice={
+          selectedCourse
+            ? `Target Course ID: ${selectedCourse} • Total Marks Base: ${courseTotalMarks}`
+            : undefined
+        }
+      />
+
+      {/* Import Summary Modal */}
+      {importSummary && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Marks Import Summary
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Results of exam marks batch upload</p>
+              </div>
+              <button
+                onClick={() => setImportSummary(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-lg font-bold text-emerald-700">{importSummary.imported || 0}</div>
+                <div className="text-[11px] text-emerald-600 font-medium">New Added</div>
+              </div>
+              <div className="p-2.5 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="text-lg font-bold text-blue-700">{importSummary.updated || 0}</div>
+                <div className="text-[11px] text-blue-600 font-medium">Updated</div>
+              </div>
+              <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-100">
+                <div className="text-lg font-bold text-rose-700">{importSummary.failed || 0}</div>
+                <div className="text-[11px] text-rose-600 font-medium">Failed</div>
+              </div>
+            </div>
+
+            {importSummary.errors && importSummary.errors.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-gray-700">Notice / Errors Log:</div>
+                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs space-y-1.5 font-mono">
+                  {importSummary.errors.map((e: any, idx: number) => (
+                    <div key={idx} className="flex gap-2 text-gray-700">
+                      <span className="font-bold text-gray-900">Row {e.row}:</span>
+                      <span className="font-semibold text-blue-700">{e.item}</span> —
+                      <span className="text-rose-600">{e.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setImportSummary(null)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

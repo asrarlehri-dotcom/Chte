@@ -6,8 +6,10 @@ import {
   GraduationCap, Clock, CheckCircle2, X, FileText, ListChecks,
   BookMarked, Filter, Atom, Beaker, Brain, Code, Download,
   Upload, Printer, ChevronRight, Award, User, RefreshCw, Cpu,
-  LayoutGrid, Grid, Grid3X3, List, Sun, Moon
+  LayoutGrid, Grid, Grid3X3, List, Sun, Moon, ClipboardList, Loader2
 } from "lucide-react";
+import { parseGenericCSV, validateCourseBatch, getCourseSampleCSV } from "@/lib/domainParsers";
+import UniversalImportModal from "@/components/UniversalImportModal";
 
 // Types
 export type CourseType =
@@ -377,6 +379,15 @@ export default function SyllabusCourseManagementPage() {
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
 
+  // Import states
+  const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationData, setValidationData] = useState<any>(null);
+  const [importSourceName, setImportSourceName] = useState("");
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<any>(null);
+
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [editCourseItem, setEditCourseItem] = useState<Course | null>(null);
@@ -672,22 +683,98 @@ export default function SyllabusCourseManagementPage() {
     document.body.removeChild(link);
   };
 
-  // CSV Import
-  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Course Import Handlers
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const text = evt.target?.result as string;
-      const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-      if (lines.length < 2) {
-        setError("Invalid CSV file format.");
+    setError("");
+    setSuccess("");
+
+    try {
+      const text = await file.text();
+      const parsed = parseGenericCSV(text);
+      if (parsed.length === 0) {
+        setError("Invalid or empty CSV file. Please make sure headers like Code, Title, Credits are present.");
         return;
       }
-      setSuccess(`Processing CSV with ${lines.length - 1} records...`);
-      fetchAll();
-    };
-    reader.readAsText(file);
+      const validation = validateCourseBatch(parsed, programs, departments);
+      setValidationData(validation);
+      setImportSourceName(file.name);
+      setValidationModalOpen(true);
+    } catch {
+      setError("An unexpected error occurred while reading the file.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleProcessPastedText = () => {
+    if (!pasteText.trim()) return;
+    setError("");
+    setSuccess("");
+
+    try {
+      const parsed = parseGenericCSV(pasteText);
+      if (parsed.length === 0) {
+        setError("Could not parse course records from pasted text.");
+        return;
+      }
+      const validation = validateCourseBatch(parsed, programs, departments);
+      setValidationData(validation);
+      setImportSourceName("Pasted Data");
+      setPasteModalOpen(false);
+      setValidationModalOpen(true);
+    } catch {
+      setError("Failed to parse pasted text.");
+    }
+  };
+
+  const handleConfirmCourseImport = async (validRows: Record<string, string>[]) => {
+    if (validRows.length === 0) return;
+    setIsImporting(true);
+
+    try {
+      const res = await fetch("/api/courses/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          records: validRows,
+          programId: filterProg && filterProg !== "ALL" ? filterProg : undefined
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setValidationModalOpen(false);
+        setPasteText("");
+        setImportSummary(data);
+        const parts = [];
+        if (data.imported > 0) parts.push(`${data.imported} added`);
+        if (data.updated > 0) parts.push(`${data.updated} updated`);
+        if (data.failed > 0) parts.push(`${data.failed} failed`);
+        setSuccess(`Courses import finished: ${parts.join(", ") || "processed"}.`);
+        fetchAll();
+      } else {
+        setError(data.error || "Failed to import courses.");
+      }
+    } catch {
+      setError("Server communication error while importing courses.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadCourseTemplate = () => {
+    const templateContent = getCourseSampleCSV();
+    const blob = new Blob(["\uFEFF" + templateContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Courses_Scheme_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // 1. Filter courses by Program, Semester, and Search query
@@ -819,8 +906,34 @@ export default function SyllabusCourseManagementPage() {
             }`}>
               <Upload className="w-4 h-4" />
               <span>Import CSV</span>
-              <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
+              <input type="file" accept=".csv, .tsv, .txt" onChange={handleImportCSV} className="hidden" />
             </label>
+
+            <button
+              onClick={() => setPasteModalOpen(true)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
+                themeMode === "light"
+                  ? "bg-white/80 text-indigo-800 border-indigo-500/30 hover:bg-white shadow-sm"
+                  : "bg-slate-800/80 hover:bg-slate-800 text-indigo-300 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
+              }`}
+              title="Paste copied rows directly from Excel or Google Sheets"
+            >
+              <ClipboardList className="w-4 h-4" />
+              <span>Paste Excel</span>
+            </button>
+
+            <button
+              onClick={handleDownloadCourseTemplate}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
+                themeMode === "light"
+                  ? "bg-white/80 text-emerald-800 border-emerald-500/30 hover:bg-white shadow-sm"
+                  : "bg-slate-800/80 hover:bg-slate-800 text-emerald-300 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+              }`}
+              title="Download course scheme format template"
+            >
+              <Download className="w-4 h-4" />
+              <span>Template CSV</span>
+            </button>
 
             <button
               onClick={handleExportCSV}
@@ -1501,6 +1614,127 @@ export default function SyllabusCourseManagementPage() {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Paste Excel Data Modal */}
+      {pasteModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  Paste Course Scheme Data
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Copy table rows from Excel or Google Sheets (Ctrl+C) and paste below (Ctrl+V).
+                </p>
+              </div>
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              rows={9}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"Code\tTitle\tCredit Hours\tSemester\tType\tProgram\nCS-101\tProgramming Fundamentals\t4(3-1)\t1\tCORE\tBS Computer Science\nMATH-101\tCalculus & Analytical Geometry\t3(3-0)\t1\tFOUNDATION_ALLIED\tBS Computer Science"}
+              className="w-full p-3 font-mono text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50 resize-y text-gray-900"
+            />
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!pasteText.trim()}
+                onClick={handleProcessPastedText}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Review & Validate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Check Diagnostics Modal */}
+      <UniversalImportModal
+        isOpen={validationModalOpen}
+        onClose={() => setValidationModalOpen(false)}
+        onConfirmImport={handleConfirmCourseImport}
+        validationData={validationData}
+        isImporting={isImporting}
+        entityName="Course"
+        sourceName={importSourceName}
+      />
+
+      {/* Import Summary Modal */}
+      {importSummary && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Course Import Summary
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Results of courses batch import</p>
+              </div>
+              <button
+                onClick={() => setImportSummary(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-lg font-bold text-emerald-700">{importSummary.imported || 0}</div>
+                <div className="text-[11px] text-emerald-600 font-medium">New Added</div>
+              </div>
+              <div className="p-2.5 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="text-lg font-bold text-blue-700">{importSummary.updated || 0}</div>
+                <div className="text-[11px] text-blue-600 font-medium">Updated</div>
+              </div>
+              <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-100">
+                <div className="text-lg font-bold text-rose-700">{importSummary.failed || 0}</div>
+                <div className="text-[11px] text-rose-600 font-medium">Failed</div>
+              </div>
+            </div>
+
+            {importSummary.errors && importSummary.errors.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-gray-700">Notice / Errors Log:</div>
+                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs space-y-1.5 font-mono">
+                  {importSummary.errors.map((e: any, idx: number) => (
+                    <div key={idx} className="flex gap-2 text-gray-700">
+                      <span className="font-bold text-gray-900">Row {e.row}:</span>
+                      <span className="font-semibold text-blue-700">{e.item}</span> —
+                      <span className="text-rose-600">{e.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setImportSummary(null)}
+              className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

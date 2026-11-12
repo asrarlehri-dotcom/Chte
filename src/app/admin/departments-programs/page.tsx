@@ -15,8 +15,15 @@ import {
   ClipboardList,
   Edit2,
   Trash2,
-  Lock
+  Lock,
+  Upload,
+  Download,
+  CheckCircle2,
+  X,
+  Loader2
 } from "lucide-react";
+import { parseGenericCSV, validateDepartmentBatch, getDepartmentSampleCSV } from "@/lib/domainParsers";
+import UniversalImportModal from "@/components/UniversalImportModal";
 import { 
   getDepartments, 
   addDepartment, 
@@ -76,6 +83,105 @@ export default function DepartmentsProgramsPage() {
     marksCount?: number;
     action: "edit" | "delete";
   } | null>(null);
+
+  // Import states
+  const [validationModalOpen, setValidationModalOpen] = useState(false);
+  const [validationData, setValidationData] = useState<any>(null);
+  const [importSourceName, setImportSourceName] = useState("");
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<any>(null);
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setSuccess("");
+
+    try {
+      const text = await file.text();
+      const parsed = parseGenericCSV(text);
+      if (parsed.length === 0) {
+        setError("Invalid or empty CSV file. Please make sure headers like Name and Code are present.");
+        return;
+      }
+      const validation = validateDepartmentBatch(parsed);
+      setValidationData(validation);
+      setImportSourceName(file.name);
+      setValidationModalOpen(true);
+    } catch {
+      setError("An unexpected error occurred while reading the file.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleProcessPastedText = () => {
+    if (!pasteText.trim()) return;
+    setError("");
+    setSuccess("");
+
+    try {
+      const parsed = parseGenericCSV(pasteText);
+      if (parsed.length === 0) {
+        setError("Could not parse department records from pasted text.");
+        return;
+      }
+      const validation = validateDepartmentBatch(parsed);
+      setValidationData(validation);
+      setImportSourceName("Pasted Data");
+      setPasteModalOpen(false);
+      setValidationModalOpen(true);
+    } catch {
+      setError("Failed to parse pasted text.");
+    }
+  };
+
+  const handleConfirmDeptImport = async (validRows: Record<string, string>[]) => {
+    if (validRows.length === 0) return;
+    setIsImporting(true);
+
+    try {
+      const res = await fetch("/api/departments/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ records: validRows })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setValidationModalOpen(false);
+        setPasteText("");
+        setImportSummary(data);
+        const parts = [];
+        if (data.imported > 0) parts.push(`${data.imported} added`);
+        if (data.updated > 0) parts.push(`${data.updated} updated`);
+        if (data.failed > 0) parts.push(`${data.failed} failed`);
+        setSuccess(`Departments import finished: ${parts.join(", ") || "processed"}.`);
+        fetchData();
+      } else {
+        setError(data.error || "Failed to import departments.");
+      }
+    } catch {
+      setError("Server error while importing departments.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleDownloadDeptTemplate = () => {
+    const templateContent = getDepartmentSampleCSV();
+    const blob = new Blob(["\uFEFF" + templateContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "Departments_Template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     fetchData();
@@ -386,13 +492,37 @@ export default function DepartmentsProgramsPage() {
         <div className="p-6 space-y-5">
           {/* Top Controls Row: Add New + | Entries dropdown | Search input */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-all shadow-sm shadow-blue-600/30 flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[2.5]" />
                 <span>Add New</span>
+              </button>
+
+              <label className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-2 shadow-2xs">
+                <Upload className="w-4 h-4 text-blue-600" />
+                <span>Import CSV</span>
+                <input type="file" accept=".csv, .tsv, .txt" onChange={handleImportCSV} className="hidden" />
+              </label>
+
+              <button
+                onClick={() => setPasteModalOpen(true)}
+                className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-2xs cursor-pointer"
+                title="Paste copied rows directly from Excel"
+              >
+                <ClipboardList className="w-4 h-4 text-indigo-600" />
+                <span>Paste Excel</span>
+              </button>
+
+              <button
+                onClick={handleDownloadDeptTemplate}
+                className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-2xs cursor-pointer"
+                title="Download CSV format template"
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+                <span>Template CSV</span>
               </button>
             </div>
 
@@ -941,6 +1071,126 @@ export default function DepartmentsProgramsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Paste Excel Data Modal */}
+      {pasteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                  Paste Department Data
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Copy table rows from Excel or Google Sheets (Ctrl+C) and paste below (Ctrl+V).
+                </p>
+              </div>
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              rows={9}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"Department Name\tDepartment Code\tHOD Name\tEmail\tPhone\nDepartment of Computer Science\tCS\tDr. Muhammad Usman\tcs@college.edu.pk\t03001234567\nDepartment of Mathematics\tMATH\tProf. Tariq Baloch\tmath@college.edu.pk\t03337654321"}
+              className="w-full p-3 font-mono text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50/50 resize-y text-gray-900"
+            />
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                onClick={() => setPasteModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!pasteText.trim()}
+                onClick={handleProcessPastedText}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Review & Validate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Check Diagnostics Modal */}
+      <UniversalImportModal
+        isOpen={validationModalOpen}
+        onClose={() => setValidationModalOpen(false)}
+        onConfirmImport={handleConfirmDeptImport}
+        validationData={validationData}
+        isImporting={isImporting}
+        entityName="Department"
+        sourceName={importSourceName}
+      />
+
+      {/* Import Summary Modal */}
+      {importSummary && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Department Import Summary
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">Results of department batch import</p>
+              </div>
+              <button
+                onClick={() => setImportSummary(null)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="text-lg font-bold text-emerald-700">{importSummary.imported || 0}</div>
+                <div className="text-[11px] text-emerald-600 font-medium">New Added</div>
+              </div>
+              <div className="p-2.5 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="text-lg font-bold text-blue-700">{importSummary.updated || 0}</div>
+                <div className="text-[11px] text-blue-600 font-medium">Updated</div>
+              </div>
+              <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-100">
+                <div className="text-lg font-bold text-rose-700">{importSummary.failed || 0}</div>
+                <div className="text-[11px] text-rose-600 font-medium">Failed</div>
+              </div>
+            </div>
+
+            {importSummary.errors && importSummary.errors.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-gray-700">Notice / Errors Log:</div>
+                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-3 border border-gray-200 text-xs space-y-1.5 font-mono">
+                  {importSummary.errors.map((e: any, idx: number) => (
+                    <div key={idx} className="flex gap-2 text-gray-700">
+                      <span className="font-bold text-gray-900">Row {e.row}:</span>
+                      <span className="font-semibold text-blue-700">{e.item}</span> —
+                      <span className="text-rose-600">{e.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setImportSummary(null)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
