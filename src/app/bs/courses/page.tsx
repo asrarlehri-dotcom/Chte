@@ -394,6 +394,8 @@ export default function SyllabusCourseManagementPage() {
   const [viewSyllabusCourse, setViewSyllabusCourse] = useState<Course | null>(null);
   const [manageOutlineCourse, setManageOutlineCourse] = useState<Course | null>(null);
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState<boolean>(false);
+  const [deletingAll, setDeletingAll] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [activeSyllabusTab, setActiveSyllabusTab] = useState<"clos" | "weekly" | "assessment" | "books">("weekly");
 
@@ -638,6 +640,28 @@ export default function SyllabusCourseManagementPage() {
       setSuccess(`Course "${courseTitle}" removed.`);
     } finally {
       setCourseToDelete(null);
+    }
+  };
+
+  const handleDeleteAllCourses = async () => {
+    setDeletingAll(true);
+    try {
+      const url = selectedProgram 
+        ? `/api/courses?programId=${selectedProgram}&all=true`
+        : `/api/courses?all=true`;
+      const res = await fetch(url, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccess(`Successfully deleted all ${data.count} course(s)!`);
+        setShowDeleteAllModal(false);
+        fetchAll();
+      } else {
+        setError(data.error || "Failed to delete courses");
+      }
+    } catch {
+      setError("Network error while deleting courses");
+    } finally {
+      setDeletingAll(false);
     }
   };
 
@@ -958,6 +982,21 @@ export default function SyllabusCourseManagementPage() {
               <Printer className="w-4 h-4" />
               <span>Print Scheme</span>
             </button>
+
+            {courses.length > 0 && (
+              <button
+                onClick={() => setShowDeleteAllModal(true)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 cursor-pointer ${
+                  themeMode === "light"
+                    ? "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 shadow-sm"
+                    : "bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border-rose-800 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
+                }`}
+                title="Delete all courses"
+              >
+                <Trash2 className="w-4 h-4 text-rose-500" />
+                <span>Delete All</span>
+              </button>
+            )}
 
             <button
               onClick={() => setShowAddModal(true)}
@@ -1612,6 +1651,61 @@ export default function SyllabusCourseManagementPage() {
                 className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition-all"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Courses Confirmation Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="antigravity-card p-6 rounded-2xl w-full max-w-md space-y-4 border border-rose-500/40 shadow-[0_0_40px_rgba(244,63,94,0.25)]">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/30">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete All Courses</h3>
+                <p className="text-xs text-rose-400">Irreversible action</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-950/30 border border-rose-500/30 rounded-xl space-y-1.5 text-xs text-rose-200">
+              <p className="font-semibold">
+                Are you sure you want to permanently delete all {courses.length} courses?
+              </p>
+              <p className="text-[11px] text-rose-300/80">
+                This will delete course records and syllabus outlines for the current view.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAllModal(false)}
+                disabled={deletingAll}
+                className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAllCourses}
+                disabled={deletingAll}
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {deletingAll ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Yes, Delete All</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

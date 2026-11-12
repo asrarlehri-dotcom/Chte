@@ -290,3 +290,79 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    const userRole = (session?.user as any)?.role;
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "INTER_FACULTY", "PRINCIPAL"].includes(userRole)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const educationLevel = searchParams.get("educationLevel") || "BS";
+    const body = await request.json().catch(() => ({}));
+    const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+    const deleteAll = body.all === true || searchParams.get("all") === "true";
+
+    const sessionCollegeId = (session.user as any)?.collegeId;
+    let targetCollegeId: string | null = null;
+    if (sessionCollegeId && userRole !== "CHTE_ADMIN" && userRole !== "SUPER_ADMIN") {
+      targetCollegeId = sessionCollegeId;
+    } else if (body.collegeId || searchParams.get("collegeId")) {
+      targetCollegeId = body.collegeId || searchParams.get("collegeId");
+    }
+
+    if (!deleteAll && ids.length === 0) {
+      return NextResponse.json({ error: "Please specify records to delete (pass 'ids' or 'all: true')." }, { status: 400 });
+    }
+
+    const whereClause: any = {
+      ...(educationLevel ? { educationLevel } : {}),
+      ...(targetCollegeId ? { collegeId: targetCollegeId } : {}),
+      ...(ids.length > 0 ? { id: { in: ids } } : {})
+    };
+
+    // 1. Find admission IDs to delete
+    const admissionsToDelete = await prisma.admission.findMany({
+      where: whereClause,
+      select: { id: true, studentName: true, cnic: true }
+    });
+
+    const targetIds = admissionsToDelete.map(a => a.id);
+    if (targetIds.length === 0) {
+      return NextResponse.json({ success: true, count: 0, message: "No matching admission records found to delete." });
+    }
+
+    // 2. Delete associated challans first
+    await prisma.challan.deleteMany({
+      where: { admissionId: { in: targetIds } }
+    });
+
+    // 3. Delete admissions
+    const deleteResult = await prisma.admission.deleteMany({
+      where: { id: { in: targetIds } }
+    });
+
+    // 4. Audit Log
+    await prisma.auditLog.create({
+      data: {
+        userId: (session.user as any)?.id,
+        userEmail: session.user?.email,
+        userName: session.user?.name,
+        action: "DELETE",
+        entity: "Admission",
+        description: `Bulk deleted ${deleteResult.count} ${educationLevel} admission application(s).`,
+      }
+    }).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      count: deleteResult.count,
+      message: `Successfully deleted ${deleteResult.count} admission application(s).`
+    });
+  } catch (error: any) {
+    console.error("Bulk delete admissions error:", error);
+    return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+  }
+}

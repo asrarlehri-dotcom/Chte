@@ -117,3 +117,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"].includes(sessionRole))
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { searchParams } = new URL(req.url);
+    const programId = searchParams.get("programId") || undefined;
+    const session_year = searchParams.get("session") || undefined;
+    const semester = searchParams.get("semester");
+    const body = await req.json().catch(() => ({}));
+    const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+    const deleteAll = body.all === true || searchParams.get("all") === "true";
+
+    const whereClause: any = {
+      ...(ids.length > 0 ? { id: { in: ids } } : {}),
+      ...(programId ? { programId } : {}),
+      ...(session_year ? { session: session_year } : {}),
+      ...(semester ? { semester: parseInt(semester) } : {}),
+    };
+
+    if (!deleteAll && ids.length === 0 && !programId) {
+      return NextResponse.json({ error: "Please specify programId, ids, or all: true to delete courses." }, { status: 400 });
+    }
+
+    const deleteResult = await prisma.course.deleteMany({
+      where: whereClause
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userEmail: session.user?.email,
+        userName: session.user?.name,
+        action: "DELETE",
+        entity: "Course",
+        description: `Bulk deleted ${deleteResult.count} courses.`,
+        collegeId: sessionCollegeId || null,
+      },
+    }).catch(() => {});
+
+    return NextResponse.json({ success: true, count: deleteResult.count });
+  } catch (error: any) {
+    console.error("Bulk delete courses error:", error);
+    return NextResponse.json({ error: error?.message || "Failed to delete courses" }, { status: 500 });
+  }
+}

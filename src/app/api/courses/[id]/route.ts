@@ -63,10 +63,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any)?.role !== "SUPER_ADMIN")
+    const userRole = (session?.user as any)?.role;
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"].includes(userRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await prisma.course.update({ where: { id }, data: { isActive: false } });
+    try {
+      await prisma.course.delete({ where: { id } });
+    } catch {
+      await prisma.course.update({ where: { id }, data: { isActive: false } });
+    }
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });

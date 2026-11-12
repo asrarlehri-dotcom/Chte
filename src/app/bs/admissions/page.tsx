@@ -81,6 +81,9 @@ export default function BsAdmissionsPage() {
     errors: { row: number; student: string; reason: string }[];
   } | null>(null);
 
+  const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const toggleSelect = (id: string) =>
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = (ids: string[]) =>
@@ -162,6 +165,57 @@ export default function BsAdmissionsPage() {
     } else {
       const data = await res.json();
       setMsg({ type: "error", text: data.error || "Failed to delete application" });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch("/api/admissions?educationLevel=BS&all=true", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ all: true, educationLevel: "BS" })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMsg({ type: "success", text: `Successfully deleted all ${data.count} BS admission application(s).` });
+        setSelectedIds([]);
+        setDeleteAllModalOpen(false);
+        fetchAdmissions();
+        fetchChallans();
+      } else {
+        setMsg({ type: "error", text: data.error || "Failed to delete admissions." });
+      }
+    } catch {
+      setMsg({ type: "error", text: "Network error while deleting applications." });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete the ${selectedIds.length} selected admission application(s)?`)) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch("/api/admissions?educationLevel=BS", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds, educationLevel: "BS" })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMsg({ type: "success", text: `Successfully deleted ${data.count} selected application(s).` });
+        setSelectedIds([]);
+        fetchAdmissions();
+        fetchChallans();
+      } else {
+        setMsg({ type: "error", text: data.error || "Failed to delete selected applications." });
+      }
+    } catch {
+      setMsg({ type: "error", text: "Network error while deleting selected applications." });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -471,6 +525,19 @@ export default function BsAdmissionsPage() {
             Export PDF
           </button>
 
+          {/* Delete All Applications */}
+          {admissions.length > 0 && (
+            <button
+              onClick={() => setDeleteAllModalOpen(true)}
+              disabled={isDeleting}
+              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold transition-all border border-rose-200 flex items-center gap-2 shadow-xs cursor-pointer"
+              title="Delete all BS admission applications"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              Delete All
+            </button>
+          )}
+
           {canAdd && (
             <a
               href="/admission"
@@ -615,6 +682,63 @@ export default function BsAdmissionsPage() {
         </div>
       )}
 
+      {/* Delete All Confirmation Modal */}
+      {deleteAllModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-rose-100 animate-in zoom-in-95">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Delete All BS Admissions</h3>
+                <p className="text-xs text-rose-600 font-semibold">Irreversible administrative action</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50/70 border border-rose-200/80 rounded-xl space-y-2 text-xs text-rose-900">
+              <p className="font-semibold">
+                Are you sure you want to permanently delete all {admissions.length} BS admission application(s)?
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-[11px] text-rose-700 font-medium">
+                <li>All applicant records and personal details will be deleted.</li>
+                <li>All associated admission fee challans will be deleted.</li>
+                <li>This will clear all applications from the database.</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteAllModalOpen(false)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAll}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Yes, Delete All</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Alert message */}
       {msg.text && (
         <div className={`p-4 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs ${msg.type === "success"
@@ -692,9 +816,20 @@ export default function BsAdmissionsPage() {
         {/* Counter Block */}
         <div className="flex items-center gap-3 pl-3 sm:border-l sm:border-gray-100">
           {selectedIds.length > 0 && (
-            <span className="px-2.5 py-1 bg-blue-600 text-white text-[10px] font-bold rounded-lg">
-              {selectedIds.length} selected
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 bg-blue-600 text-white text-[10px] font-bold rounded-lg">
+                {selectedIds.length} selected
+              </span>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={isDeleting}
+                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs disabled:opacity-50"
+                title="Delete only selected applications"
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete Selected
+              </button>
+            </div>
           )}
           <div className="text-right">
             <div className="text-sm font-bold text-gray-900 leading-tight">
