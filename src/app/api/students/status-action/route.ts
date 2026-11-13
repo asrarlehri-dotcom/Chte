@@ -3,10 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+const ALLOWED_STATUS_ROLES = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"];
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes((session.user as any)?.role)) {
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !ALLOWED_STATUS_ROLES.includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -14,6 +19,18 @@ export async function POST(req: NextRequest) {
 
     if (!studentId || !statusType) {
       return NextResponse.json({ error: "Student ID and Status Type are required" }, { status: 400 });
+    }
+
+    // Verify student exists and college scoping check
+    const student = await prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+
+    if (sessionCollegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
+      if (student.collegeId && student.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Forbidden: You cannot modify students of another college" }, { status: 403 });
+      }
     }
 
     // 1. Create StudentStatus record
@@ -46,6 +63,7 @@ export async function POST(req: NextRequest) {
         entity: "Student",
         entityId: studentId,
         description: `Student status updated to ${statusType} (${reason || 'No reason specified'})`,
+        collegeId: student.collegeId || null,
       },
     });
 

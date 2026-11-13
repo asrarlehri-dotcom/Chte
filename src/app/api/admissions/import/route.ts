@@ -19,6 +19,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
     }
 
+    const sessionRole = (session.user as any)?.role;
+    if (!["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "PRINCIPAL", "BS_CONTROLLER", "INTER_FACULTY"].includes(sessionRole)) {
+      return NextResponse.json({ error: "Forbidden: You do not have permission to import admissions." }, { status: 403 });
+    }
+
     const sessionCollegeId = (session.user as any)?.collegeId;
     const body = await request.json();
 

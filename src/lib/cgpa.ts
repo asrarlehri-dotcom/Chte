@@ -16,6 +16,32 @@ export function getGPValue(obtained: number, total: number): number {
 }
 
 /**
+ * Standard HEC Grade Letter derivation from percentage or 4.0 GPA scale.
+ */
+export function getGradeLetter(score: number, isPercent: boolean = true): string {
+  const pct = isPercent ? score : score * 25;
+  const rounded = Math.round(pct);
+  if (rounded >= 85) return "A+";
+  if (rounded >= 80) return "A";
+  if (rounded >= 75) return "B+";
+  if (rounded >= 70) return "B";
+  if (rounded >= 65) return "B-";
+  if (rounded >= 60) return "C+";
+  if (rounded >= 55) return "C";
+  if (rounded >= 50) return "D";
+  return "F";
+}
+
+/**
+ * Convenience helper to calculate letter grade directly from obtained and total marks.
+ */
+export function getGrade(obtained: number, total: number): string {
+  if (total <= 0) return "F";
+  const pct = (obtained / total) * 100;
+  return getGradeLetter(pct, true);
+}
+
+/**
  * Calculates GPA of a single semester.
  * GPA = Sum( GP * CreditHours ) / Sum( CreditHours )
  */

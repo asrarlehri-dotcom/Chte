@@ -3,17 +3,29 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+const FACULTY_MANAGE_ROLES = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"];
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes((session.user as any)?.role))
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
 
-    const { name, fatherName, designation, qualification, contactNumber, departmentId, educationLevel, isActive } = await req.json();
+    if (!session || !FACULTY_MANAGE_ROLES.includes(sessionRole))
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const facultyRecord = await prisma.faculty.findUnique({ where: { id }, include: { user: true } });
     if (!facultyRecord) return NextResponse.json({ error: "Faculty not found" }, { status: 404 });
+
+    // College scoping check
+    if (sessionCollegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
+      if (facultyRecord.collegeId && facultyRecord.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Forbidden: You cannot modify faculty of another college" }, { status: 403 });
+      }
+    }
+
+    const { name, fatherName, designation, qualification, contactNumber, departmentId, educationLevel, isActive } = await req.json();
 
     // Update associated User model name if provided
     if (name && facultyRecord.userId) {
@@ -47,11 +59,21 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || !["SUPER_ADMIN", "ADMIN"].includes((session.user as any)?.role))
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !FACULTY_MANAGE_ROLES.includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const faculty = await prisma.faculty.findUnique({ where: { id }, include: { user: true } });
     if (!faculty) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // College scoping check
+    if (sessionCollegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
+      if (faculty.collegeId && faculty.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Forbidden: You cannot delete faculty of another college" }, { status: 403 });
+      }
+    }
 
     // Deactivate faculty record and associated user account safely
     await prisma.$transaction(async (tx) => {
@@ -66,9 +88,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
     await prisma.auditLog.create({
       data: {
-        userEmail: session.user?.email, userName: session.user?.name,
-        action: "DEACTIVATE", entity: "Faculty", entityId: id,
+        userEmail: session.user?.email,
+        userName: session.user?.name,
+        action: "DEACTIVATE",
+        entity: "Faculty",
+        entityId: id,
         description: `Faculty member "${faculty.user?.name}" deactivated`,
+        collegeId: faculty.collegeId || null,
       },
     });
 

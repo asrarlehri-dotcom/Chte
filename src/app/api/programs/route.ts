@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+const ALLOWED_PROGRAM_ROLES = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"];
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,6 +17,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const requestedCollegeId = searchParams.get("collegeId");
+    const includeInactive = searchParams.get("includeInactive") === "true";
 
     let collegeFilter: string | undefined = undefined;
     if (sessionCollegeId && sessionRole !== "CHTE_ADMIN" && sessionRole !== "SUPER_ADMIN") {
@@ -24,7 +27,10 @@ export async function GET(request: Request) {
     }
 
     const programs = await prisma.program.findMany({
-      where: collegeFilter ? { collegeId: collegeFilter } : undefined,
+      where: {
+        ...(includeInactive ? {} : { isActive: true }),
+        ...(collegeFilter ? { collegeId: collegeFilter } : {}),
+      },
       include: {
         department: true,
         college: { select: { id: true, name: true, code: true } },
@@ -50,7 +56,7 @@ export async function POST(request: Request) {
     const sessionRole = (session?.user as any)?.role;
     const sessionCollegeId = (session?.user as any)?.collegeId;
 
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole)) {
+    if (!session || !ALLOWED_PROGRAM_ROLES.includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -66,7 +72,7 @@ export async function POST(request: Request) {
     const program = await prisma.program.create({
       data: {
         name,
-        code,
+        code: code.trim().toUpperCase(),
         educationLevel,
         departmentId: departmentId || null,
         collegeId: targetCollegeId,
@@ -83,23 +89,39 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== "SUPER_ADMIN") {
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !ALLOWED_PROGRAM_ROLES.includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, name, code, educationLevel, departmentId } = await request.json();
+    const { id, name, code, educationLevel, departmentId, isActive } = await request.json();
 
-    if (!id || !name || !code || !educationLevel) {
-      return NextResponse.json({ error: "ID, Name, Code, and Education Level are required" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    const existingProgram = await prisma.program.findUnique({ where: { id } });
+    if (!existingProgram) {
+      return NextResponse.json({ error: "Program not found" }, { status: 404 });
+    }
+
+    // College scoping check
+    if (sessionCollegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
+      if (existingProgram.collegeId && existingProgram.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Forbidden: You cannot modify programs of another college" }, { status: 403 });
+      }
     }
 
     const updated = await prisma.program.update({
       where: { id },
       data: {
-        name,
-        code: code.trim().toUpperCase(),
-        educationLevel,
-        departmentId: departmentId || null,
+        ...(name !== undefined && { name }),
+        ...(code !== undefined && { code: code.trim().toUpperCase() }),
+        ...(educationLevel !== undefined && { educationLevel }),
+        ...(departmentId !== undefined && { departmentId: departmentId || null }),
+        ...(isActive !== undefined && { isActive }),
       },
     });
 
@@ -113,7 +135,10 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user as any).role !== "SUPER_ADMIN") {
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !ALLOWED_PROGRAM_ROLES.includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -122,6 +147,18 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: "Missing ID parameter" }, { status: 400 });
+    }
+
+    const existingProgram = await prisma.program.findUnique({ where: { id } });
+    if (!existingProgram) {
+      return NextResponse.json({ error: "Program not found" }, { status: 404 });
+    }
+
+    // College scoping check
+    if (sessionCollegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
+      if (existingProgram.collegeId && existingProgram.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Forbidden: You cannot delete programs of another college" }, { status: 403 });
+      }
     }
 
     // Soft delete the program by setting isActive to false
@@ -139,7 +176,8 @@ export async function DELETE(request: Request) {
         action: "DEACTIVATE",
         entity: "Program",
         entityId: id,
-        description: `Program deactivated`,
+        description: `Program "${existingProgram.name}" (${existingProgram.code}) deactivated`,
+        collegeId: existingProgram.collegeId || null,
       },
     });
 

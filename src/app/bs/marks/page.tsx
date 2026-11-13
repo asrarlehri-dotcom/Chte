@@ -28,8 +28,9 @@ function getGrade(obtained: number, total: number): string {
   if (rounded >= 85) return "A+";
   if (rounded >= 80) return "A";
   if (rounded >= 75) return "B+";
-  if (rounded >= 65) return "B";
-  if (rounded >= 61) return "C+";
+  if (rounded >= 70) return "B";
+  if (rounded >= 65) return "B-";
+  if (rounded >= 60) return "C+";
   if (rounded >= 55) return "C";
   if (rounded >= 50) return "D";
   return "F";

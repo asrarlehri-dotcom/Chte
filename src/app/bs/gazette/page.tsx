@@ -44,8 +44,10 @@ function getGrade(gpa: number, pct: number): string {
   if (gpa >= 3.80 || pct >= 85) return "A+";
   if (gpa >= 3.50 || pct >= 80) return "A";
   if (gpa >= 3.00 || pct >= 75) return "B+";
-  if (gpa >= 2.50 || pct >= 65) return "B";
-  if (gpa >= 2.00 || pct >= 58) return "C";
+  if (gpa >= 2.50 || pct >= 70) return "B";
+  if (gpa >= 2.00 || pct >= 65) return "B-";
+  if (gpa >= 1.50 || pct >= 60) return "C+";
+  if (gpa >= 1.00 || pct >= 55) return "C";
   if (gpa >= 1.00 || pct >= 50) return "D";
   return "F";
 }

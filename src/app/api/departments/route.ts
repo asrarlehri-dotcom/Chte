@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const sessionRole = (session?.user as any)?.role;
     const sessionCollegeId = (session?.user as any)?.collegeId;
 
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole))
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "PRINCIPAL", "BS_CONTROLLER"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest) {
     const session = await getServerSession(authOptions);
     const sessionRole = (session?.user as any)?.role;
 
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole))
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "PRINCIPAL", "BS_CONTROLLER"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id, name, code, hodName } = await req.json();
@@ -100,7 +100,7 @@ export async function DELETE(req: NextRequest) {
     const session = await getServerSession(authOptions);
     const sessionRole = (session?.user as any)?.role;
 
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN"].includes(sessionRole))
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "PRINCIPAL", "BS_CONTROLLER"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const url = new URL(req.url);

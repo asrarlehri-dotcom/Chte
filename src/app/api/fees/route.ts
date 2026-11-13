@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const sessionRole = (session?.user as any)?.role;
     const sessionCollegeId = (session?.user as any)?.collegeId;
 
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(sessionRole)) {
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"].includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const sessionRole = (session?.user as any)?.role;
     const sessionCollegeId = (session?.user as any)?.collegeId;
 
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(sessionRole)) {
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"].includes(sessionRole)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -73,14 +73,26 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * Check if a role has a specific permission.
- * CHTE_ADMIN, SUPER_ADMIN, and COLLEGE_ADMIN always return true without DB lookup.
+ * CHTE_ADMIN, SUPER_ADMIN, COLLEGE_ADMIN, and PRINCIPAL have full authority over college modules.
+ * BS_CONTROLLER has full authority over all BS academic and exam modules.
  */
 export async function checkPermission(
   role: string,
   module: ModuleKey,
   action: ActionKey
 ): Promise<boolean> {
-  if (role === ROLES.SUPER_ADMIN || role === ROLES.CHTE_ADMIN || role === ROLES.COLLEGE_ADMIN) return true;
+  if (
+    role === ROLES.SUPER_ADMIN || 
+    role === ROLES.CHTE_ADMIN || 
+    role === ROLES.COLLEGE_ADMIN || 
+    role === ROLES.PRINCIPAL
+  ) {
+    return true;
+  }
+
+  if (role === ROLES.BS_CONTROLLER && module.startsWith("BS.")) {
+    return true;
+  }
 
   try {
     const rp = await prisma.rolePermission.findFirst({
@@ -103,8 +115,12 @@ export async function checkPermission(
 export async function getPermissionsForRole(
   role: string
 ): Promise<Record<string, boolean>> {
-  if (role === ROLES.SUPER_ADMIN || role === ROLES.CHTE_ADMIN || role === ROLES.COLLEGE_ADMIN) {
-    // Admins have everything
+  if (
+    role === ROLES.SUPER_ADMIN || 
+    role === ROLES.CHTE_ADMIN || 
+    role === ROLES.COLLEGE_ADMIN || 
+    role === ROLES.PRINCIPAL
+  ) {
     const all: Record<string, boolean> = {};
     for (const mod of Object.values(MODULES)) {
       for (const act of Object.values(ACTIONS)) {
@@ -124,6 +140,17 @@ export async function getPermissionsForRole(
     for (const rp of rps) {
       map[`${rp.permission.module}.${rp.permission.action}`] = rp.isGranted;
     }
+
+    if (role === ROLES.BS_CONTROLLER) {
+      for (const mod of Object.values(MODULES)) {
+        if (mod.startsWith("BS.")) {
+          for (const act of Object.values(ACTIONS)) {
+            map[`${mod}.${act}`] = true;
+          }
+        }
+      }
+    }
+
     return map;
   } catch {
     return {};

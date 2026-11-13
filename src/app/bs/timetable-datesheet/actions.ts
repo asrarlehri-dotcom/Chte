@@ -785,7 +785,8 @@ export async function generateDutiesAction(
   });
   for (const d of existingAllDuties) {
     const dk = d.datesheet.date.toISOString().split("T")[0];
-    assignedOnDate.set(`${d.facultyId}|${dk}`, true);
+    const shift = d.shiftTime || `${d.datesheet.startTime}-${d.datesheet.endTime}`;
+    assignedOnDate.set(`${d.facultyId}|${dk}|${shift}`, true);
   }
 
   for (const ds of datesheets) {
@@ -797,9 +798,9 @@ export async function generateDutiesAction(
     if (mandatoryFacultyId) {
       const alreadyAssigned = ds.duties.some(d => d.facultyId === mandatoryFacultyId);
       if (!alreadyAssigned) {
-        const hasConflict = assignedOnDate.has(`${mandatoryFacultyId}|${dateKey}`);
+        const hasConflict = assignedOnDate.has(`${mandatoryFacultyId}|${dateKey}|${shiftTime}`);
         if (hasConflict) {
-          warnings.push(`Mandatory conflict: ${ds.course?.faculty?.user?.name || mandatoryFacultyId} already assigned on ${dateKey}. Forced for "${ds.course?.title}".`);
+          warnings.push(`Mandatory conflict: ${ds.course?.faculty?.user?.name || mandatoryFacultyId} already assigned on ${dateKey} (${shiftTime}). Forced for "${ds.course?.title}".`);
         }
         try {
           await prisma.examDuty.upsert({
@@ -807,7 +808,7 @@ export async function generateDutiesAction(
             update: { dutyType: "MANDATORY", isMandatory: true, shiftTime, isOverride: hasConflict },
             create: { datesheetId: ds.id, facultyId: mandatoryFacultyId, dutyType: "MANDATORY", isMandatory: true, shiftTime, isOverride: hasConflict },
           });
-          assignedOnDate.set(`${mandatoryFacultyId}|${dateKey}`, true);
+          assignedOnDate.set(`${mandatoryFacultyId}|${dateKey}|${shiftTime}`, true);
           created.push({ type: "MANDATORY", course: ds.course?.title, date: dateKey });
         } catch { /* skip */ }
       }
@@ -824,13 +825,13 @@ export async function generateDutiesAction(
       if (filled >= slotsNeeded) break;
       if (fac.id === mandatoryFacultyId) continue;
       if (ds.duties.some(d => d.facultyId === fac.id)) continue;
-      if (assignedOnDate.has(`${fac.id}|${dateKey}`)) continue;
+      if (assignedOnDate.has(`${fac.id}|${dateKey}|${shiftTime}`)) continue;
 
       try {
         await prisma.examDuty.create({
           data: { datesheetId: ds.id, facultyId: fac.id, dutyType: "INVIGILATOR", isMandatory: false, shiftTime },
         });
-        assignedOnDate.set(`${fac.id}|${dateKey}`, true);
+        assignedOnDate.set(`${fac.id}|${dateKey}|${shiftTime}`, true);
         created.push({ type: "INVIGILATOR", course: ds.course?.title, date: dateKey, faculty: fac.user?.name });
         filled++;
       } catch { /* unique constraint */ }

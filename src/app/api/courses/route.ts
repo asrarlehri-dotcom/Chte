@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const sessionRole = (session?.user as any)?.role;
     const sessionCollegeId = (session?.user as any)?.collegeId;
 
-    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(sessionRole))
+    if (!session || !["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"].includes(sessionRole))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();

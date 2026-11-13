@@ -38,7 +38,8 @@ function toWords(n: number): string {
   if (n < 100)  return b[Math.floor(n/10)] + (n%10 ? " "+a[n%10] : "");
   if (n < 1000) return a[Math.floor(n/100)]+" hundred"+(n%100 ? " "+toWords(n%100) : "");
   if (n < 100000) return toWords(Math.floor(n/1000))+" thousand"+(n%1000 ? " "+toWords(n%1000) : "");
-  return toWords(Math.floor(n/100000))+" lakh"+(n%100000 ? " "+toWords(n%100000) : "");
+  if (n < 10000000) return toWords(Math.floor(n/100000))+" lakh"+(n%100000 ? " "+toWords(n%100000) : "");
+  return toWords(Math.floor(n/10000000))+" crore"+(n%10000000 ? " "+toWords(n%10000000) : "");
 }
 
 export default function BsFeesPage() {
