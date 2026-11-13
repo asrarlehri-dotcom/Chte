@@ -25,6 +25,7 @@ export default function StudentsPage() {
   const fetchAll = async () => {
     setLoading(true);
     const params = new URLSearchParams();
+    params.set("includeInactive", "true");
     if (filterLevel) params.set("educationLevel", filterLevel);
     const [sRes, pRes] = await Promise.all([fetch(`/api/students?${params}`), fetch("/api/programs")]);
     if (sRes.ok) setStudents(await sRes.json());

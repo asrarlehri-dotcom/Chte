@@ -282,7 +282,17 @@ function PaperAttendanceModule({
       fetch(`/api/students?${queryParams}`).then(r => r.ok ? r.json() : []),
       fetch(`/api/marks?courseId=${selectedCourse}`).then(r => r.ok ? r.json() : [])
     ]).then(([sData, mData]) => {
-      const studentList = Array.isArray(sData) ? sData : [];
+      const rawList = Array.isArray(sData) ? sData : [];
+      const studentList = rawList.filter((st: any) => {
+        if (st.isActive === false) return false;
+        if (st.user && st.user.isActive === false) return false;
+        if (st.statuses && st.statuses.length > 0) {
+          const latest = st.statuses[st.statuses.length - 1];
+          const type = latest.statusType?.toUpperCase();
+          if (["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"].includes(type)) return false;
+        }
+        return true;
+      });
       const marksArr = Array.isArray(mData) ? mData : [];
 
       const mapped = studentList.map((st: any) => {
@@ -877,7 +887,17 @@ function MarksEntryTable({
       fetch(`/api/marks?courseId=${selectedCourse}`).then(r => r.ok ? r.json() : []),
       fetch(`/api/datesheet?courseId=${selectedCourse}`, { cache: "no-store" }).then(r => r.ok ? r.json() : [])
     ]).then(([sData, mData, dsData]) => {
-      const studentList = Array.isArray(sData) ? sData : [];
+      const rawList = Array.isArray(sData) ? sData : [];
+      const studentList = rawList.filter((st: any) => {
+        if (st.isActive === false) return false;
+        if (st.user && st.user.isActive === false) return false;
+        if (st.statuses && st.statuses.length > 0) {
+          const latest = st.statuses[st.statuses.length - 1];
+          const type = latest.statusType?.toUpperCase();
+          if (["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"].includes(type)) return false;
+        }
+        return true;
+      });
       const marksArr = Array.isArray(mData) ? mData : [];
 
       // Auto-detect exam scheme from Datesheet if available

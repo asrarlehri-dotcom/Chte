@@ -30,9 +30,13 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Missing courseId parameter" }, { status: 400 });
       }
 
-      // 1. Fetch enrolled students
+      // 1. Fetch enrolled students (only active students)
       const enrollments = await prisma.enrollment.findMany({
-        where: { courseId, status: "ACTIVE" },
+        where: {
+          courseId,
+          status: "ACTIVE",
+          student: { isActive: true }
+        },
         include: {
           student: {
             include: {

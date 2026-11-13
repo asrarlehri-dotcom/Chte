@@ -107,7 +107,7 @@ export default function BSStudentsPage() {
     setLoading(true);
     try {
       const [sRes, pRes, setRes] = await Promise.all([
-        fetch("/api/students?educationLevel=BS"),
+        fetch("/api/students?educationLevel=BS&includeInactive=true"),
         fetch("/api/programs"),
         fetch("/api/settings"),
       ]);

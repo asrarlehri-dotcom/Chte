@@ -31,7 +31,7 @@ export default function IntermediateStudentsPage() {
   const fetchAll = async () => {
     setLoading(true);
     const [sRes, pRes, gRes] = await Promise.all([
-      fetch("/api/students?educationLevel=INTERMEDIATE"),
+      fetch("/api/students?educationLevel=INTERMEDIATE&includeInactive=true"),
       fetch("/api/programs"),
       fetch("/api/groups")
     ]);

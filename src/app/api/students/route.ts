@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     const currentSemesterParam = searchParams.get("currentSemester") || searchParams.get("semester") || undefined;
     const courseId = searchParams.get("courseId") || undefined;
     const requestedCollegeId = searchParams.get("collegeId") || undefined;
+    const includeInactive = searchParams.get("includeInactive") === "true";
 
     let collegeFilter: string | undefined = undefined;
     if (sessionCollegeId && sessionRole !== "CHTE_ADMIN" && sessionRole !== "SUPER_ADMIN") {
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
           courseId,
           status: "ACTIVE",
           student: {
+            ...(!includeInactive ? { isActive: true } : {}),
             ...(collegeFilter && { collegeId: collegeFilter }),
             ...(sessionParam && sessionParam !== "ALL" && {
               OR: [
@@ -64,6 +66,7 @@ export async function GET(req: NextRequest) {
     // ── Standard filter (no courseId) ────────────────────────────────────────
     const students = await prisma.student.findMany({
       where: {
+        ...(!includeInactive ? { isActive: true } : {}),
         ...(collegeFilter && { collegeId: collegeFilter }),
         ...(educationLevel && { educationLevel }),
         ...(programId && { programId }),

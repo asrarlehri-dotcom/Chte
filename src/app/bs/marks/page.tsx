@@ -280,7 +280,17 @@ export default function AddResultPage() {
       fetch(`/api/marks?courseId=${selectedCourse}`, { cache: "no-store" }).then(r => r.json()),
       fetch(`/api/datesheet?courseId=${selectedCourse}`, { cache: "no-store" }).then(r => r.ok ? r.json() : [])
     ]).then(([sData, mData, dsData]) => {
-      const studentList = Array.isArray(sData) ? sData : [];
+      const rawList = Array.isArray(sData) ? sData : [];
+      const studentList = rawList.filter((st: any) => {
+        if (st.isActive === false) return false;
+        if (st.user && st.user.isActive === false) return false;
+        if (st.statuses && st.statuses.length > 0) {
+          const latest = st.statuses[st.statuses.length - 1];
+          const type = latest.statusType?.toUpperCase();
+          if (["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"].includes(type)) return false;
+        }
+        return true;
+      });
 
       // Auto-detect exam scheme from Datesheet if available
       const dsArr = Array.isArray(dsData) ? dsData : [];
