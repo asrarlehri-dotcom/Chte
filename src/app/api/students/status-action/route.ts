@@ -54,6 +54,26 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    if (student.userId) {
+      await prisma.user.update({
+        where: { id: student.userId },
+        data: {
+          isActive: !shouldDeactivate,
+        },
+      });
+    }
+
+    if (!shouldDeactivate) {
+      await prisma.studentStatus.updateMany({
+        where: {
+          studentId,
+          statusType: { in: ["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"] },
+          isActive: true,
+        },
+        data: { isActive: false },
+      });
+    }
+
     // 3. Audit Log
     await prisma.auditLog.create({
       data: {

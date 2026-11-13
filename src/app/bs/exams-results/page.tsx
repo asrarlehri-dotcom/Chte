@@ -284,12 +284,18 @@ function PaperAttendanceModule({
     ]).then(([sData, mData]) => {
       const rawList = Array.isArray(sData) ? sData : [];
       const studentList = rawList.filter((st: any) => {
+        // Exclude deactivated students
         if (st.isActive === false) return false;
-        if (st.user && st.user.isActive === false) return false;
+        if (st.user && st.user.isActive === false && st.isActive !== true) return false;
+        // Reactivated students (isActive === true) are always allowed
+        if (st.isActive === true) return true;
         if (st.statuses && st.statuses.length > 0) {
-          const latest = st.statuses[st.statuses.length - 1];
-          const type = latest.statusType?.toUpperCase();
-          if (["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"].includes(type)) return false;
+          const activeStatuses = st.statuses.filter((s: any) => s.isActive !== false);
+          const latest = activeStatuses[activeStatuses.length - 1];
+          if (latest) {
+            const type = latest.statusType?.toUpperCase();
+            if (["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"].includes(type)) return false;
+          }
         }
         return true;
       });
@@ -895,12 +901,18 @@ function MarksEntryTable({
     ]).then(([sData, mData, dsData]) => {
       const rawList = Array.isArray(sData) ? sData : [];
       const studentList = rawList.filter((st: any) => {
+        // Exclude deactivated students
         if (st.isActive === false) return false;
-        if (st.user && st.user.isActive === false) return false;
+        if (st.user && st.user.isActive === false && st.isActive !== true) return false;
+        // Reactivated students (isActive === true) are always allowed
+        if (st.isActive === true) return true;
         if (st.statuses && st.statuses.length > 0) {
-          const latest = st.statuses[st.statuses.length - 1];
-          const type = latest.statusType?.toUpperCase();
-          if (["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"].includes(type)) return false;
+          const activeStatuses = st.statuses.filter((s: any) => s.isActive !== false);
+          const latest = activeStatuses[activeStatuses.length - 1];
+          if (latest) {
+            const type = latest.statusType?.toUpperCase();
+            if (["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"].includes(type)) return false;
+          }
         }
         return true;
       });

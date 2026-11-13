@@ -74,6 +74,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       },
       include: { user: true, program: true, group: true },
     });
+
+    if (isActive !== undefined && existingStudent.userId) {
+      await prisma.user.update({
+        where: { id: existingStudent.userId },
+        data: { isActive },
+      });
+      if (isActive === true) {
+        // Clear any lingering inactive / freeze / dropout status records
+        await prisma.studentStatus.updateMany({
+          where: {
+            studentId: id,
+            statusType: { in: ["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"] },
+            isActive: true,
+          },
+          data: { isActive: false },
+        });
+      }
+    }
+
     return NextResponse.json(student);
   } catch (error: any) {
     console.error("Update student error:", error);
