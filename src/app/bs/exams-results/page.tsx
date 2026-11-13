@@ -190,7 +190,7 @@ function PaperAttendanceModule({
   const [errorMsg, setErrorMsg] = useState("");
 
   const userRole = (session?.user as any)?.role || "";
-  const isAdmin = ["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(userRole);
+  const isAdmin = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL", "HOD"].includes(userRole);
 
   // Sync to parent sharedFilters whenever filter changes
   useEffect(() => {
@@ -782,7 +782,7 @@ function MarksEntryTable({
   const [autoDistributeOnPaste, setAutoDistributeOnPaste] = useState(true);
 
   const userRole = (session?.user as any)?.role || "";
-  const isAdmin = ["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(userRole);
+  const isAdmin = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL", "HOD"].includes(userRole);
   const isFacultyLocked = isLocked && !isAdmin && resultStatus !== "UNLOCKED_FOR_EDIT";
 
   const loadMetrics = () => {
@@ -1321,6 +1321,73 @@ function MarksEntryTable({
       }
     } else {
       setErrorMsg(lastError ? `Failed to save marks: ${lastError}` : "Failed to update result status. Please try again.");
+    }
+  };
+
+  // Admin: Delete/Reset all marks for course
+  const handleDeleteAllMarksForCourse = async () => {
+    if (!selectedCourse) return alert("Please select a Course first!");
+    if (!confirm("Are you sure you want to DELETE / RESET all saved marks for this course? This action will permanently remove all marks entries for this course.")) return;
+
+    setSaving(true);
+    setSuccessMsg("");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch(`/api/marks?courseId=${selectedCourse}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMsg(`🗑️ ${data.message || "All marks for this course have been deleted successfully!"}`);
+        setStudents(prev => prev.map(s => ({
+          ...s,
+          assignment: 0,
+          quiz: 0,
+          practical: 0,
+          mid: 0,
+          final: 0,
+          totalOnly: 0,
+          marksRecord: null,
+        })));
+        setResultStatus("SAVED");
+        setIsLocked(false);
+      } else {
+        setErrorMsg(data.error || "Failed to delete marks.");
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || "Failed to delete marks.");
+    }
+    setSaving(false);
+  };
+
+  // Admin: Delete/Clear marks for a single student
+  const handleDeleteStudentMarks = async (studentId: string, studentName: string) => {
+    if (!selectedCourse) return;
+    if (!confirm(`Are you sure you want to clear/delete saved marks for "${studentName}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/marks?courseId=${selectedCourse}&studentId=${studentId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMsg(`🗑️ Saved marks cleared for "${studentName}".`);
+        setStudents(prev => prev.map(s => s.id === studentId ? {
+          ...s,
+          assignment: 0,
+          quiz: 0,
+          practical: 0,
+          mid: 0,
+          final: 0,
+          totalOnly: 0,
+          marksRecord: null,
+        } : s));
+      } else {
+        alert(data.error || "Failed to delete marks");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to delete marks");
     }
   };
 
@@ -2029,21 +2096,33 @@ function MarksEntryTable({
                         </td>
 
                         <td className="px-4 py-3 text-center">
-                          {isAbsent ? (
-                            <span className="px-2.5 py-1 text-xs rounded-full font-black bg-red-100 text-red-800 border border-red-200">
-                              ❌ ABSENT (A)
-                            </span>
-                          ) : obtained === 0 ? (
-                            <span className="px-3 py-1 text-xs rounded-full font-semibold bg-gray-100 text-gray-500">—</span>
-                          ) : pass ? (
-                            <span className="px-3 py-1 text-xs rounded-full font-bold bg-green-100 text-green-700 border border-green-200">
-                              ✅ Pass
-                            </span>
-                          ) : (
-                            <span className="px-3 py-1 text-xs rounded-full font-bold bg-red-100 text-red-700 border border-red-200">
-                              ❌ Fail
-                            </span>
-                          )}
+                          <div className="flex items-center justify-center gap-2">
+                            {isAbsent ? (
+                              <span className="px-2.5 py-1 text-xs rounded-full font-black bg-red-100 text-red-800 border border-red-200">
+                                ❌ ABSENT (A)
+                              </span>
+                            ) : obtained === 0 ? (
+                              <span className="px-3 py-1 text-xs rounded-full font-semibold bg-gray-100 text-gray-500">—</span>
+                            ) : pass ? (
+                              <span className="px-3 py-1 text-xs rounded-full font-bold bg-green-100 text-green-700 border border-green-200">
+                                ✅ Pass
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 text-xs rounded-full font-bold bg-red-100 text-red-700 border border-red-200">
+                                ❌ Fail
+                              </span>
+                            )}
+                            {isAdmin && (s.marksRecord || obtained > 0) && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStudentMarks(s.id, s.name)}
+                                title="Admin: Clear/Delete saved marks for this student"
+                                className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors text-xs font-bold"
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -2059,6 +2138,18 @@ function MarksEntryTable({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAllMarksForCourse}
+                  disabled={saving}
+                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  title="Admin: Delete / Reset all saved marks for this course"
+                >
+                  🗑️ Reset / Delete Course Marks
+                </button>
+              )}
+
               {!isFacultyLocked && (
                 <button
                   onClick={() => handleSaveWithStatus("SAVED", false)}

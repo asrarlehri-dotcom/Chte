@@ -4,8 +4,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { compareRollNumbers } from "@/lib/domainParsers";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"];
-const FACULTY_ROLES = ["BS_FACULTY", "INTER_FACULTY", "FACULTY", "TEACHER", "PRINCIPAL"];
+const ADMIN_ROLES = [
+  "CHTE_ADMIN",
+  "COLLEGE_ADMIN",
+  "SUPER_ADMIN",
+  "ADMIN",
+  "BS_CONTROLLER",
+  "PRINCIPAL",
+  "HOD",
+];
+const FACULTY_ROLES = ["BS_FACULTY", "INTER_FACULTY", "FACULTY", "TEACHER"];
 
 /**
  * Get the Faculty record for the currently logged-in user.
@@ -66,11 +74,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(marks);
     }
 
-    // Admin/Controller — no restriction
+    const sessionCollegeId = (session.user as any)?.collegeId;
+    const collegeFilter = (sessionCollegeId && userRole !== "CHTE_ADMIN" && userRole !== "SUPER_ADMIN")
+      ? sessionCollegeId
+      : undefined;
+
+    // Admin/Controller — scoped to college if applicable
     const marks = await prisma.marks.findMany({
       where: {
         ...(courseId && { courseId }),
         ...(studentId && { studentId }),
+        ...(collegeFilter && {
+          student: { collegeId: collegeFilter },
+        }),
       },
       include: {
         student: { include: { user: true } },
@@ -115,7 +131,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "studentId and courseId required" }, { status: 400 });
 
     const userRole = (session.user as any)?.role || "";
+    const sessionCollegeId = (session.user as any)?.collegeId;
     const isAdmin = ADMIN_ROLES.includes(userRole);
+
+    if (sessionCollegeId && userRole !== "CHTE_ADMIN" && userRole !== "SUPER_ADMIN") {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { collegeId: true },
+      });
+      if (student?.collegeId && student.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Forbidden: You cannot modify marks of another college" }, { status: 403 });
+      }
+    }
 
     // ── Backend faculty restriction ──────────────────────────────────────────
     if (!isAdmin) {
@@ -231,5 +258,123 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Save marks error:", error);
     return NextResponse.json({ error: error.message || "Failed to save marks" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const userRole = (session?.user as any)?.role || "";
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !ADMIN_ROLES.includes(userRole)) {
+      return NextResponse.json({ error: "Unauthorized: Admin privileges required to delete marks" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const courseId = searchParams.get("courseId");
+    const studentId = searchParams.get("studentId");
+
+    // 1. Delete by specific Marks record id
+    if (id) {
+      const existing = await prisma.marks.findUnique({
+        where: { id },
+        include: { student: true, course: true },
+      });
+      if (!existing) return NextResponse.json({ error: "Marks record not found" }, { status: 404 });
+
+      if (sessionCollegeId && userRole !== "CHTE_ADMIN" && userRole !== "SUPER_ADMIN") {
+        if (existing.student?.collegeId && existing.student.collegeId !== sessionCollegeId) {
+          return NextResponse.json({ error: "Forbidden: You cannot delete marks of another college" }, { status: 403 });
+        }
+      }
+
+      await prisma.marks.delete({ where: { id } });
+
+      await prisma.auditLog.create({
+        data: {
+          userEmail: session.user?.email,
+          userName: session.user?.name,
+          action: "DELETE",
+          entity: "Marks",
+          entityId: id,
+          description: `Admin deleted marks record for student ${existing.student?.rollNumber || id} in course ${existing.course?.code || ''}`,
+          collegeId: existing.student?.collegeId || sessionCollegeId || null,
+        },
+      });
+
+      return NextResponse.json({ success: true, message: "Marks deleted successfully" });
+    }
+
+    // 2. Delete by studentId and courseId
+    if (courseId && studentId) {
+      const existing = await prisma.marks.findFirst({
+        where: { courseId, studentId },
+        include: { student: true, course: true },
+      });
+      if (!existing) return NextResponse.json({ error: "Marks record not found" }, { status: 404 });
+
+      if (sessionCollegeId && userRole !== "CHTE_ADMIN" && userRole !== "SUPER_ADMIN") {
+        if (existing.student?.collegeId && existing.student.collegeId !== sessionCollegeId) {
+          return NextResponse.json({ error: "Forbidden: You cannot delete marks of another college" }, { status: 403 });
+        }
+      }
+
+      await prisma.marks.delete({ where: { id: existing.id } });
+
+      await prisma.auditLog.create({
+        data: {
+          userEmail: session.user?.email,
+          userName: session.user?.name,
+          action: "DELETE",
+          entity: "Marks",
+          entityId: existing.id,
+          description: `Admin deleted marks for student ${existing.student?.rollNumber || studentId} in course ${existing.course?.code || courseId}`,
+          collegeId: existing.student?.collegeId || sessionCollegeId || null,
+        },
+      });
+
+      return NextResponse.json({ success: true, message: "Marks deleted successfully" });
+    }
+
+    // 3. Delete all marks for a course (Reset Course Results)
+    if (courseId) {
+      const collegeFilter = (sessionCollegeId && userRole !== "CHTE_ADMIN" && userRole !== "SUPER_ADMIN")
+        ? sessionCollegeId
+        : undefined;
+
+      const deleteResult = await prisma.marks.deleteMany({
+        where: {
+          courseId,
+          ...(collegeFilter && {
+            student: { collegeId: collegeFilter },
+          }),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userEmail: session.user?.email,
+          userName: session.user?.name,
+          action: "DELETE",
+          entity: "Marks",
+          entityId: courseId,
+          description: `Admin deleted/reset all (${deleteResult.count}) marks for course ${courseId}`,
+          collegeId: sessionCollegeId || null,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully deleted ${deleteResult.count} marks records for course.`,
+        deletedCount: deleteResult.count,
+      });
+    }
+
+    return NextResponse.json({ error: "id, courseId, or (courseId and studentId) required" }, { status: 400 });
+  } catch (error: any) {
+    console.error("Delete marks error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete marks" }, { status: 500 });
   }
 }

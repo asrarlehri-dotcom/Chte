@@ -94,8 +94,9 @@ export default function AddResultPage() {
   const userName = session?.user?.name || "";
   const userId = (session?.user as any)?.id || "";
 
-  const isAdmin = ["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(userRole);
-  const isFaculty = ["FACULTY", "BS_FACULTY", "INTER_FACULTY", "TEACHER", "PRINCIPAL"].includes(userRole);
+  const ADMIN_ROLES = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL", "HOD"];
+  const isAdmin = ADMIN_ROLES.includes(userRole);
+  const isFaculty = ["FACULTY", "BS_FACULTY", "INTER_FACULTY", "TEACHER"].includes(userRole);
   const isFacultyLocked = isLocked && !isAdmin && resultStatus !== "UNLOCKED_FOR_EDIT";
 
   // Check if a course is assigned to the current faculty member
@@ -718,6 +719,71 @@ export default function AddResultPage() {
       }
     } else {
       setErrorMsg(lastError ? `Failed to save marks: ${lastError}` : "Failed to update result status. Please try again.");
+    }
+  };
+
+  // Admin: Delete/Reset all marks for course
+  const handleDeleteAllMarksForCourse = async () => {
+    if (!selectedCourse) return alert("Please select a course first.");
+    if (!confirm("Are you sure you want to DELETE / RESET all saved marks for this course? This action will permanently remove all marks entries for this course.")) return;
+
+    setSaving(true);
+    setSuccessMsg("");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch(`/api/marks?courseId=${selectedCourse}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMsg(`🗑️ ${data.message || "All marks for this course have been deleted successfully!"}`);
+        setStudents(prev => prev.map(s => ({
+          ...s,
+          assignment: 0,
+          quiz: 0,
+          practical: 0,
+          mid: 0,
+          final: 0,
+          totalOnly: 0,
+        })));
+        setResultStatus("SAVED");
+        setIsLocked(false);
+      } else {
+        setErrorMsg(data.error || "Failed to delete marks.");
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || "Failed to delete marks.");
+    }
+    setSaving(false);
+  };
+
+  // Admin: Delete/Clear marks for a single student
+  const handleDeleteStudentMarks = async (studentId: string, studentName: string) => {
+    if (!selectedCourse) return;
+    if (!confirm(`Are you sure you want to clear/delete saved marks for "${studentName}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/marks?courseId=${selectedCourse}&studentId=${studentId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMsg(`🗑️ Saved marks cleared for "${studentName}".`);
+        setStudents(prev => prev.map(s => s.id === studentId ? {
+          ...s,
+          assignment: 0,
+          quiz: 0,
+          practical: 0,
+          mid: 0,
+          final: 0,
+          totalOnly: 0,
+        } : s));
+      } else {
+        alert(data.error || "Failed to delete marks");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to delete marks");
     }
   };
 
@@ -1513,16 +1579,28 @@ export default function AddResultPage() {
                           <td className={`p-3 font-extrabold ${isDropout ? "text-gray-400 font-bold" : isAbsent ? "text-red-600 font-black" : "text-blue-900"}`}>{grade}</td>
                           <td className={`p-3 font-mono font-bold ${isDropout ? "text-gray-400 font-semibold" : isAbsent ? "text-red-600" : "text-indigo-900"}`}>{isDropout ? "-" : gp.toFixed(2)}</td>
                           <td className="p-3">
-                            <span className={`px-2.5 py-1 text-xs rounded-full font-black ${isDropout
-                                ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-sm'
-                                : isAbsent
-                                  ? 'bg-red-100 text-red-800 border border-red-200'
-                                  : isPass
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
-                              }`}>
-                              {isDropout ? '🚫 Dropout' : isAbsent ? '❌ ABSENT (A)' : isPass ? '✅ Pass' : '❌ Fail'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2.5 py-1 text-xs rounded-full font-black ${isDropout
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-sm'
+                                  : isAbsent
+                                    ? 'bg-red-100 text-red-800 border border-red-200'
+                                    : isPass
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-red-100 text-red-800'
+                                }`}>
+                                {isDropout ? '🚫 Dropout' : isAbsent ? '❌ ABSENT (A)' : isPass ? '✅ Pass' : '❌ Fail'}
+                              </span>
+                              {isAdmin && !isDropout && (calculatedObtained > 0 || isAbsent) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteStudentMarks(st.id, st.name)}
+                                  title="Admin: Clear/Delete saved marks for this student"
+                                  className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors text-xs font-bold"
+                                >
+                                  🗑️
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1541,6 +1619,17 @@ export default function AddResultPage() {
               </span>
 
               <div className="flex gap-3">
+                {isAdmin && (
+                  <button
+                    onClick={handleDeleteAllMarksForCourse}
+                    disabled={saving}
+                    className="px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                    title="Delete / Reset all saved marks for this course"
+                  >
+                    🗑️ Reset / Delete Course Marks
+                  </button>
+                )}
+
                 {!isFacultyLocked && (
                   <button
                     onClick={() => handleUpdateStatus("SAVED", false)}
