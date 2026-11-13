@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { sortStudentsByRoll } from "@/lib/domainParsers";
 
 type StudentData = {
   id: string;
@@ -20,7 +21,7 @@ export default function PromotionsPage() {
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setStudents(data.filter((s: any) => s.educationLevel === "BS"));
+          setStudents(sortStudentsByRoll(data.filter((s: any) => s.educationLevel === "BS")));
         }
       })
       .finally(() => setLoading(false));

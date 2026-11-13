@@ -918,3 +918,30 @@ S17/Zoo-16,Umair Ahmed,14,40,14,100
 S17/Zoo-17,Saif Ullah,17,50,16,100`;
 }
 
+// -------------------------------------------------------------
+// Natural Roll Number Ordering Utilities
+// -------------------------------------------------------------
+export function compareRollNumbers(rollA?: string | null, rollB?: string | null): number {
+  const a = (rollA || "").trim();
+  const b = (rollB || "").trim();
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+export function sortStudentsByRoll<T extends { rollNumber?: string | null; roll?: string | null; name?: string | null; user?: { name?: string | null } | null }>(
+  list: T[]
+): T[] {
+  return [...list].sort((a, b) => {
+    const rA = a.rollNumber || a.roll || "";
+    const rB = b.rollNumber || b.roll || "";
+    const diff = compareRollNumbers(rA, rB);
+    if (diff !== 0) return diff;
+    const nA = a.user?.name || a.name || "";
+    const nB = b.user?.name || b.name || "";
+    return nA.localeCompare(nB, undefined, { sensitivity: "base" });
+  });
+}
+
+

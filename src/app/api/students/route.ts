@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { sortStudentsByRoll } from "@/lib/domainParsers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,10 +55,10 @@ export async function GET(req: NextRequest) {
             include: { user: true, program: true, group: true, statuses: true, promotions: true, college: true },
           },
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { student: { rollNumber: "asc" } },
       });
-      const students = enrollments.map((e) => e.student);
-      return NextResponse.json(students);
+      const students = enrollments.map((e) => e.student).filter(Boolean);
+      return NextResponse.json(sortStudentsByRoll(students));
     }
 
     // ── Standard filter (no courseId) ────────────────────────────────────────
@@ -89,10 +90,10 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { rollNumber: "asc" },
     });
 
-    return NextResponse.json(students);
+    return NextResponse.json(sortStudentsByRoll(students));
   } catch {
     return NextResponse.json({ error: "Failed to fetch students" }, { status: 500 });
   }

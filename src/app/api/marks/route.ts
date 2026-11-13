@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { compareRollNumbers } from "@/lib/domainParsers";
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"];
 const FACULTY_ROLES = ["BS_FACULTY", "INTER_FACULTY", "FACULTY", "TEACHER", "PRINCIPAL"];
@@ -55,7 +56,12 @@ export async function GET(req: NextRequest) {
           student: { include: { user: true } },
           course: true,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { student: { rollNumber: "asc" } },
+      });
+      marks.sort((a, b) => {
+        const rollDiff = compareRollNumbers(a.student?.rollNumber, b.student?.rollNumber);
+        if (rollDiff !== 0) return rollDiff;
+        return (a.student?.user?.name || "").localeCompare(b.student?.user?.name || "");
       });
       return NextResponse.json(marks);
     }
@@ -70,7 +76,12 @@ export async function GET(req: NextRequest) {
         student: { include: { user: true } },
         course: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { student: { rollNumber: "asc" } },
+    });
+    marks.sort((a, b) => {
+      const rollDiff = compareRollNumbers(a.student?.rollNumber, b.student?.rollNumber);
+      if (rollDiff !== 0) return rollDiff;
+      return (a.student?.user?.name || "").localeCompare(b.student?.user?.name || "");
     });
     return NextResponse.json(marks);
   } catch {

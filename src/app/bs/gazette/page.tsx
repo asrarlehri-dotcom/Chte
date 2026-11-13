@@ -5,6 +5,7 @@ import { getGPValue, calculateStudentCGPA } from "@/lib/cgpa";
 import { useSettings } from "@/lib/useSettings";
 import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
 import OfficialDMCDocument from "@/components/OfficialDMCDocument";
+import { sortStudentsByRoll } from "@/lib/domainParsers";
 
 type MarkEntry = {
   courseId?: string;
@@ -700,6 +701,7 @@ export default function GazetteCompilerPage() {
 
   // For each group, extract only its specific courses for the selected semester
   programSessionGroups.forEach((group) => {
+    group.students = sortStudentsByRoll(group.students);
     const seenTitles = new Set<string>();
     group.students.forEach((s) => {
       (s.marks || [])
@@ -1055,9 +1057,8 @@ export default function GazetteCompilerPage() {
                         return (
                           <tr
                             key={s.id}
-                            className={`${idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"} ${
-                              selectedIds.includes(s.id) ? "!bg-blue-50" : ""
-                            } hover:bg-blue-50/30 transition-colors`}
+                            className={`${idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"} ${selectedIds.includes(s.id) ? "!bg-blue-50" : ""
+                              } hover:bg-blue-50/30 transition-colors`}
                           >
                             <td className="px-3 py-2.5 text-center border-r border-slate-100 print:border-slate-300 print:hidden">
                               <input
@@ -1082,15 +1083,14 @@ export default function GazetteCompilerPage() {
                               return (
                                 <td
                                   key={`${s.id}-${course.title}`}
-                                  className={`px-3 py-2.5 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 ${
-                                    isAbsentPaper
-                                      ? "text-rose-700 bg-rose-50/70 font-black print:text-rose-900"
-                                      : isFail
+                                  className={`px-3 py-2.5 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 ${isAbsentPaper
+                                    ? "text-rose-700 bg-rose-50/70 font-black print:text-rose-900"
+                                    : isFail
                                       ? "text-rose-600 bg-rose-50/40 print:bg-transparent"
                                       : obtained !== undefined
-                                      ? "text-slate-800"
-                                      : "text-slate-300"
-                                  }`}
+                                        ? "text-slate-800"
+                                        : "text-slate-300"
+                                    }`}
                                 >
                                   {isAbsentPaper ? (
                                     <span className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-700 rounded font-black text-[11px]">
@@ -1139,15 +1139,14 @@ export default function GazetteCompilerPage() {
                               )}
                             </td>
                             <td className="px-3 py-2.5 text-center border-l border-slate-100 print:border-slate-300">
-                              <span className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full border ${
-                                status === "PROMOTED"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 print:border-none print:p-0"
-                                  : status === "PROBATION"
+                              <span className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full border ${status === "PROMOTED"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 print:border-none print:p-0"
+                                : status === "PROBATION"
                                   ? "bg-amber-50 text-amber-700 border-amber-200 print:border-none print:p-0"
                                   : status === "DROPOUT"
-                                  ? "bg-rose-50 text-rose-700 border-rose-200 print:border-none print:p-0"
-                                  : "bg-slate-100 text-slate-600 border-slate-200 print:border-none print:p-0"
-                              }`}>
+                                    ? "bg-rose-50 text-rose-700 border-rose-200 print:border-none print:p-0"
+                                    : "bg-slate-100 text-slate-600 border-slate-200 print:border-none print:p-0"
+                                }`}>
                                 {status}
                               </span>
                             </td>
@@ -1165,21 +1164,21 @@ export default function GazetteCompilerPage() {
                                   // Promoted / Probation with failed papers in Orange (amber), Dropout / Absent in Red (rose)
                                   const colorScheme = isRed
                                     ? {
-                                        btnBg: "bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300",
-                                        headerText: "text-rose-700",
-                                        numColor: "text-rose-800",
-                                        linkColor: "text-rose-700 hover:text-rose-900",
-                                        borderColor: "border-rose-200",
-                                        dotColor: "bg-rose-500",
-                                      }
+                                      btnBg: "bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300",
+                                      headerText: "text-rose-700",
+                                      numColor: "text-rose-800",
+                                      linkColor: "text-rose-700 hover:text-rose-900",
+                                      borderColor: "border-rose-200",
+                                      dotColor: "bg-rose-500",
+                                    }
                                     : {
-                                        btnBg: "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300",
-                                        headerText: "text-amber-800",
-                                        numColor: "text-amber-900",
-                                        linkColor: "text-amber-700 hover:text-amber-950",
-                                        borderColor: "border-amber-200",
-                                        dotColor: "bg-amber-500",
-                                      };
+                                      btnBg: "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300",
+                                      headerText: "text-amber-800",
+                                      numColor: "text-amber-900",
+                                      linkColor: "text-amber-700 hover:text-amber-950",
+                                      borderColor: "border-amber-200",
+                                      dotColor: "bg-amber-500",
+                                    };
 
                                   const isExpanded = Boolean(expandedRemarks[s.id]);
 
@@ -1309,10 +1308,10 @@ export default function GazetteCompilerPage() {
         const rollSearchTrim = (certModal.rollSearch || "").trim().toLowerCase();
         const searchCandidates = rollSearchTrim
           ? modalCandidates.filter(
-              (s) =>
-                s.rollNumber.toLowerCase().includes(rollSearchTrim) ||
-                s.user?.name.toLowerCase().includes(rollSearchTrim)
-            )
+            (s) =>
+              s.rollNumber.toLowerCase().includes(rollSearchTrim) ||
+              s.user?.name.toLowerCase().includes(rollSearchTrim)
+          )
           : modalCandidates;
 
         // Only resolve a student if user explicitly selected them
@@ -1413,11 +1412,10 @@ export default function GazetteCompilerPage() {
                 <button
                   type="button"
                   onClick={() => setCertModal((prev) => (prev ? { ...prev, mode: "single" } : null))}
-                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
-                    certModal.mode === "single"
-                      ? "bg-[#0d4a22] text-white shadow-sm"
-                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
-                  }`}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${certModal.mode === "single"
+                    ? "bg-[#0d4a22] text-white shadow-sm"
+                    : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                    }`}
                 >
                   <span>👤</span>
                   <span>Single</span>
@@ -1427,11 +1425,10 @@ export default function GazetteCompilerPage() {
                 <button
                   type="button"
                   onClick={() => setCertModal((prev) => (prev ? { ...prev, mode: "bulk" } : null))}
-                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
-                    certModal.mode === "bulk"
-                      ? "bg-[#0d4a22] text-white shadow-sm"
-                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
-                  }`}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${certModal.mode === "bulk"
+                    ? "bg-[#0d4a22] text-white shadow-sm"
+                    : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                    }`}
                 >
                   <span>👥</span>
                   <span>Bulk</span>
@@ -1441,11 +1438,10 @@ export default function GazetteCompilerPage() {
                 <button
                   type="button"
                   onClick={() => setCertModal((prev) => (prev ? { ...prev, type: "dmc" } : null))}
-                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
-                    certModal.type === "dmc"
-                      ? "bg-[#0d4a22] text-white shadow-sm"
-                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
-                  }`}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${certModal.type === "dmc"
+                    ? "bg-[#0d4a22] text-white shadow-sm"
+                    : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                    }`}
                 >
                   <span>📄</span>
                   <span>DMC</span>
@@ -1455,11 +1451,10 @@ export default function GazetteCompilerPage() {
                 <button
                   type="button"
                   onClick={() => setCertModal((prev) => (prev ? { ...prev, type: "transcript" } : null))}
-                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${
-                    certModal.type === "transcript"
-                      ? "bg-[#0d4a22] text-white shadow-sm"
-                      : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
-                  }`}
+                  className={`px-5 py-2 rounded-full text-xs font-black transition-all flex items-center gap-1.5 ${certModal.type === "transcript"
+                    ? "bg-[#0d4a22] text-white shadow-sm"
+                    : "bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200"
+                    }`}
                 >
                   <span>📄</span>
                   <span>Transcript</span>
@@ -1584,12 +1579,12 @@ export default function GazetteCompilerPage() {
                         setCertModal((prev) =>
                           prev
                             ? {
-                                ...prev,
-                                transcriptSpan: val,
-                                fromSemester: from,
-                                toSemester: to,
-                                semester: to,
-                              }
+                              ...prev,
+                              transcriptSpan: val,
+                              fromSemester: from,
+                              toSemester: to,
+                              semester: to,
+                            }
                             : null
                         );
                       }}
@@ -1624,20 +1619,19 @@ export default function GazetteCompilerPage() {
                               setCertModal((prev) =>
                                 prev
                                   ? {
-                                      ...prev,
-                                      transcriptSpan: item.label,
-                                      fromSemester: 1,
-                                      toSemester: item.to,
-                                      semester: item.to,
-                                    }
+                                    ...prev,
+                                    transcriptSpan: item.label,
+                                    fromSemester: 1,
+                                    toSemester: item.to,
+                                    semester: item.to,
+                                  }
                                   : null
                               )
                             }
-                            className={`flex-1 min-w-[50px] py-1 px-1 rounded-lg text-[10.5px] font-black text-center transition-all border ${
-                              isCurrent
-                                ? "bg-[#0d4a22] text-white border-[#0d4a22] shadow-xs"
-                                : "bg-emerald-50/70 hover:bg-emerald-100 text-[#073619] border-emerald-200"
-                            }`}
+                            className={`flex-1 min-w-[50px] py-1 px-1 rounded-lg text-[10.5px] font-black text-center transition-all border ${isCurrent
+                              ? "bg-[#0d4a22] text-white border-[#0d4a22] shadow-xs"
+                              : "bg-emerald-50/70 hover:bg-emerald-100 text-[#073619] border-emerald-200"
+                              }`}
                             title={`Select Semesters ${item.label}`}
                           >
                             <span>{item.label}</span>
@@ -1717,10 +1711,10 @@ export default function GazetteCompilerPage() {
                       setCertModal((prev) =>
                         prev
                           ? {
-                              ...prev,
-                              selectedStudentId: sId ? sId : null,
-                              rollSearch: found ? found.rollNumber : "",
-                            }
+                            ...prev,
+                            selectedStudentId: sId ? sId : null,
+                            rollSearch: found ? found.rollNumber : "",
+                          }
                           : null
                       );
                     }}
@@ -1921,11 +1915,10 @@ export default function GazetteCompilerPage() {
                               key={`chk-${s.id}`}
                               type="button"
                               onClick={() => toggleBulkStudent(s.id)}
-                              className={`p-3 rounded-xl text-left border text-xs font-bold transition-all flex items-center gap-3 shadow-xs ${
-                                isChecked
-                                  ? "bg-[#0d4a22] text-white border-emerald-600 shadow-md ring-1 ring-emerald-500"
-                                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200"
-                              }`}
+                              className={`p-3 rounded-xl text-left border text-xs font-bold transition-all flex items-center gap-3 shadow-xs ${isChecked
+                                ? "bg-[#0d4a22] text-white border-emerald-600 shadow-md ring-1 ring-emerald-500"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200"
+                                }`}
                             >
                               <span className="text-lg shrink-0">{isChecked ? "☑" : "☐"}</span>
                               <div className="min-w-0 flex-1">
@@ -1969,11 +1962,11 @@ export default function GazetteCompilerPage() {
                                   setCertModal((prev) =>
                                     prev
                                       ? {
-                                          ...prev,
-                                          mode: "single",
-                                          selectedStudentId: student.id,
-                                          rollSearch: student.rollNumber,
-                                        }
+                                        ...prev,
+                                        mode: "single",
+                                        selectedStudentId: student.id,
+                                        rollSearch: student.rollNumber,
+                                      }
                                       : null
                                   )
                                 }

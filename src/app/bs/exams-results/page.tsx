@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { sortStudentsByRoll } from "@/lib/domainParsers";
 
 export default function ExamsResultsPage() {
   const [activeTab, setActiveTab] = useState("paper_attendance");
@@ -302,7 +303,7 @@ function PaperAttendanceModule({
         };
       });
 
-      setStudents(mapped);
+      setStudents(sortStudentsByRoll(mapped));
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [selectedCourse, selectedProgram, selectedSession, selectedSemester]);
@@ -396,22 +397,24 @@ function PaperAttendanceModule({
   };
 
   // Filter student list by search & type & session
-  const filteredStudentsList = students.filter(st => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = st.name.toLowerCase().includes(q);
-      const matchRoll = st.roll.toLowerCase().includes(q);
-      if (!matchName && !matchRoll) return false;
-    }
-    if (selectedSession && selectedSession !== "ALL" && st.session && st.session !== selectedSession) {
-      return false;
-    }
-    if (selectedProgType === "ALL") return true;
-    if (selectedProgType === "REGULAR") return st.bsAdmissionType === "REGULAR" || !st.bsAdmissionType;
-    if (selectedProgType === "BRIDGING") return st.bsAdmissionType === "BRIDGING_5TH";
-    if (selectedProgType === "MIGRATION") return st.bsAdmissionType === "MIGRATION";
-    return true;
-  });
+  const filteredStudentsList = sortStudentsByRoll(
+    students.filter(st => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = st.name.toLowerCase().includes(q);
+        const matchRoll = st.roll.toLowerCase().includes(q);
+        if (!matchName && !matchRoll) return false;
+      }
+      if (selectedSession && selectedSession !== "ALL" && st.session && st.session !== selectedSession) {
+        return false;
+      }
+      if (selectedProgType === "ALL") return true;
+      if (selectedProgType === "REGULAR") return st.bsAdmissionType === "REGULAR" || !st.bsAdmissionType;
+      if (selectedProgType === "BRIDGING") return st.bsAdmissionType === "BRIDGING_5TH";
+      if (selectedProgType === "MIGRATION") return st.bsAdmissionType === "MIGRATION";
+      return true;
+    })
+  );
 
   const presentCount = students.filter(s => s.attendance !== "ABSENT").length;
   const absentCount = students.filter(s => s.attendance === "ABSENT").length;
@@ -922,7 +925,7 @@ function MarksEntryTable({
         };
       });
 
-      setStudents(mapped);
+      setStudents(sortStudentsByRoll(mapped));
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [selectedCourse, selectedProgram, selectedSession, selectedSemester]);
@@ -1189,27 +1192,29 @@ function MarksEntryTable({
     }
   };
 
-  const filteredStudentsList = students.filter(st => {
-    // Search query filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = st.name.toLowerCase().includes(q);
-      const matchRoll = st.roll.toLowerCase().includes(q);
-      if (!matchName && !matchRoll) return false;
-    }
+  const filteredStudentsList = sortStudentsByRoll(
+    students.filter(st => {
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = st.name.toLowerCase().includes(q);
+        const matchRoll = st.roll.toLowerCase().includes(q);
+        if (!matchName && !matchRoll) return false;
+      }
 
-    // Session filter
-    if (selectedSession && selectedSession !== "ALL" && st.session && st.session !== selectedSession) {
-      return false;
-    }
+      // Session filter
+      if (selectedSession && selectedSession !== "ALL" && st.session && st.session !== selectedSession) {
+        return false;
+      }
 
-    // Program type filter
-    if (selectedProgType === "ALL") return true;
-    if (selectedProgType === "REGULAR") return st.bsAdmissionType === "REGULAR" || !st.bsAdmissionType;
-    if (selectedProgType === "BRIDGING") return st.bsAdmissionType === "BRIDGING_5TH";
-    if (selectedProgType === "MIGRATION") return st.bsAdmissionType === "MIGRATION";
-    return true;
-  });
+      // Program type filter
+      if (selectedProgType === "ALL") return true;
+      if (selectedProgType === "REGULAR") return st.bsAdmissionType === "REGULAR" || !st.bsAdmissionType;
+      if (selectedProgType === "BRIDGING") return st.bsAdmissionType === "BRIDGING_5TH";
+      if (selectedProgType === "MIGRATION") return st.bsAdmissionType === "MIGRATION";
+      return true;
+    })
+  );
 
   return (
     <div className="space-y-6">
@@ -2224,7 +2229,7 @@ function StatusAcademicActionsTab() {
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          const bsOnly = data.filter((s: any) => s.educationLevel === "BS");
+          const bsOnly = sortStudentsByRoll(data.filter((s: any) => s.educationLevel === "BS"));
           setStudents(bsOnly);
           if (bsOnly.length > 0) setSelectedStudentId(bsOnly[0].id);
         }

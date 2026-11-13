@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { sortStudentsByRoll } from "@/lib/domainParsers";
 import {
   GraduationCap,
   FileSpreadsheet,
@@ -161,7 +162,7 @@ export default function BSStudentsPage() {
 
   // Filtered Students List
   const filteredStudents = useMemo(() => {
-    return students.filter((s) => {
+    const list = students.filter((s) => {
       const q = search.toLowerCase().trim();
       if (q) {
         const nameMatch = s.user?.name?.toLowerCase().includes(q);
@@ -198,6 +199,7 @@ export default function BSStudentsPage() {
 
       return true;
     });
+    return sortStudentsByRoll(list);
   }, [students, search, filterShift, filterSession, filterProgram, filterSemester, filterStatus]);
 
   // Pagination calculation

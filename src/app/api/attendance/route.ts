@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { compareRollNumbers } from "@/lib/domainParsers";
 
 // GET /api/attendance?educationLevel=BS&date=2026-08-06&courseId=...
 // GET /api/attendance?educationLevel=INTERMEDIATE&date=2026-08-06&programId=...&groupId=...
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
         id: e.student.id,
         rollNumber: e.student.rollNumber,
         name: e.student.user.name,
-      })).sort((a, b) => a.rollNumber.localeCompare(b.rollNumber));
+      })).sort((a, b) => compareRollNumbers(a.rollNumber, b.rollNumber));
 
       // 2. Fetch existing attendance records
       const attendance = await prisma.attendance.findMany({
@@ -94,7 +95,7 @@ export async function GET(request: Request) {
         id: s.id,
         rollNumber: s.rollNumber,
         name: s.user.name
-      })).sort((a, b) => a.rollNumber.localeCompare(b.rollNumber));
+      })).sort((a, b) => compareRollNumbers(a.rollNumber, b.rollNumber));
 
       // 2. Fetch existing attendance records
       const attendance = await prisma.attendance.findMany({

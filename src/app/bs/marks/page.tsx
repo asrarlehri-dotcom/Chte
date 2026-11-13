@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
-import { parseGenericCSV, validateMarksBatch, getMarksSampleCSV } from "@/lib/domainParsers";
+import { parseGenericCSV, validateMarksBatch, getMarksSampleCSV, sortStudentsByRoll } from "@/lib/domainParsers";
 import UniversalImportModal from "@/components/UniversalImportModal";
 
 // GP calculation (4.0 scale) based on linear grading policy:
@@ -355,7 +355,7 @@ export default function AddResultPage() {
         };
       });
 
-      setStudents(mapped);
+      setStudents(sortStudentsByRoll(mapped));
       setLoading(false);
     }).catch(() => setLoading(false));
   };
@@ -754,22 +754,24 @@ export default function AddResultPage() {
     setActiveTab("editor");
   };
 
-  const filteredStudentsList = students.filter(st => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = st.name.toLowerCase().includes(q);
-      const matchRoll = st.roll.toLowerCase().includes(q);
-      if (!matchName && !matchRoll) return false;
-    }
-    if (selectedSession && selectedSession !== "ALL" && st.session && st.session !== selectedSession) {
-      return false;
-    }
-    if (selectedProgType === "ALL") return true;
-    if (selectedProgType === "REGULAR") return st.bsAdmissionType === "REGULAR" || !st.bsAdmissionType;
-    if (selectedProgType === "BRIDGING") return st.bsAdmissionType === "BRIDGING_5TH";
-    if (selectedProgType === "MIGRATION") return st.bsAdmissionType === "MIGRATION";
-    return true;
-  });
+  const filteredStudentsList = sortStudentsByRoll(
+    students.filter(st => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = st.name.toLowerCase().includes(q);
+        const matchRoll = st.roll.toLowerCase().includes(q);
+        if (!matchName && !matchRoll) return false;
+      }
+      if (selectedSession && selectedSession !== "ALL" && st.session && st.session !== selectedSession) {
+        return false;
+      }
+      if (selectedProgType === "ALL") return true;
+      if (selectedProgType === "REGULAR") return st.bsAdmissionType === "REGULAR" || !st.bsAdmissionType;
+      if (selectedProgType === "BRIDGING") return st.bsAdmissionType === "BRIDGING_5TH";
+      if (selectedProgType === "MIGRATION") return st.bsAdmissionType === "MIGRATION";
+      return true;
+    })
+  );
 
   // Filter history lists for Faculty
   const facultyHistoryCourses = allCoursesStatusList.filter((c: any) =>
