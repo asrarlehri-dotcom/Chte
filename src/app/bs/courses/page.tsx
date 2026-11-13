@@ -646,8 +646,8 @@ export default function SyllabusCourseManagementPage() {
   const handleDeleteAllCourses = async () => {
     setDeletingAll(true);
     try {
-      const url = selectedProgram 
-        ? `/api/courses?programId=${selectedProgram}&all=true`
+      const url = filterProg 
+        ? `/api/courses?programId=${filterProg}&all=true`
         : `/api/courses?all=true`;
       const res = await fetch(url, { method: "DELETE" });
       const data = await res.json();

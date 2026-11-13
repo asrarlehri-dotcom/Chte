@@ -87,11 +87,11 @@ export async function POST(req: NextRequest) {
 
     const userName = session.user?.name || session.user?.email || "Faculty Member";
 
-    // Update all marks records for this course to UNLOCK_REQUESTED in SQLite
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Marks" SET "status" = 'UNLOCK_REQUESTED' WHERE "courseId" = ?`,
-      courseId
-    );
+    // Update all marks records for this course to UNLOCK_REQUESTED
+    await prisma.marks.updateMany({
+      where: { courseId },
+      data: { status: "UNLOCK_REQUESTED" },
+    });
 
     // Create Audit Log
     const course = await prisma.course.findUnique({ where: { id: courseId }, include: { program: true } });
@@ -117,7 +117,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const userRole = (session?.user as any)?.role || "";
-    const isAdmin = ["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(userRole);
+    const isAdmin = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"].includes(userRole);
     if (!session || !isAdmin) {
       return NextResponse.json({ error: "Unauthorized: Admin privileges required" }, { status: 403 });
     }
@@ -133,12 +133,8 @@ export async function PATCH(req: NextRequest) {
       // Unlock all marks records for this course
       await prisma.marks.updateMany({
         where: { courseId },
-        data: { isLocked: false }
+        data: { isLocked: false, status: "UNLOCKED_FOR_EDIT" }
       });
-      await prisma.$executeRawUnsafe(
-        `UPDATE "Marks" SET "status" = 'UNLOCKED_FOR_EDIT' WHERE "courseId" = ?`,
-        courseId
-      );
 
       const course = await prisma.course.findUnique({ where: { id: courseId } });
       await prisma.auditLog.create({
@@ -155,10 +151,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, message: "Result Unlocked! Faculty can now edit marks." });
     } else {
       // Reject unlock request - keep locked
-      await prisma.$executeRawUnsafe(
-        `UPDATE "Marks" SET "status" = 'APPROVED' WHERE "courseId" = ?`,
-        courseId
-      );
+      await prisma.marks.updateMany({
+        where: { courseId },
+        data: { status: "APPROVED" }
+      });
 
       const course = await prisma.course.findUnique({ where: { id: courseId } });
       await prisma.auditLog.create({

@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       const students = enrollments.map(e => ({
         id: e.student.id,
         rollNumber: e.student.rollNumber,
-        name: e.student.user.name,
+        name: e.student.user?.name || "Student",
       })).sort((a, b) => compareRollNumbers(a.rollNumber, b.rollNumber));
 
       // 2. Fetch existing attendance records
@@ -94,7 +94,7 @@ export async function GET(request: Request) {
       const students = list.map(s => ({
         id: s.id,
         rollNumber: s.rollNumber,
-        name: s.user.name
+        name: s.user?.name || "Student"
       })).sort((a, b) => compareRollNumbers(a.rollNumber, b.rollNumber));
 
       // 2. Fetch existing attendance records
