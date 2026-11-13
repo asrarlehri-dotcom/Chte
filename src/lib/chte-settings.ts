@@ -30,6 +30,7 @@ export type ChteHomepageSettings = {
   tickerBadge: string;
   tickerText: string;
   tickerShow: boolean;
+  govtLogo: string; // Official Government of Balochistan / CHTE Seal
   featuredProfiles: ChteFeaturedProfile[];
 };
 
@@ -39,6 +40,7 @@ export const DEFAULT_CHTE_SETTINGS: ChteHomepageSettings = {
   heroBgGradientStart: "#eef8f3",
   heroBgGradientEnd: "#eff8f3",
   primaryAccentColor: "#0c5938",
+  govtLogo: "/balochistan-seal.png",
 
   // Text & Titles
   topMottoText: "Education | Development | Prosperity",

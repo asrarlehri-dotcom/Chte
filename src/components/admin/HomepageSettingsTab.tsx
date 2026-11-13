@@ -25,7 +25,8 @@ import {
   RotateCcw,
   Layers,
   Sparkle,
-  ShieldAlert
+  ShieldAlert,
+  Landmark
 } from "lucide-react";
 import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS } from "@/lib/chte-settings";
 
@@ -45,6 +46,7 @@ export default function HomepageSettingsTab({
   const [msg, setMsg] = useState<{ type: "success" | "error" | ""; text: string }>({ type: "", text: "" });
 
   // Upload States
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingScenery, setUploadingScenery] = useState(false);
   const [uploadingProfileId, setUploadingProfileId] = useState<string | null>(null);
 
@@ -55,6 +57,9 @@ export default function HomepageSettingsTab({
     heroBgGradientStart: DEFAULT_CHTE_SETTINGS.heroBgGradientStart,
     heroBgGradientEnd: DEFAULT_CHTE_SETTINGS.heroBgGradientEnd,
     primaryAccentColor: DEFAULT_CHTE_SETTINGS.primaryAccentColor,
+
+    // Official Government Emblem / CHTE Seal
+    govtLogo: DEFAULT_CHTE_SETTINGS.govtLogo || "/balochistan-seal.png",
 
     // Text & Titles
     topMottoText: DEFAULT_CHTE_SETTINGS.topMottoText,
@@ -117,6 +122,7 @@ export default function HomepageSettingsTab({
           heroBgGradientStart: data.heroBgGradientStart || DEFAULT_CHTE_SETTINGS.heroBgGradientStart,
           heroBgGradientEnd: data.heroBgGradientEnd || DEFAULT_CHTE_SETTINGS.heroBgGradientEnd,
           primaryAccentColor: data.primaryAccentColor || DEFAULT_CHTE_SETTINGS.primaryAccentColor,
+          govtLogo: data.govtLogo || DEFAULT_CHTE_SETTINGS.govtLogo || "/balochistan-seal.png",
 
           topMottoText: data.topMottoText || DEFAULT_CHTE_SETTINGS.topMottoText,
           heroBadge: data.heroBadge || DEFAULT_CHTE_SETTINGS.heroBadge,
@@ -308,6 +314,86 @@ export default function HomepageSettingsTab({
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
+          {/* ── SECTION 0: OFFICIAL GOVERNMENT OF BALOCHISTAN LOGO / CHTE SEAL ── */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Landmark className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Official Government of Balochistan Emblem / CHTE Seal</h3>
+                  <p className="text-xs text-slate-500">
+                    Upload official government emblem. This logo displays at the top of the CHTE Central Portal and in the apex Sidebar.
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload Button */}
+              <label className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0c5938] hover:bg-[#09472d] text-white font-bold text-xs shadow-md transition-all hover:scale-105 flex-shrink-0">
+                {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                <span>{uploadingLogo ? "Uploading..." : "Direct Upload Government Logo"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingLogo}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      setUploadingLogo(true);
+                      const url = await uploadFile(file);
+                      setFormData((prev) => ({ ...prev, govtLogo: url }));
+                      setMsg({ type: "success", text: `Successfully uploaded ${file.name} for official Government Emblem!` });
+                    } catch (err: any) {
+                      setMsg({ type: "error", text: err.message || "Failed to upload logo." });
+                    } finally {
+                      setUploadingLogo(false);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 p-1 flex-shrink-0 shadow-xs flex items-center justify-center overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={formData.govtLogo || "/balochistan-seal.png"}
+                    alt="Govt Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Government Emblem Preview</span>
+                  <span className="text-[10px] text-slate-500">
+                    Used for CHTE Central Header, Apex Sidebar, and official documents.
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <input
+                  type="text"
+                  placeholder="Paste URL or upload image"
+                  value={formData.govtLogo || ""}
+                  onChange={(e) => setFormData({ ...formData, govtLogo: e.target.value })}
+                  className="w-full sm:w-72 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800"
+                />
+                {formData.govtLogo && formData.govtLogo !== "/balochistan-seal.png" && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, govtLogo: "/balochistan-seal.png" })}
+                    className="px-2.5 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 font-bold"
+                    title="Reset to default Balochistan Seal"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* ── SECTION 1: CHTE HOMEPAGE BACKGROUND & THEME COLORS ── */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">

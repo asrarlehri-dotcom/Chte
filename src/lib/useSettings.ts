@@ -29,8 +29,12 @@ export function useSettings() {
   const [settings, setSettings] = useState<SystemConfig>({});
   const [loading, setLoading] = useState(true);
 
+  const sessionUser = session?.user as any;
+  const userCollegeId = sessionUser?.collegeId;
+
   useEffect(() => {
-    fetch("/api/settings")
+    const url = userCollegeId ? `/api/settings?collegeId=${userCollegeId}` : "/api/settings";
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if (data && typeof data === "object") {
@@ -39,20 +43,26 @@ export function useSettings() {
       })
       .catch((err) => console.error("Error loading system settings:", err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [userCollegeId]);
 
-  const sessionUser = session?.user as any;
+  const resolvedCollegeName = userCollegeId
+    ? (settings.COLLEGE_NAME || sessionUser?.collegeName || "Govt. Degree College")
+    : (settings.COLLEGE_NAME || sessionUser?.collegeName || "Government Post Graduate College Quetta");
+
+  const resolvedCollegeLogo = userCollegeId
+    ? (settings.COLLEGE_LOGO || sessionUser?.collegeLogo || "")
+    : (settings.COLLEGE_LOGO || sessionUser?.collegeLogo || "");
 
   return {
     settings,
     loading,
-    collegeName: sessionUser?.collegeName || settings.COLLEGE_NAME || "Government Post Graduate College Quetta",
-    collegeLogo: sessionUser?.collegeLogo || settings.COLLEGE_LOGO || "",
-    collegeBackground: settings.COLLEGE_BACKGROUND || settings.COLLEGE_WATERMARK || sessionUser?.collegeLogo || settings.COLLEGE_LOGO || "",
-    collegeWatermark: settings.COLLEGE_WATERMARK || settings.COLLEGE_BACKGROUND || sessionUser?.collegeLogo || settings.COLLEGE_LOGO || "",
+    collegeName: resolvedCollegeName,
+    collegeLogo: resolvedCollegeLogo,
+    collegeBackground: settings.COLLEGE_BACKGROUND || settings.COLLEGE_WATERMARK || resolvedCollegeLogo,
+    collegeWatermark: settings.COLLEGE_WATERMARK || settings.COLLEGE_BACKGROUND || resolvedCollegeLogo,
     collegeTagline: settings.COLLEGE_TAGLINE || "College of Higher Education & Research",
-    collegeAddress: settings.COLLEGE_ADDRESS || "Quetta, Balochistan, Pakistan",
+    collegeAddress: settings.COLLEGE_ADDRESS || (userCollegeId ? "Balochistan, Pakistan" : "Quetta, Balochistan, Pakistan"),
     collegeCode: sessionUser?.collegeCode || settings.COLLEGE_CODE || "",
-    collegeId: sessionUser?.collegeId || null,
+    collegeId: userCollegeId || null,
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
@@ -49,6 +50,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { can } = usePermissions();
   const { collegeName, collegeLogo } = useSettings();
+  const [chteGovtLogo, setChteGovtLogo] = useState<string>("/balochistan-seal.png");
 
   if (!session) return null;
   const sessionUser = session.user as any;
@@ -66,6 +68,17 @@ export function Sidebar() {
   // Central CHTE login vs College-specific campus login
   const isCentral =
     role === "CHTE_ADMIN" || role === "SUPER_ADMIN" || !sessionUser?.collegeId;
+
+  useEffect(() => {
+    if (isCentral) {
+      fetch("/api/chte-settings")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.govtLogo) setChteGovtLogo(data.govtLogo);
+        })
+        .catch(() => {});
+    }
+  }, [isCentral]);
 
   const isVisible = (item: NavItem): boolean => {
     if (role === "SUPER_ADMIN" || role === "CHTE_ADMIN") return true;
@@ -287,12 +300,17 @@ export function Sidebar() {
       {isCentral ? (
         <div className="px-4 py-4 border-b border-slate-800/90 flex items-center gap-3 bg-[#070C1E] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
-          {/* Government Shield / Official Emblem */}
+          {/* Government Official Emblem */}
           <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-indigo-600 p-0.5 shadow-lg shadow-emerald-950/60">
-              <div className="w-full h-full bg-[#090E24] rounded-[10px] flex items-center justify-center">
-                <Landmark className="w-5 h-5 text-emerald-400" />
-              </div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-indigo-600 p-0.5 shadow-lg shadow-emerald-950/60 flex items-center justify-center">
+              <img
+                src={chteGovtLogo || "/balochistan-seal.png"}
+                alt="Government of Balochistan"
+                className="w-9 h-9 object-contain rounded-[9px] bg-[#090E24] p-0.5"
+                onError={(e) => {
+                  e.currentTarget.src = "/balochistan-seal.png";
+                }}
+              />
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-[#090E24] rounded-full" />
           </div>
@@ -320,12 +338,19 @@ export function Sidebar() {
               src={collegeLogo}
               alt="Logo"
               className="w-10 h-10 object-contain rounded-xl bg-slate-800/60 p-1 border border-slate-700/50"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                const fallback = e.currentTarget.parentElement?.querySelector(".sidebar-fallback-badge") as HTMLElement;
+                if (fallback) fallback.style.display = "flex";
+              }}
             />
-          ) : (
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white font-extrabold text-xs flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-indigo-400/30 flex-shrink-0">
-              {initials}
-            </div>
-          )}
+          ) : null}
+          <div
+            className="sidebar-fallback-badge w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white font-extrabold text-xs flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-indigo-400/30 flex-shrink-0"
+            style={{ display: collegeLogo ? "none" : "flex" }}
+          >
+            {initials}
+          </div>
           <div className="min-w-0 flex-1">
             <div className="text-[11px] font-extrabold text-white tracking-wider leading-snug uppercase truncate">
               {collegeName || "Govt. Degree College"}

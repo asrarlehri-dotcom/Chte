@@ -173,8 +173,11 @@ export async function GET(
       heroSubtitle: (customPortal as any)?.heroSubtitle || college.tagline || defaultPortalSettings.heroSubtitle,
     };
 
+    const effectiveLogo = college.logoUrl || (customPortal as any)?.logoUrl || null;
+
     return NextResponse.json({
       ...college,
+      logoUrl: effectiveLogo,
       portalSettings
     });
   } catch (error) {

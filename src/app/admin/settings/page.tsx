@@ -468,7 +468,8 @@ export default function UnifiedSettingsPage() {
   const [updatingSettings, setUpdatingSettings] = useState(false);
 
   const fetchSettings = async () => {
-    const res = await fetch("/api/settings");
+    const userCollegeId = (session?.user as any)?.collegeId;
+    const res = await fetch(userCollegeId ? `/api/settings?collegeId=${userCollegeId}` : "/api/settings");
     if (res.ok) {
       const data = await res.json();
       setBankAccount(data.CHALLAN_BANK_ACCOUNT || "");
@@ -478,13 +479,13 @@ export default function UnifiedSettingsPage() {
       setSequenceStart(data.CHALLAN_SEQUENCE_CURRENT || "");
       setRollPattern(data.ROLL_NUMBER_PATTERN || "");
       setRollSequence(data.ROLL_SEQUENCE_CURRENT || "");
-      setDefaultFacultyPassword(data.DEFAULT_FACULTY_PASSWORD || "gpgcq123");
-      setFacultyEmailDomain(data.FACULTY_EMAIL_DOMAIN || "@gpgcquetta.edu.pk");
-      setCollegeName(data.COLLEGE_NAME || "Government Post Graduate College Quetta");
-      setCollegeLogo(data.COLLEGE_LOGO || "");
+      setDefaultFacultyPassword(data.DEFAULT_FACULTY_PASSWORD || "college123");
+      setFacultyEmailDomain(data.FACULTY_EMAIL_DOMAIN || "@college.edu.pk");
+      setCollegeName(data.COLLEGE_NAME || (session?.user as any)?.collegeName || "Govt. Degree College");
+      setCollegeLogo(data.COLLEGE_LOGO || (session?.user as any)?.collegeLogo || "");
       setCollegeBackground(data.COLLEGE_BACKGROUND || data.COLLEGE_WATERMARK || "");
       setCollegeTagline(data.COLLEGE_TAGLINE || "College of Higher Education & Research");
-      setCollegeAddress(data.COLLEGE_ADDRESS || "Quetta, Balochistan, Pakistan");
+      setCollegeAddress(data.COLLEGE_ADDRESS || "Balochistan, Pakistan");
       if (data.ACADEMIC_SESSIONS) {
         const { filterValidSessions } = await import("@/lib/sessionHelper");
         setAcademicSessions(filterValidSessions(data.ACADEMIC_SESSIONS));
@@ -530,6 +531,7 @@ export default function UnifiedSettingsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        collegeId: (session?.user as any)?.collegeId || undefined,
         CHALLAN_BANK_ACCOUNT: bankAccount,
         CHALLAN_BANK_NAME: bankName,
         CHALLAN_BRANCH_CODE: branchCode,
@@ -823,7 +825,7 @@ export default function UnifiedSettingsPage() {
     fetchSettings();
     fetchFees();
     fetchPermissions();
-  }, []);
+  }, [(session?.user as any)?.collegeId]);
 
   const [focusedHomepageSec, setFocusedHomepageSec] = useState<string | undefined>();
   const [activeAcademicSub, setActiveAcademicSub] = useState<string>("depts-list");
@@ -1628,9 +1630,23 @@ export default function UnifiedSettingsPage() {
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                try {
+                                  const fd = new FormData();
+                                  fd.append("file", file);
+                                  const res = await fetch("/api/upload", { method: "POST", body: fd });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    if (data.url) {
+                                      setCollegeLogo(data.url);
+                                      return;
+                                    }
+                                  }
+                                } catch (err) {
+                                  console.warn("Upload api failed, falling back to base64", err);
+                                }
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
                                   setCollegeLogo(reader.result as string);
@@ -1671,9 +1687,23 @@ export default function UnifiedSettingsPage() {
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                try {
+                                  const fd = new FormData();
+                                  fd.append("file", file);
+                                  const res = await fetch("/api/upload", { method: "POST", body: fd });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    if (data.url) {
+                                      setCollegeBackground(data.url);
+                                      return;
+                                    }
+                                  }
+                                } catch (err) {
+                                  console.warn("Upload api failed, falling back to base64", err);
+                                }
                                 const reader = new FileReader();
                                 reader.onloadend = () => {
                                   setCollegeBackground(reader.result as string);

@@ -3,24 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const DEFAULT_SETTINGS = [
-  { key: "COLLEGE_NAME", value: "Government Post Graduate College Quetta" },
-  { key: "COLLEGE_LOGO", value: "" },
-  { key: "COLLEGE_TAGLINE", value: "College of Higher Education & Research" },
-  { key: "COLLEGE_ADDRESS", value: "Quetta, Balochistan, Pakistan" },
-  { key: "CHALLAN_BANK_ACCOUNT", value: "08730001324203" },
-  { key: "CHALLAN_BANK_NAME", value: "Habib Bank Limited (HBL)" },
-  { key: "CHALLAN_BRANCH_CODE", value: "0873" },
-  { key: "CHALLAN_ACCOUNT_TITLE", value: "Principal Govt College" },
-  { key: "CHALLAN_SEQUENCE_START", value: "100000" },
-  { key: "CHALLAN_SEQUENCE_CURRENT", value: "135622565" },
-  { key: "ROLL_NUMBER_PATTERN", value: "[YEAR]-[CODE]-[SEQ]" },
-  { key: "ROLL_SEQUENCE_CURRENT", value: "1" },
-  { key: "ACADEMIC_SESSIONS", value: "2024-2028, 2025-2029, 2026-2030, 2023-2027, 2022-2026, 2024-2026, 2025-2027, 2026-2028, 2023-2025, 2022-2024" },
-  { key: "DEFAULT_FACULTY_PASSWORD", value: "gpgcq123" },
-  { key: "FACULTY_EMAIL_DOMAIN", value: "@gpgcquetta.edu.pk" },
-];
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -59,13 +41,42 @@ export async function GET(request: Request) {
       FACULTY_EMAIL_DOMAIN: college ? `@${college.code.toLowerCase()}.edu.pk` : "@gpgcquetta.edu.pk",
     };
 
-    // Load any custom college-specific SystemSettings
-    const settings = await prisma.systemSetting.findMany({
-      where: college?.id ? { collegeId: college.id } : { collegeId: null },
+    // 1. Load global settings (collegeId: null)
+    const globalSettings = await prisma.systemSetting.findMany({
+      where: { collegeId: null },
     });
-
-    for (const item of settings) {
+    for (const item of globalSettings) {
+      // Identity and bank fields of a specific college must NOT be overwritten by generic global settings
+      if (college && [
+        "COLLEGE_NAME",
+        "COLLEGE_LOGO",
+        "COLLEGE_TAGLINE",
+        "COLLEGE_ADDRESS",
+        "COLLEGE_CODE",
+        "CHALLAN_BANK_ACCOUNT",
+        "CHALLAN_BANK_NAME",
+        "CHALLAN_BRANCH_CODE",
+        "CHALLAN_ACCOUNT_TITLE"
+      ].includes(item.key)) {
+        continue;
+      }
       config[item.key] = item.value;
+    }
+
+    // 2. Load college-specific settings and overlay them
+    if (college?.id) {
+      const collegeSettings = await prisma.systemSetting.findMany({
+        where: { collegeId: college.id },
+      });
+      for (const item of collegeSettings) {
+        config[item.key] = item.value;
+      }
+      // Guarantee institutional identity fields always match the College record if present
+      if (college.name) config.COLLEGE_NAME = college.name;
+      if (college.logoUrl) config.COLLEGE_LOGO = college.logoUrl;
+      if (college.tagline) config.COLLEGE_TAGLINE = college.tagline;
+      if (college.address) config.COLLEGE_ADDRESS = college.address;
+      if (college.code) config.COLLEGE_CODE = college.code;
     }
 
     return NextResponse.json(config);
@@ -86,21 +97,34 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const targetCollegeId = body.collegeId || userCollegeId;
+    let targetCollegeId = body.collegeId || userCollegeId;
+    if (!targetCollegeId) {
+      const defaultCollege = await prisma.college.findFirst({ where: { isActive: true } });
+      targetCollegeId = defaultCollege?.id || null;
+    }
 
-    // If updating college base info directly
-    if (targetCollegeId && (body.COLLEGE_NAME || body.COLLEGE_LOGO || body.COLLEGE_TAGLINE || body.CHALLAN_BANK_ACCOUNT)) {
+    // Always update target College record directly if identity/banking fields are provided
+    if (targetCollegeId && (
+      body.COLLEGE_NAME !== undefined ||
+      body.COLLEGE_LOGO !== undefined ||
+      body.COLLEGE_TAGLINE !== undefined ||
+      body.COLLEGE_ADDRESS !== undefined ||
+      body.CHALLAN_BANK_ACCOUNT !== undefined ||
+      body.CHALLAN_BANK_NAME !== undefined ||
+      body.CHALLAN_BRANCH_CODE !== undefined ||
+      body.CHALLAN_ACCOUNT_TITLE !== undefined
+    )) {
       await prisma.college.update({
         where: { id: targetCollegeId },
         data: {
-          ...(body.COLLEGE_NAME ? { name: body.COLLEGE_NAME } : {}),
-          ...(body.COLLEGE_LOGO !== undefined ? { logoUrl: body.COLLEGE_LOGO } : {}),
-          ...(body.COLLEGE_TAGLINE !== undefined ? { tagline: body.COLLEGE_TAGLINE } : {}),
-          ...(body.COLLEGE_ADDRESS !== undefined ? { address: body.COLLEGE_ADDRESS } : {}),
-          ...(body.CHALLAN_BANK_ACCOUNT ? { bankAccount: body.CHALLAN_BANK_ACCOUNT } : {}),
-          ...(body.CHALLAN_BANK_NAME ? { bankName: body.CHALLAN_BANK_NAME } : {}),
-          ...(body.CHALLAN_BRANCH_CODE ? { branchCode: body.CHALLAN_BRANCH_CODE } : {}),
-          ...(body.CHALLAN_ACCOUNT_TITLE ? { accountTitle: body.CHALLAN_ACCOUNT_TITLE } : {}),
+          ...(body.COLLEGE_NAME !== undefined ? { name: String(body.COLLEGE_NAME).trim() } : {}),
+          ...(body.COLLEGE_LOGO !== undefined ? { logoUrl: String(body.COLLEGE_LOGO).trim() } : {}),
+          ...(body.COLLEGE_TAGLINE !== undefined ? { tagline: String(body.COLLEGE_TAGLINE).trim() } : {}),
+          ...(body.COLLEGE_ADDRESS !== undefined ? { address: String(body.COLLEGE_ADDRESS).trim() } : {}),
+          ...(body.CHALLAN_BANK_ACCOUNT !== undefined ? { bankAccount: String(body.CHALLAN_BANK_ACCOUNT).trim() } : {}),
+          ...(body.CHALLAN_BANK_NAME !== undefined ? { bankName: String(body.CHALLAN_BANK_NAME).trim() } : {}),
+          ...(body.CHALLAN_BRANCH_CODE !== undefined ? { branchCode: String(body.CHALLAN_BRANCH_CODE).trim() } : {}),
+          ...(body.CHALLAN_ACCOUNT_TITLE !== undefined ? { accountTitle: String(body.CHALLAN_ACCOUNT_TITLE).trim() } : {}),
         }
       });
     }
