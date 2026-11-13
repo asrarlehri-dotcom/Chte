@@ -944,4 +944,252 @@ export function sortStudentsByRoll<T extends { rollNumber?: string | null; roll?
   });
 }
 
+// -------------------------------------------------------------
+// Auto-Distribute Total Marks into Breakdown Components
+// -------------------------------------------------------------
+export interface DistributeOptions {
+  isPracticalCourse?: boolean;
+  examScheme?: "MID_FINAL" | "TERMINAL";
+  courseTotalMarks?: number;
+}
+
+export function distributeTotalMarks(
+  total: number,
+  options?: DistributeOptions
+): { assignment: number; quiz: number; practical: number; mid: number; final: number } {
+  const maxTotal = options?.courseTotalMarks || 100;
+  const clampedTotal = Math.max(0, Math.min(total, maxTotal));
+
+  if (clampedTotal === 0) {
+    return { assignment: 0, quiz: 0, practical: 0, mid: 0, final: 0 };
+  }
+
+  const isPractical = Boolean(options?.isPracticalCourse);
+  const isTerminal = options?.examScheme === "TERMINAL";
+
+  if (isTerminal) {
+    if (isPractical) {
+      const sessionalCap = 5;
+      const practicalCap = 25;
+      const finalCap = 70;
+      const ratio = clampedTotal / maxTotal;
+
+      let practical = Math.round(practicalCap * ratio + (Math.random() * 2 - 1));
+      practical = Math.max(0, Math.min(practical, practicalCap));
+
+      let sessional = Math.round(sessionalCap * ratio + (Math.random() * 1 - 0.5));
+      sessional = Math.max(0, Math.min(sessional, sessionalCap));
+
+      let quiz = Math.round(sessional / 2);
+      let assignment = sessional - quiz;
+
+      let final = clampedTotal - (practical + quiz + assignment);
+      if (final > finalCap) {
+        const excess = final - finalCap;
+        final = finalCap;
+        practical = Math.min(practicalCap, practical + excess);
+      } else if (final < 0) {
+        practical = Math.max(0, practical + final);
+        final = 0;
+      }
+      return { assignment, quiz, practical, mid: 0, final };
+    } else {
+      const sessionalCap = 30;
+      const finalCap = 70;
+      const ratio = clampedTotal / maxTotal;
+
+      let sessional = Math.round(sessionalCap * ratio + (Math.random() * 4 - 2));
+      sessional = Math.max(0, Math.min(sessional, sessionalCap));
+
+      let quiz = Math.round(sessional / 2 + (Math.random() * 2 - 1));
+      quiz = Math.max(0, Math.min(quiz, sessional));
+      let assignment = sessional - quiz;
+
+      let final = clampedTotal - (quiz + assignment);
+      if (final > finalCap) {
+        const excess = final - finalCap;
+        final = finalCap;
+        const addSessional = Math.min(sessionalCap - (quiz + assignment), excess);
+        quiz += Math.round(addSessional / 2);
+        assignment = clampedTotal - final - quiz;
+      } else if (final < 0) {
+        quiz = Math.max(0, quiz + final);
+        final = 0;
+      }
+      return { assignment, quiz, practical: 0, mid: 0, final };
+    }
+  }
+
+  // ── Standard Mid + Final Scheme ──
+  if (isPractical) {
+    const sessionalCap = 15;
+    const practicalCap = 25;
+    const midCap = 20;
+    const finalCap = 40;
+    const ratio = clampedTotal / maxTotal;
+
+    let sessional = Math.round(sessionalCap * ratio + (Math.random() * 2 - 1));
+    sessional = Math.max(0, Math.min(sessional, sessionalCap));
+    let quiz = Math.round(sessional / 2);
+    let assignment = sessional - quiz;
+
+    let practical = Math.round(practicalCap * ratio + (Math.random() * 2 - 1));
+    practical = Math.max(0, Math.min(practical, practicalCap));
+
+    let mid = Math.round(midCap * ratio + (Math.random() * 2 - 1));
+    mid = Math.max(0, Math.min(mid, midCap));
+
+    let final = clampedTotal - (assignment + quiz + practical + mid);
+    if (final > finalCap) {
+      const excess = final - finalCap;
+      final = finalCap;
+      mid = Math.min(midCap, mid + Math.round(excess / 2));
+      practical = Math.min(practicalCap, clampedTotal - (assignment + quiz + mid + final));
+    } else if (final < 0) {
+      mid = Math.max(0, mid + final);
+      final = clampedTotal - (assignment + quiz + practical + mid);
+    }
+    return { assignment, quiz, practical, mid, final: Math.max(0, final) };
+  } else {
+    const sessionalCap = 30;
+    const midCap = 30;
+    const finalCap = 40;
+    const ratio = clampedTotal / maxTotal;
+
+    let sessional = Math.round(sessionalCap * ratio + (Math.random() * 4 - 2));
+    sessional = Math.max(0, Math.min(sessional, sessionalCap));
+    let quiz = Math.round(sessional / 2 + (Math.random() * 2 - 1));
+    quiz = Math.max(0, Math.min(quiz, sessional));
+    let assignment = sessional - quiz;
+
+    let mid = Math.round(midCap * ratio + (Math.random() * 4 - 2));
+    mid = Math.max(0, Math.min(mid, midCap));
+
+    let final = clampedTotal - (assignment + quiz + mid);
+    if (final > finalCap) {
+      const excess = final - finalCap;
+      final = finalCap;
+      mid = Math.min(midCap, mid + Math.round(excess / 2));
+      const rem = clampedTotal - (final + mid);
+      quiz = Math.min(sessionalCap, Math.round(rem / 2));
+      assignment = Math.max(0, rem - quiz);
+    } else if (final < 0) {
+      mid = Math.max(0, mid + final);
+      final = clampedTotal - (assignment + quiz + mid);
+    }
+
+    // Exact reconciliation so the sum strictly matches total
+    const currentSum = assignment + quiz + mid + final;
+    const diff = clampedTotal - currentSum;
+    if (diff !== 0) {
+      if (diff > 0) {
+        if (final + diff <= finalCap) final += diff;
+        else if (mid + diff <= midCap) mid += diff;
+        else quiz += diff;
+      } else {
+        if (final + diff >= 0) final += diff;
+        else if (mid + diff >= 0) mid += diff;
+        else quiz = Math.max(0, quiz + diff);
+      }
+    }
+
+    return { assignment, quiz, practical: 0, mid, final };
+  }
+}
+
+// -------------------------------------------------------------
+// Excel / TSV Bulk Paste Marks Parser
+// -------------------------------------------------------------
+export interface ParsedStudentMark {
+  studentId: string;
+  roll: string;
+  name?: string;
+  marks: number | "A";
+  assignment?: number;
+  quiz?: number;
+  practical?: number;
+  mid?: number;
+  final?: number;
+}
+
+export function parsePastedMarksText(
+  text: string,
+  currentStudents: Array<{ id: string; roll?: string; rollNumber?: string; name?: string }>
+): ParsedStudentMark[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const isMultiColumn = lines.some((l) => l.includes("\t") || l.includes(","));
+
+  if (isMultiColumn) {
+    const results: ParsedStudentMark[] = [];
+    for (const line of lines) {
+      const parts = line.split(/[\t,]+/).map((p) => p.trim());
+      if (parts.length >= 2) {
+        const rollCandidate = parts[0];
+        const markCandidate = parts[1];
+
+        // Match student by roll number
+        const matched = currentStudents.find((s) => {
+          const sRoll = (s.roll || s.rollNumber || "").toLowerCase().trim();
+          const cand = rollCandidate.toLowerCase().trim();
+          if (!sRoll || !cand) return false;
+          if (sRoll === cand) return true;
+          if (sRoll.endsWith(cand) || cand.endsWith(sRoll)) return true;
+          const sDigits = sRoll.replace(/[^0-9]/g, "");
+          const cDigits = cand.replace(/[^0-9]/g, "");
+          return sDigits.length > 0 && sDigits === cDigits;
+        });
+
+        const isAbsent = ["A", "ABSENT", "ABS", "AB"].includes(markCandidate.toUpperCase());
+        const num = parseFloat(markCandidate);
+
+        if (matched) {
+          if (parts.length >= 5) {
+            results.push({
+              studentId: matched.id,
+              roll: matched.roll || matched.rollNumber || "",
+              name: matched.name,
+              marks: isAbsent ? "A" : isNaN(num) ? 0 : num,
+              assignment: parseFloat(parts[1]) || 0,
+              quiz: parseFloat(parts[2]) || 0,
+              mid: parseFloat(parts[3]) || 0,
+              final: parseFloat(parts[4]) || 0,
+            });
+          } else {
+            results.push({
+              studentId: matched.id,
+              roll: matched.roll || matched.rollNumber || "",
+              name: matched.name,
+              marks: isAbsent ? "A" : isNaN(num) ? 0 : num,
+            });
+          }
+        }
+      }
+    }
+    if (results.length > 0) return results;
+  }
+
+  // Single column pasted: sequential mapping to currentStudents in order
+  const results: ParsedStudentMark[] = [];
+  lines.forEach((line, idx) => {
+    if (idx < currentStudents.length) {
+      const st = currentStudents[idx];
+      const isAbsent = ["A", "ABSENT", "ABS", "AB"].includes(line.toUpperCase());
+      const num = parseFloat(line);
+      results.push({
+        studentId: st.id,
+        roll: st.roll || st.rollNumber || "",
+        name: st.name,
+        marks: isAbsent ? "A" : isNaN(num) ? 0 : num,
+      });
+    }
+  });
+
+  return results;
+}
+
 

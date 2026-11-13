@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
-import { parseGenericCSV, validateMarksBatch, getMarksSampleCSV, sortStudentsByRoll } from "@/lib/domainParsers";
+import { parseGenericCSV, validateMarksBatch, getMarksSampleCSV, sortStudentsByRoll, distributeTotalMarks, parsePastedMarksText } from "@/lib/domainParsers";
 import UniversalImportModal from "@/components/UniversalImportModal";
 
 // GP calculation (4.0 scale) based on linear grading policy:
@@ -647,6 +647,27 @@ export default function AddResultPage() {
       const isStudentAbsent = s.attendance === "ABSENT";
       const isStudentDropout = Boolean(s.isDropout);
       const studentStatus = isStudentDropout ? "DROPOUT" : isStudentAbsent ? "ABSENT" : targetStatus;
+
+      let assignVal = s.assignment || 0;
+      let quizVal = s.quiz || 0;
+      let pracVal = isPracticalCourse ? (s.practical || 0) : 0;
+      let midVal = examScheme === "TERMINAL" ? 0 : (s.mid || 0);
+      let finalVal = s.final || 0;
+
+      // Auto-distribute if entered in Total mode or only Total is present
+      if (!isStudentAbsent && !isStudentDropout && (assignVal + quizVal + pracVal + midVal + finalVal === 0) && (s.totalOnly || 0) > 0) {
+        const distributed = distributeTotalMarks(s.totalOnly, {
+          isPracticalCourse,
+          examScheme,
+          courseTotalMarks,
+        });
+        assignVal = distributed.assignment;
+        quizVal = distributed.quiz;
+        pracVal = distributed.practical;
+        midVal = distributed.mid;
+        finalVal = distributed.final;
+      }
+
       try {
         const res = await fetch("/api/marks", {
           method: "POST",
@@ -654,11 +675,11 @@ export default function AddResultPage() {
           body: JSON.stringify({
             studentId: s.id,
             courseId: selectedCourse,
-            assignmentMarks: (isStudentAbsent || isStudentDropout) ? 0 : s.assignment,
-            quizMarks: (isStudentAbsent || isStudentDropout) ? 0 : s.quiz,
-            practicalMarks: (isStudentAbsent || isStudentDropout) ? 0 : (isPracticalCourse ? s.practical : 0),
-            midtermMarks: (isStudentAbsent || isStudentDropout) ? 0 : s.mid,
-            finalMarks: (isStudentAbsent || isStudentDropout) ? 0 : s.final,
+            assignmentMarks: (isStudentAbsent || isStudentDropout) ? 0 : assignVal,
+            quizMarks: (isStudentAbsent || isStudentDropout) ? 0 : quizVal,
+            practicalMarks: (isStudentAbsent || isStudentDropout) ? 0 : pracVal,
+            midtermMarks: (isStudentAbsent || isStudentDropout) ? 0 : midVal,
+            finalMarks: (isStudentAbsent || isStudentDropout) ? 0 : finalVal,
             totalMarks: courseTotalMarks,
             status: studentStatus,
             isLocked: lockVal,

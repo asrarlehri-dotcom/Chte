@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { sortStudentsByRoll } from "@/lib/domainParsers";
+import { sortStudentsByRoll, distributeTotalMarks, parsePastedMarksText } from "@/lib/domainParsers";
 
 export default function ExamsResultsPage() {
   const [activeTab, setActiveTab] = useState("paper_attendance");
@@ -769,6 +769,12 @@ function MarksEntryTable({
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [submittingUnlockReq, setSubmittingUnlockReq] = useState(false);
 
+  // Bulk Paste & Auto-Distribute States
+  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
+  const [pastedMarksInput, setPastedMarksInput] = useState("");
+  const [pasteTargetCol, setPasteTargetCol] = useState<"total" | "final" | "mid" | "assignment" | "quiz">("total");
+  const [autoDistributeOnPaste, setAutoDistributeOnPaste] = useState(true);
+
   const userRole = (session?.user as any)?.role || "";
   const isAdmin = ["SUPER_ADMIN", "ADMIN", "BS_CONTROLLER"].includes(userRole);
   const isFacultyLocked = isLocked && !isAdmin && resultStatus !== "UNLOCKED_FOR_EDIT";
@@ -1087,6 +1093,136 @@ function MarksEntryTable({
     setStudents(students.map(s => s.id === id ? { ...s, [field]: numValue } : s));
   };
 
+  const handleDistributeStudent = (studentId: string, forceTotal?: number) => {
+    if (isFacultyLocked) return;
+    setStudents(prev => prev.map(s => {
+      if (s.id !== studentId || s.attendance === "ABSENT") return s;
+      const currentTotal = forceTotal !== undefined ? forceTotal : (s.totalOnly > 0 ? s.totalOnly : (getComputed(s) > 0 ? getComputed(s) : courseTotalMarks));
+      const dist = distributeTotalMarks(currentTotal, {
+        isPracticalCourse,
+        examScheme,
+        courseTotalMarks,
+      });
+      return {
+        ...s,
+        assignment: dist.assignment,
+        quiz: dist.quiz,
+        practical: dist.practical,
+        mid: dist.mid,
+        final: dist.final,
+        totalOnly: currentTotal,
+      };
+    }));
+  };
+
+  const handleDistributeAll = (forceTotal?: number) => {
+    if (isFacultyLocked) return;
+    setStudents(prev => prev.map(s => {
+      if (s.attendance === "ABSENT") return s;
+      const currentTotal = forceTotal !== undefined ? forceTotal : (s.totalOnly > 0 ? s.totalOnly : (getComputed(s) > 0 ? getComputed(s) : courseTotalMarks));
+      const dist = distributeTotalMarks(currentTotal, {
+        isPracticalCourse,
+        examScheme,
+        courseTotalMarks,
+      });
+      return {
+        ...s,
+        assignment: dist.assignment,
+        quiz: dist.quiz,
+        practical: dist.practical,
+        mid: dist.mid,
+        final: dist.final,
+        totalOnly: currentTotal,
+      };
+    }));
+    setSuccessMsg("Successfully auto-distributed Total Marks into Quiz, Mid & Final components!");
+  };
+
+  const handleApplyPastedMarks = () => {
+    if (!pastedMarksInput.trim()) {
+      alert("Please paste data from Excel or external spreadsheet first!");
+      return;
+    }
+    const parsed = parsePastedMarksText(pastedMarksInput, students);
+    if (parsed.length === 0) {
+      alert("Could not detect any valid student marks from the pasted text. Please verify formatting.");
+      return;
+    }
+
+    let updatedCount = 0;
+    setStudents(prev => prev.map(s => {
+      const match = parsed.find(p => p.studentId === s.id);
+      if (!match) return s;
+      updatedCount++;
+
+      if (match.marks === "A") {
+        return {
+          ...s,
+          attendance: "ABSENT",
+          assignment: 0,
+          quiz: 0,
+          practical: 0,
+          mid: 0,
+          final: 0,
+          totalOnly: 0,
+        };
+      }
+
+      const markVal = typeof match.marks === "number" ? match.marks : 0;
+
+      // Multi-column breakdown pasted (e.g. Roll, Assign, Quiz, Mid, Final)
+      if (match.assignment !== undefined && match.final !== undefined) {
+        return {
+          ...s,
+          attendance: "PRESENT",
+          assignment: match.assignment,
+          quiz: match.quiz || 0,
+          mid: match.mid || 0,
+          final: match.final || 0,
+          practical: match.practical || 0,
+          totalOnly: markVal > 0 ? markVal : (match.assignment + (match.quiz || 0) + (match.mid || 0) + (match.final || 0)),
+        };
+      }
+
+      if (pasteTargetCol === "total") {
+        if (autoDistributeOnPaste) {
+          const dist = distributeTotalMarks(markVal, {
+            isPracticalCourse,
+            examScheme,
+            courseTotalMarks,
+          });
+          return {
+            ...s,
+            attendance: "PRESENT",
+            assignment: dist.assignment,
+            quiz: dist.quiz,
+            practical: dist.practical,
+            mid: dist.mid,
+            final: dist.final,
+            totalOnly: markVal,
+          };
+        } else {
+          return {
+            ...s,
+            attendance: "PRESENT",
+            totalOnly: markVal,
+          };
+        }
+      }
+
+      // Specific single component
+      return {
+        ...s,
+        attendance: "PRESENT",
+        [pasteTargetCol]: markVal,
+      };
+    }));
+
+    setIsPasteModalOpen(false);
+    setPastedMarksInput("");
+    setSuccessMsg(`Successfully imported & mapped marks for ${updatedCount} students from Excel!`);
+  };
+
   const getComputed = (s: any) =>
     entryType === "detailed"
       ? s.assignment + s.quiz + (isPracticalCourse ? (s.practical || 0) : 0) + (examScheme === "TERMINAL" ? 0 : s.mid) + s.final
@@ -1108,6 +1244,27 @@ function MarksEntryTable({
     for (const s of students) {
       const isStudentAbsent = s.attendance === "ABSENT";
       const studentStatus = isStudentAbsent ? "ABSENT" : targetStatus;
+
+      let assignVal = s.assignment || 0;
+      let quizVal = s.quiz || 0;
+      let pracVal = isPracticalCourse ? (s.practical || 0) : 0;
+      let midVal = examScheme === "TERMINAL" ? 0 : (s.mid || 0);
+      let finalVal = s.final || 0;
+
+      // Auto-distribute if entered in Total mode or only Total is present
+      if (!isStudentAbsent && (assignVal + quizVal + pracVal + midVal + finalVal === 0) && (s.totalOnly || 0) > 0) {
+        const distributed = distributeTotalMarks(s.totalOnly, {
+          isPracticalCourse,
+          examScheme,
+          courseTotalMarks,
+        });
+        assignVal = distributed.assignment;
+        quizVal = distributed.quiz;
+        pracVal = distributed.practical;
+        midVal = distributed.mid;
+        finalVal = distributed.final;
+      }
+
       try {
         const res = await fetch("/api/marks", {
           method: "POST",
@@ -1115,11 +1272,11 @@ function MarksEntryTable({
           body: JSON.stringify({
             studentId: s.id,
             courseId: selectedCourse,
-            assignmentMarks: isStudentAbsent ? 0 : s.assignment,
-            quizMarks: isStudentAbsent ? 0 : s.quiz,
-            practicalMarks: isStudentAbsent ? 0 : (isPracticalCourse ? s.practical : 0),
-            midtermMarks: isStudentAbsent ? 0 : s.mid,
-            finalMarks: isStudentAbsent ? 0 : s.final,
+            assignmentMarks: isStudentAbsent ? 0 : assignVal,
+            quizMarks: isStudentAbsent ? 0 : quizVal,
+            practicalMarks: isStudentAbsent ? 0 : pracVal,
+            midtermMarks: isStudentAbsent ? 0 : midVal,
+            finalMarks: isStudentAbsent ? 0 : finalVal,
             totalMarks: courseTotalMarks,
             status: studentStatus,
             isLocked: lockVal,
@@ -1511,7 +1668,43 @@ function MarksEntryTable({
                 Absent (A): <strong>{students.filter(s => s.attendance === "ABSENT").length}</strong>
               </span>
 
-              <div className="flex items-center gap-1.5 sm:ml-2">
+              <div className="flex items-center gap-1.5 sm:ml-2 flex-wrap">
+                <button
+                  type="button"
+                  disabled={isFacultyLocked}
+                  onClick={() => setIsPasteModalOpen(true)}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  title="Bulk paste marks directly from Excel or Google Sheets"
+                >
+                  <span>📋</span>
+                  <span>Paste from Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isFacultyLocked}
+                  onClick={() => handleDistributeAll()}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5"
+                  title="Auto-distribute all students' Total Marks into Quiz, Mid & Final breakdown"
+                >
+                  <span>🎲</span>
+                  <span>Distribute All</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isFacultyLocked}
+                  onClick={() => {
+                    const ans = confirm(`Set Direct 100 Marks for all present students and auto-distribute?`);
+                    if (ans) handleDistributeAll(100);
+                  }}
+                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1"
+                  title="Quickly fill 100 Marks for all present students"
+                >
+                  <span>🎯</span>
+                  <span>Fill All 100</span>
+                </button>
+
                 <button
                   type="button"
                   disabled={isFacultyLocked}
@@ -1747,7 +1940,28 @@ function MarksEntryTable({
                                   A (ABSENT)
                                 </span>
                               ) : (
-                                <span className="text-blue-700 bg-blue-50 px-3 py-1 rounded-md">{obtained}</span>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md font-mono text-sm">{obtained}</span>
+                                  <button
+                                    type="button"
+                                    disabled={isFacultyLocked || isAbsent}
+                                    onClick={() => {
+                                      const promptVal = prompt(`Enter Direct Total Marks (0 - ${courseTotalMarks}) for ${s.name}:`, String(obtained || 100));
+                                      if (promptVal !== null) {
+                                        const num = parseFloat(promptVal);
+                                        if (!isNaN(num) && num >= 0 && num <= courseTotalMarks) {
+                                          handleDistributeStudent(s.id, num);
+                                        } else {
+                                          alert(`Invalid marks! Please enter a value between 0 and ${courseTotalMarks}.`);
+                                        }
+                                      }
+                                    }}
+                                    className="px-1.5 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded text-[11px] font-bold shadow-sm transition-all"
+                                    title="Set Direct Total Marks and Auto-Distribute into Quiz, Mid & Final"
+                                  >
+                                    🎲 Split
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </>
@@ -1758,13 +1972,26 @@ function MarksEntryTable({
                                 A (ABSENT)
                               </span>
                             ) : (
-                              <input
-                                type="number" min="0" max={courseTotalMarks} step="0.5"
-                                disabled={isFacultyLocked || isAbsent}
-                                className="w-24 px-3 py-1.5 border-2 border-blue-200 rounded focus:border-blue-500 font-bold text-blue-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                value={s.totalOnly || ""}
-                                onChange={e => handleMarkChange(s.id, "totalOnly", e.target.value)}
-                              />
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number" min="0" max={courseTotalMarks} step="0.5"
+                                  disabled={isFacultyLocked || isAbsent}
+                                  placeholder="e.g. 78"
+                                  className="w-24 px-3 py-1.5 border-2 border-blue-200 rounded-lg focus:border-blue-500 font-mono font-bold text-blue-700 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
+                                  value={s.totalOnly || ""}
+                                  onChange={e => handleMarkChange(s.id, "totalOnly", e.target.value)}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={isFacultyLocked || isAbsent || !s.totalOnly}
+                                  onClick={() => handleDistributeStudent(s.id)}
+                                  className="px-2.5 py-1.5 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1 shadow-sm"
+                                  title="Randomly distribute Total into Quiz, Assignment, Mid & Final components"
+                                >
+                                  <span>🎲</span>
+                                  <span>Distribute</span>
+                                </button>
+                              </div>
                             )}
                           </td>
                         )}
@@ -1982,6 +2209,110 @@ function MarksEntryTable({
                 className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg"
               >
                 Close Manager
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BULK PASTE MARKS MODAL (FROM EXCEL / EXTERNAL) ── */}
+      {isPasteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">📋</span>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Bulk Paste Marks from Excel / External Sheet</h3>
+                  <p className="text-xs text-gray-500">Copy cells in Excel/Sheets (Ctrl+C) and paste directly below (Ctrl+V).</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPasteModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">
+                  Target Destination Column
+                </label>
+                <select
+                  value={pasteTargetCol}
+                  onChange={(e: any) => setPasteTargetCol(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-800 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="total">Direct Total Marks (100 / Total)</option>
+                  <option value="final">Final Term Exam (40 / 70)</option>
+                  <option value="mid">Mid Term Exam (30 / 20)</option>
+                  <option value="assignment">Assignment</option>
+                  <option value="quiz">Quiz</option>
+                </select>
+              </div>
+
+              <div className="flex items-center pt-5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoDistributeOnPaste}
+                    onChange={(e) => setAutoDistributeOnPaste(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                  />
+                  <span className="text-xs font-bold text-purple-950">
+                    🎲 Auto-distribute Total into Quiz, Mid & Final breakdown
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5 text-xs text-gray-500">
+                <span className="font-semibold">Paste Raw Data from Excel / Sheets:</span>
+                <span className="italic text-[11px]">Supports Single Column, Roll+Marks, or Full Breakdown</span>
+              </div>
+              <textarea
+                rows={9}
+                value={pastedMarksInput}
+                onChange={(e) => setPastedMarksInput(e.target.value)}
+                placeholder={"Paste here from Excel (Ctrl + V)...\n\nSupported formats:\n1) Single column of marks (one per row):\n   78\n   85\n   A\n   90\n\n2) Roll Number + Marks (tab-separated):\n   S-22/GPGCQ-BSMATH:01\t78\n   S-22/GPGCQ-BSMATH:02\t85"}
+                className="w-full px-4 py-3 border-2 border-dashed border-indigo-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 bg-slate-50/50"
+              />
+            </div>
+
+            {/* Quick stats on detected lines */}
+            {pastedMarksInput.trim() && (
+              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 flex items-center justify-between">
+                <span>
+                  Detected: <strong>{pastedMarksInput.split(/\r?\n/).filter(l => l.trim()).length} rows</strong>
+                </span>
+                <span className="text-gray-500 text-[11px]">
+                  Will map to <strong>{students.length} students</strong> in the active list
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPasteModalOpen(false);
+                  setPastedMarksInput("");
+                }}
+                className="px-4 py-2 border rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyPastedMarks}
+                className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-md transition-all flex items-center gap-1.5"
+              >
+                <span>✓</span>
+                <span>Apply Marks to Table</span>
               </button>
             </div>
           </div>
