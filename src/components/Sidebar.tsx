@@ -52,15 +52,14 @@ export function Sidebar() {
   const { collegeName, collegeLogo } = useSettings();
   const [chteGovtLogo, setChteGovtLogo] = useState<string>("/balochistan-seal.png");
 
-  if (!session) return null;
-  const sessionUser = session.user as any;
+  const sessionUser = session?.user as any;
   const role = sessionUser?.role as string;
-  const userName = session.user?.name || "Administrator";
-  const userEmail = session.user?.email || "admin@chte.gob.pk";
+  const userName = sessionUser?.name || "Administrator";
+  const userEmail = sessionUser?.email || "admin@chte.gob.pk";
   const initials =
     userName
       .split(" ")
-      .map((n) => n[0])
+      .map((n: string) => n[0])
       .join("")
       .substring(0, 2)
       .toUpperCase() || "AD";
@@ -79,6 +78,8 @@ export function Sidebar() {
         .catch(() => {});
     }
   }, [isCentral]);
+
+  if (!session) return null;
 
   const isVisible = (item: NavItem): boolean => {
     if (role === "SUPER_ADMIN" || role === "CHTE_ADMIN") return true;
