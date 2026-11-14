@@ -323,10 +323,11 @@ function buildStudentResults(
 
   // Serialized / numbered failed papers: "1. Math, 2. Physics"
   let remarks = "Passed";
+  const isAllFailed = semPaperCount > 0 && (failedCourses.length >= semPaperCount || totalAbsentCount >= semPaperCount);
   if (totalMax === 0) {
     remarks = "—";
-  } else if (totalAbsentCount > 0 && totalAbsentCount === semPaperCount) {
-    remarks = "Absent in all Exam Papers (A)";
+  } else if (isAllFailed) {
+    remarks = "Failed All";
   } else if (failedCourses.length > 0) {
     const serializedFailed = failedCourses.map((c, i) => `${i + 1}. ${c.title}`).join(", ");
     remarks = `Failed in ${failedCourses.length} Paper(s): ${serializedFailed}`;
@@ -346,6 +347,7 @@ function buildStudentResults(
     courseMarksByTitle,
     failedCourses,
     remarks,
+    isAllFailed,
     cumObtained,
     cumMax,
     cumCredits,
@@ -459,6 +461,7 @@ export default function GazetteCompilerPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [allExpanded, setAllExpanded] = useState(false);
+  const [showPaperNamesInPrint, setShowPaperNamesInPrint] = useState(false);
 
   // BS students pool loaded from DB for fast instant modal filtering
   const [allDbStudents, setAllDbStudents] = useState<StudentData[]>([]);
@@ -732,6 +735,25 @@ export default function GazetteCompilerPage() {
   return (
     <div className="space-y-8 font-sans">
       <style>{`
+        /* Smooth subtle scrollbar on screen to prevent bulky browser rollers */
+        .gazette-table-container {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+        }
+        .gazette-table-container::-webkit-scrollbar {
+          height: 5px;
+        }
+        .gazette-table-container::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .gazette-table-container::-webkit-scrollbar-thumb {
+          background-color: rgba(148, 163, 184, 0.4);
+          border-radius: 9999px;
+        }
+        .gazette-table-container::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(100, 116, 139, 0.7);
+        }
+
         @media print {
           ${certModal && certModal.isOpen ? `
             @page { size: A4 portrait; margin: 8mm; }
@@ -758,11 +780,43 @@ export default function GazetteCompilerPage() {
               break-after: avoid !important;
             }
           ` : `
-            @page { size: A4 landscape; margin: 8mm; }
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white !important; }
-            th, td { font-size: 8px !important; padding: 3px 4px !important; }
-            .gazette-section { page-break-after: always; margin-bottom: 20px; }
-            .gazette-section:last-child { page-break-after: avoid; }
+            @page { size: A4 landscape; margin: 5mm; }
+            html, body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+              background: white !important;
+              overflow: visible !important;
+              width: 100% !important;
+              height: auto !important;
+            }
+            * {
+              scrollbar-width: none !important;
+              -ms-overflow-style: none !important;
+            }
+            ::-webkit-scrollbar {
+              display: none !important;
+              width: 0 !important;
+              height: 0 !important;
+            }
+            .overflow-x-auto, .overflow-y-auto {
+              overflow: visible !important;
+            }
+            table {
+              width: 100% !important;
+              max-width: 100% !important;
+              table-layout: auto !important;
+            }
+            th, td {
+              font-size: 7.5px !important;
+              padding: 2px 2.5px !important;
+            }
+            .gazette-section {
+              page-break-after: always;
+              margin-bottom: 12px;
+            }
+            .gazette-section:last-child {
+              page-break-after: avoid;
+            }
           `}
         }
       `}</style>
@@ -789,6 +843,18 @@ export default function GazetteCompilerPage() {
             title="Expand or Collapse failed papers in all student rows"
           >
             <span>{allExpanded ? "🔼 Collapse Papers" : "🔽 Expand Papers"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPaperNamesInPrint((prev) => !prev)}
+            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 shadow-2xs ${
+              showPaperNamesInPrint
+                ? "bg-amber-100 text-amber-950 border-amber-300 font-black"
+                : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+            }`}
+            title="Zaroorat ke waqt print me failed subjects ki detail print karein ya sirf tadaad (count)"
+          >
+            <span>{showPaperNamesInPrint ? "📋 Print: Subject Names (ON)" : "🔢 Print: Papers Count Only"}</span>
           </button>
           <button
             type="button"
@@ -966,11 +1032,11 @@ export default function GazetteCompilerPage() {
 
               {/* Dedicated Table for this Program & Session */}
               <div className="bg-white rounded-2xl print:rounded-none shadow-sm print:shadow-none border border-slate-200 print:border-none overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto gazette-table-container print:overflow-visible">
                   <table className="w-full text-sm text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900">
-                        <th rowSpan={2} className="px-3 py-3 w-10 text-center align-middle border-r border-slate-700 print:border-slate-300 print:hidden">
+                        <th rowSpan={2} className="px-2 py-2 w-8 text-center align-middle border-r border-slate-700 print:border-slate-300 print:hidden">
                           <input
                             type="checkbox"
                             className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
@@ -986,48 +1052,48 @@ export default function GazetteCompilerPage() {
                             }}
                           />
                         </th>
-                        <th rowSpan={2} className="px-4 py-3 font-black uppercase text-[10px] tracking-wider text-center align-middle border-r border-slate-700 print:border-slate-300">#</th>
-                        <th rowSpan={2} className="px-4 py-3 font-black uppercase text-[10px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300">Roll No</th>
-                        <th rowSpan={2} className="px-4 py-3 font-black uppercase text-[10px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300">Name</th>
+                        <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider text-center align-middle border-r border-slate-700 print:border-slate-300">#</th>
+                        <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Roll No</th>
+                        <th rowSpan={2} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Name</th>
 
                         {/* Program-specific Papers */}
                         {courses.map((course, i) => (
                           <th
                             key={`hdr-${group.programId}-${course.title}-${i}`}
-                            className={`px-3 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 transition-colors ${theme.headerBg}`}
+                            className={`px-2 py-1.5 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 transition-colors ${theme.headerBg}`}
                             title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
                           >
-                            <div className="font-black text-[10px]">Paper {i + 1}</div>
-                            <div className="font-semibold text-slate-200 print:text-slate-700 text-[8.5px] truncate max-w-[85px] mx-auto">
+                            <div className="font-black text-[9px]">Paper {i + 1}</div>
+                            <div className="font-semibold text-slate-200 print:text-slate-700 text-[8px] truncate max-w-[75px] mx-auto">
                               {course.title.length > 18 ? course.title.slice(0, 16) + "…" : course.title}
                             </div>
-                            <div className="text-slate-400 print:text-slate-500 text-[8px]">
+                            <div className="text-slate-400 print:text-slate-500 text-[7.5px]">
                               / {courseMaxMarks[course.title] ?? "—"}
                             </div>
                           </th>
                         ))}
 
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
+                        <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
                           Total<br />
-                          <span className="text-slate-400 text-[8px] font-semibold">
+                          <span className="text-slate-400 text-[7.5px] font-semibold">
                             out of {grandTotalMax || "—"}
                           </span>
                         </th>
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">%age</th>
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">GPA</th>
+                        <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">%age</th>
+                        <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">GPA</th>
                         {selectedSemester > 1 && (
-                          <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">CGPA</th>
+                          <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">CGPA</th>
                         )}
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Grade</th>
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
-                          Overall Total &amp; Cr. Hrs<br />
-                          <span className="text-slate-400 text-[8px] font-semibold">
+                        <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Grade</th>
+                        <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
+                          Overall Total<br />
+                          <span className="text-slate-400 text-[7.5px] font-semibold">
                             (Sem 1 to {selectedSemester})
                           </span>
                         </th>
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Status</th>
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Remarks</th>
-                        <th rowSpan={2} className="px-3 py-3 font-black uppercase text-[10px] tracking-wider text-center border-l border-slate-700 print:hidden align-middle bg-slate-800">Print Cards</th>
+                        <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Status</th>
+                        <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Remarks</th>
+                        <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:hidden align-middle bg-slate-800">Print Cards</th>
                       </tr>
                       {/* Empty second row for rowspan alignment */}
                       <tr className="bg-slate-800 print:bg-slate-50 h-0">
@@ -1051,6 +1117,7 @@ export default function GazetteCompilerPage() {
                           courseMarksByTitle,
                           failedCourses,
                           remarks,
+                          isAllFailed,
                           cumObtained,
                           cumMax,
                         } = buildStudentResults(s, selectedSemester);
@@ -1062,7 +1129,7 @@ export default function GazetteCompilerPage() {
                             className={`${idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"} ${selectedIds.includes(s.id) ? "!bg-blue-50" : ""
                               } hover:bg-blue-50/30 transition-colors`}
                           >
-                            <td className="px-3 py-2.5 text-center border-r border-slate-100 print:border-slate-300 print:hidden">
+                            <td className="px-2 py-2 text-center border-r border-slate-100 print:border-slate-300 print:hidden">
                               <input
                                 type="checkbox"
                                 className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
@@ -1070,9 +1137,9 @@ export default function GazetteCompilerPage() {
                                 onChange={() => toggleSelect(s.id)}
                               />
                             </td>
-                            <td className="px-4 py-2.5 text-xs font-bold text-slate-400 text-center border-r border-slate-100 print:border-slate-300">{idx + 1}</td>
-                            <td className="px-4 py-2.5 font-mono font-bold text-slate-700 border-r border-slate-100 print:border-slate-300 whitespace-nowrap text-xs">{s.rollNumber}</td>
-                            <td className="px-4 py-2.5 font-bold text-slate-900 border-r border-slate-100 print:border-slate-300 whitespace-nowrap text-xs">{s.user?.name}</td>
+                            <td className="px-2.5 py-2 text-xs font-bold text-slate-400 text-center border-r border-slate-100 print:border-slate-300">{idx + 1}</td>
+                            <td className="px-2.5 py-2 font-mono font-bold text-slate-700 border-r border-slate-100 print:border-slate-300 whitespace-nowrap text-xs">{s.rollNumber}</td>
+                            <td className="px-3 py-2 font-bold text-slate-900 border-r border-slate-100 print:border-slate-300 whitespace-nowrap text-xs">{s.user?.name}</td>
 
                             {courses.map((course) => {
                               const obtained = (course.id && courseMarksById[course.id] !== undefined)
@@ -1085,7 +1152,7 @@ export default function GazetteCompilerPage() {
                               return (
                                 <td
                                   key={`${s.id}-${course.title}`}
-                                  className={`px-3 py-2.5 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 ${isAbsentPaper
+                                  className={`px-2 py-2 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 ${isAbsentPaper
                                     ? "text-rose-700 bg-rose-50/70 font-black print:text-rose-900"
                                     : isFail
                                       ? "text-rose-600 bg-rose-50/40 print:bg-transparent"
@@ -1107,7 +1174,7 @@ export default function GazetteCompilerPage() {
                               );
                             })}
 
-                            <td className="px-3 py-2.5 text-center font-bold text-slate-800 border-l border-slate-100 print:border-slate-300 text-xs whitespace-nowrap">
+                            <td className="px-2 py-2 text-center font-bold text-slate-800 border-l border-slate-100 print:border-slate-300 text-xs whitespace-nowrap">
                               {totalMax === 0 ? "—" : totalAbsentCount > 0 && totalAbsentCount === semPaperCount ? (
                                 <span className="px-2 py-0.5 bg-rose-100 text-rose-700 border border-rose-300 rounded font-black text-xs">
                                   A
@@ -1116,21 +1183,21 @@ export default function GazetteCompilerPage() {
                                 totalObtained
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-center font-bold text-slate-700 border-l border-slate-100 print:border-slate-300 text-xs">
+                            <td className="px-2 py-2 text-center font-bold text-slate-700 border-l border-slate-100 print:border-slate-300 text-xs">
                               {totalMax > 0 ? pct.toFixed(1) : "—"}
                             </td>
-                            <td className="px-3 py-2.5 text-center font-bold text-slate-700 border-l border-slate-100 print:border-slate-300 text-xs">
+                            <td className="px-2 py-2 text-center font-bold text-slate-700 border-l border-slate-100 print:border-slate-300 text-xs">
                               {gpa.toFixed(2)}
                             </td>
                             {selectedSemester > 1 && (
-                              <td className="px-3 py-2.5 text-center font-black text-blue-700 border-l border-slate-100 print:border-slate-300 bg-blue-50/20 print:bg-transparent text-xs">
+                              <td className="px-2 py-2 text-center font-black text-blue-700 border-l border-slate-100 print:border-slate-300 bg-blue-50/20 print:bg-transparent text-xs">
                                 {cgpa.toFixed(2)}
                               </td>
                             )}
-                            <td className="px-3 py-2.5 text-center font-black text-slate-800 border-l border-slate-100 print:border-slate-300 text-xs">
+                            <td className="px-2 py-2 text-center font-black text-slate-800 border-l border-slate-100 print:border-slate-300 text-xs">
                               {grade}
                             </td>
-                            <td className="px-3 py-2.5 text-center font-bold text-slate-800 border-l border-slate-100 print:border-slate-300 text-xs whitespace-nowrap">
+                            <td className="px-2.5 py-2 text-center font-bold text-slate-800 border-l border-slate-100 print:border-slate-300 text-xs whitespace-nowrap">
                               {cumMax > 0 ? (
                                 <span>
                                   {cumObtained}{" "}
@@ -1140,7 +1207,7 @@ export default function GazetteCompilerPage() {
                                 "—"
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-center border-l border-slate-100 print:border-slate-300">
+                            <td className="px-2 py-2 text-center border-l border-slate-100 print:border-slate-300">
                               <span className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full border ${status === "PROMOTED"
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200 print:border-none print:p-0"
                                 : status === "PROBATION"
@@ -1152,11 +1219,16 @@ export default function GazetteCompilerPage() {
                                 {status}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-xs font-semibold border-l border-slate-100 print:border-slate-300 align-middle">
+                            <td className="px-2.5 py-2 text-xs font-semibold border-l border-slate-100 print:border-slate-300 align-middle">
                               {isAllPass ? (
-                                <span className="inline-flex items-center gap-1 font-bold text-emerald-600 text-xs">
+                                <span className="inline-flex items-center gap-1 font-bold text-emerald-600 text-xs whitespace-nowrap">
                                   <span className="text-emerald-500 font-bold">✓</span> Passed
                                 </span>
+                              ) : isAllFailed ? (
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-lg border bg-rose-50 text-rose-800 border-rose-300 shadow-2xs whitespace-nowrap print:border-none print:p-0 print:text-rose-900">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 print:hidden"></span>
+                                  <span>Failed All</span>
+                                </div>
                               ) : (
                                 (() => {
                                   const isDropout = status === "DROPOUT";
@@ -1183,17 +1255,18 @@ export default function GazetteCompilerPage() {
                                     };
 
                                   const isExpanded = Boolean(expandedRemarks[s.id]);
+                                  const shouldShowDetailsInPrint = showPaperNamesInPrint && isExpanded;
 
                                   return (
-                                    <div className="min-w-[155px]">
+                                    <div className="min-w-[100px] max-w-[170px]">
                                       {/* Uniform height collapse/expand button to keep all rows same height */}
                                       <button
                                         type="button"
                                         onClick={() => toggleStudentExpand(s.id)}
-                                        className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg border transition-all flex items-center justify-between w-full shadow-xs ${colorScheme.btnBg} print:hidden`}
+                                        className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md border transition-all flex items-center justify-between w-full shadow-2xs ${colorScheme.btnBg} print:hidden`}
                                         title="Click to Expand / Collapse Failed Papers"
                                       >
-                                        <span className="flex items-center gap-1.5 truncate">
+                                        <span className="flex items-center gap-1 truncate">
                                           <span className={`w-1.5 h-1.5 rounded-full ${colorScheme.dotColor}`}></span>
                                           <span>Failed in {failedCourses.length} Paper{failedCourses.length > 1 ? "s" : ""}</span>
                                         </span>
@@ -1202,12 +1275,17 @@ export default function GazetteCompilerPage() {
                                         </span>
                                       </button>
 
-                                      {/* Expanded paper details (or print view) */}
-                                      <div className={`${isExpanded ? "block mt-1.5 pt-1.5 border-t " + colorScheme.borderColor : "hidden"} print:block print:border-none print:p-0`}>
-                                        <div className={`font-bold text-[9px] mb-1 ${colorScheme.headerText} hidden print:block`}>
+                                      {/* Clean Count Only in Print when details not requested */}
+                                      <div className={`${shouldShowDetailsInPrint ? "hidden" : "hidden print:block"} font-bold text-[8.5px] ${colorScheme.headerText} whitespace-nowrap`}>
+                                        Failed in {failedCourses.length} Paper(s)
+                                      </div>
+
+                                      {/* Expanded paper details (shown on screen when expanded, or in print when showPaperNamesInPrint is ON) */}
+                                      <div className={`${isExpanded ? "block mt-1 pt-1 border-t " + colorScheme.borderColor : "hidden"} ${shouldShowDetailsInPrint ? "print:block print:border-none print:p-0" : "print:hidden"}`}>
+                                        <div className={`font-bold text-[8.5px] mb-0.5 ${colorScheme.headerText} hidden print:block`}>
                                           Failed in {failedCourses.length} Paper(s):
                                         </div>
-                                        <div className="space-y-1 text-[10px]">
+                                        <div className="space-y-0.5 text-[9px]">
                                           {failedCourses.map((c, i) => {
                                             const targetUrl = c.id
                                               ? `/bs/marks?courseId=${c.id}&programId=${c.programId || s.programId || ""}&semester=${selectedSemester}&session=${s.session || ""}`
