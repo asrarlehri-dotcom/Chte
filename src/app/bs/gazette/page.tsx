@@ -817,6 +817,54 @@ export default function GazetteCompilerPage() {
             .gazette-section:last-child {
               page-break-after: avoid;
             }
+
+            /* Gazette Section Banner strictly Black & White in print */
+            .gazette-section .gazette-banner {
+              background-image: none !important;
+              background-color: #ffffff !important;
+              color: #000000 !important;
+              border-bottom: 2px solid #000000 !important;
+              border-top: none !important;
+              border-left: none !important;
+              border-right: none !important;
+              box-shadow: none !important;
+              padding: 6px 4px !important;
+              margin-bottom: 8px !important;
+            }
+            .gazette-section .gazette-banner h2,
+            .gazette-section .gazette-banner p,
+            .gazette-section .gazette-banner span {
+              color: #000000 !important;
+            }
+            .gazette-section .gazette-banner .badge-bw {
+              background-color: #ffffff !important;
+              color: #000000 !important;
+              border: 1px solid #000000 !important;
+            }
+            /* College Logo remains in full vibrant color */
+            .gazette-section .gazette-logo {
+              filter: none !important;
+              -webkit-filter: none !important;
+              print-color-adjust: exact !important;
+              -webkit-print-color-adjust: exact !important;
+            }
+
+            /* Table Headers strictly Black & White in print */
+            .gazette-section thead tr {
+              background-color: #f1f5f9 !important;
+              color: #000000 !important;
+              border-bottom: 2px solid #000000 !important;
+            }
+            .gazette-section thead th {
+              background-color: #f1f5f9 !important;
+              background-image: none !important;
+              color: #000000 !important;
+              border-color: #94a3b8 !important;
+            }
+            .gazette-section thead th div,
+            .gazette-section thead th span {
+              color: #000000 !important;
+            }
           `}
         }
       `}</style>
@@ -981,24 +1029,24 @@ export default function GazetteCompilerPage() {
           return (
             <div key={`${group.programId}-${session}-${groupIdx}`} className="gazette-section space-y-4">
               {/* Official Print & Web Section Banner */}
-              <div className={`rounded-2xl p-5 bg-gradient-to-r ${theme.bannerBg} text-white shadow-md border flex flex-wrap items-center justify-between gap-4 print:bg-white print:text-slate-900 print:border-b-2 print:border-slate-900 print:p-2 print:rounded-none print:shadow-none print:mb-3`}>
+              <div className={`gazette-banner rounded-2xl p-5 bg-gradient-to-r ${theme.bannerBg} text-white shadow-md border flex flex-wrap items-center justify-between gap-4 print:bg-none print:bg-white print:text-black print:border-b-2 print:border-black print:p-2 print:rounded-none print:shadow-none print:mb-2`}>
                 <div className="flex items-center gap-3">
                   {collegeLogo ? (
-                    <img src={collegeLogo} alt="Logo" className="w-11 h-11 object-contain print:w-10 print:h-10" />
+                    <img src={collegeLogo} alt="Logo" className="gazette-logo w-12 h-12 object-contain print:w-11 print:h-11 shrink-0" />
                   ) : (
                     <div className="w-3.5 h-8 rounded-full bg-blue-500 print:hidden" />
                   )}
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-lg font-black tracking-wide uppercase print:text-sm">{programName}</h2>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${theme.badgeBg}`}>
+                      <h2 className="text-lg font-black tracking-wide uppercase print:text-base print:text-black">{programName}</h2>
+                      <span className={`badge-bw px-2.5 py-0.5 rounded-full text-xs font-black border ${theme.badgeBg} print:bg-white print:text-black print:border-black print:text-[10px]`}>
                         Session: {session}
                       </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-white/10 text-white border border-white/20 print:bg-slate-100 print:text-slate-800">
+                      <span className="badge-bw px-2.5 py-0.5 rounded-full text-xs font-black bg-white/10 text-white border border-white/20 print:bg-white print:text-black print:border-black print:text-[10px]">
                         Semester {selectedSemester}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-300 font-semibold mt-0.5 print:text-slate-600 print:text-[9px]">
+                    <p className="text-xs text-slate-300 font-semibold mt-0.5 print:text-slate-700 print:text-[9.5px]">
                       {collegeName} &nbsp;|&nbsp; {students.length} Student(s) &nbsp;|&nbsp; {courses.length} Exam Paper(s)
                     </p>
                   </div>
