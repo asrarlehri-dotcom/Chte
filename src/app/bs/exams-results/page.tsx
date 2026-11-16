@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { sortStudentsByRoll, distributeTotalMarks, parsePastedMarksText } from "@/lib/domainParsers";
+import ResultsPromotionTab from "./ResultsPromotionTab";
 
 export default function ExamsResultsPage() {
   const [activeTab, setActiveTab] = useState("paper_attendance");
@@ -49,12 +50,15 @@ export default function ExamsResultsPage() {
           </button>
 
           <button
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
-              activeTab === 'results' ? 'border-b-2 border-blue-600 text-blue-600 font-bold bg-white' : 'text-gray-500 hover:text-gray-700'
+            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
+              activeTab === 'results'
+                ? 'border-b-2 border-blue-600 text-blue-700 font-black bg-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
             }`}
             onClick={() => setActiveTab('results')}
           >
-            Results & Promotion
+            <span>🎓 Results & Promotion</span>
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800">Step 3</span>
           </button>
           <button
             className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
@@ -96,20 +100,18 @@ export default function ExamsResultsPage() {
           )}
 
           {activeTab === 'results' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold">Compile Results & GPA</h2>
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">Generate Gazette</button>
-              </div>
-              <p className="text-gray-600 text-sm">Select a semester to compute GPA/CGPA and promote students.</p>
-              <div className="max-w-xs mt-4">
-                <select className="w-full px-4 py-2 border rounded-lg mb-4">
-                  <option>-- Select Program & Semester --</option>
-                  <option>BS CS - 1st Semester</option>
-                </select>
-                <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Compute Results</button>
-              </div>
-            </div>
+            <ResultsPromotionTab
+              sharedFilters={sharedFilters}
+              setSharedFilters={setSharedFilters}
+              onNavigateToMarks={(nextSem) => {
+                setSharedFilters((prev: any) => ({ ...prev, semester: String(nextSem) }));
+                setActiveTab('marks');
+              }}
+              onNavigateToAttendance={(nextSem) => {
+                setSharedFilters((prev: any) => ({ ...prev, semester: String(nextSem) }));
+                setActiveTab('paper_attendance');
+              }}
+            />
           )}
 
           {activeTab === 'academic_actions' && (

@@ -595,6 +595,138 @@ export default function GazetteCompilerPage() {
   const toggleAll = (ids: string[]) =>
     setSelectedIds((prev) => (prev.length === ids.length ? [] : ids));
 
+  // Batch Promotion Modal State
+  const [promotionModal, setPromotionModal] = useState<{
+    isOpen: boolean;
+    fromSemester: number;
+    toSemester: number;
+    programId: string;
+    session: string;
+    selectedIds: string[];
+    candidates: Array<{
+      id: string;
+      rollNumber: string;
+      name: string;
+      fatherName?: string;
+      gpa: number;
+      cgpa: number;
+      status: string;
+      isEligible: boolean;
+    }>;
+  } | null>(null);
+
+  const [promotionSubmitting, setPromotionSubmitting] = useState(false);
+  const [promotionSuccessNotice, setPromotionSuccessNotice] = useState<{
+    count: number;
+    toSemester: number;
+  } | null>(null);
+
+  const openPromotionModal = (groupProgramId?: string, groupSession?: string) => {
+    if (selectedSemester >= 8) {
+      alert("Students are already in the final 8th semester!");
+      return;
+    }
+    const nextSem = selectedSemester + 1;
+    const targetProgramId = groupProgramId || selectedProgram;
+    const targetSession = groupSession || selectedSession;
+
+    // Filter students from allStudents matching targetProgram & targetSession
+    const pool = allStudents.filter((s) => {
+      if (targetProgramId !== "ALL" && s.programId !== targetProgramId) return false;
+      if (targetSession !== "ALL" && s.session !== targetSession) return false;
+      return true;
+    });
+
+    const candidates = pool.map((s) => {
+      const res = buildStudentResults(s, selectedSemester);
+      const isEligible = res.status === "PROMOTED" || res.status === "PROBATION";
+      return {
+        id: s.id,
+        rollNumber: s.rollNumber,
+        name: s.user?.name || "Student",
+        fatherName: s.fatherName || undefined,
+        gpa: res.gpa,
+        cgpa: res.cgpa,
+        status: res.status,
+        isEligible,
+      };
+    });
+
+    // Default: select all students evaluated as eligible
+    const initialSelectedIds = candidates.filter((c) => c.isEligible).map((c) => c.id);
+
+    setPromotionSuccessNotice(null);
+    setPromotionModal({
+      isOpen: true,
+      fromSemester: selectedSemester,
+      toSemester: nextSem,
+      programId: targetProgramId,
+      session: targetSession,
+      selectedIds: initialSelectedIds,
+      candidates,
+    });
+  };
+
+  const handleConfirmPromotion = async () => {
+    if (!promotionModal || promotionModal.selectedIds.length === 0) {
+      alert("Please select at least one student to promote.");
+      return;
+    }
+
+    setPromotionSubmitting(true);
+    try {
+      const payload = promotionModal.selectedIds.map((id) => {
+        const c = promotionModal.candidates.find((x) => x.id === id);
+        return {
+          studentId: id,
+          status: c?.status || "PROMOTED",
+          gpa: c?.gpa ? parseFloat(c.gpa.toFixed(2)) : null,
+          cgpa: c?.cgpa ? parseFloat(c.cgpa.toFixed(2)) : null,
+        };
+      });
+
+      const res = await fetch("/api/students/batch-promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          programId: promotionModal.programId !== "ALL" ? promotionModal.programId : undefined,
+          session: promotionModal.session !== "ALL" ? promotionModal.session : undefined,
+          fromSemester: promotionModal.fromSemester,
+          toSemester: promotionModal.toSemester,
+          students: payload,
+          autoEnrollNextCourses: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Batch promotion failed.");
+      }
+
+      setPromotionSuccessNotice({
+        count: data.promotedCount || promotionModal.selectedIds.length,
+        toSemester: promotionModal.toSemester,
+      });
+
+      // Update student currentSemester locally in allStudents
+      const promotedSet = new Set(promotionModal.selectedIds);
+      setAllStudents((prev) =>
+        prev.map((s) =>
+          promotedSet.has(s.id) ? { ...s, currentSemester: promotionModal.toSemester } : s
+        )
+      );
+      setAllDbStudents((prev) =>
+        prev.map((s) =>
+          promotedSet.has(s.id) ? { ...s, currentSemester: promotionModal.toSemester } : s
+        )
+      );
+    } catch (err: any) {
+      alert(err.message || "Failed to promote students.");
+    } finally {
+      setPromotionSubmitting(false);
+    }
+  };
+
   // Fetch BS programs and distinct sessions on load
   useEffect(() => {
     fetch("/api/programs")
@@ -933,6 +1065,17 @@ export default function GazetteCompilerPage() {
             <span>🖨️</span>
             <span>Print Gazette</span>
           </button>
+          {selectedSemester < 8 && (
+            <button
+              type="button"
+              onClick={() => openPromotionModal()}
+              className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-full text-xs font-black shadow-md transition-all flex items-center gap-1.5"
+              title={`Promote qualified students from Semester ${selectedSemester} to Semester ${selectedSemester + 1}`}
+            >
+              <span>🚀</span>
+              <span>Push to Sem {selectedSemester + 1}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1071,6 +1214,17 @@ export default function GazetteCompilerPage() {
                     <span>📜</span>
                     <span>Section Transcripts</span>
                   </button>
+                  {selectedSemester < 8 && (
+                    <button
+                      type="button"
+                      onClick={() => openPromotionModal(group.programId, session)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-black border border-blue-400 transition-all flex items-center gap-1 shadow-xs"
+                      title={`Batch push ${programName} (${session}) to Semester ${selectedSemester + 1}`}
+                    >
+                      <span>🚀</span>
+                      <span>Push to Sem {selectedSemester + 1}</span>
+                    </button>
+                  )}
                   <span className="text-xs font-bold text-slate-300 ml-1">Total Marks:</span>
                   <span className="px-3 py-1 bg-white/10 rounded-lg text-xs font-black text-white border border-white/20">
                     {grandTotalMax || 0}
@@ -2152,6 +2306,293 @@ export default function GazetteCompilerPage() {
           </div>
         );
       })()}
+
+      {/* Batch Promotion to Next Semester Modal */}
+      {promotionModal && promotionModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 print:hidden animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-xl shadow-inner">
+                  🚀
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight">
+                    Batch Semester Promotion — Semester {promotionModal.fromSemester} ➔ Semester {promotionModal.toSemester}
+                  </h3>
+                  <p className="text-xs text-blue-100 mt-0.5 font-medium">
+                    {programs.find((p) => p.id === promotionModal.programId)?.name || "All Programs"}
+                    {promotionModal.session !== "ALL" ? ` • Session: ${promotionModal.session}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPromotionModal(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm font-bold transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              {promotionSuccessNotice ? (
+                /* Success View */
+                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 text-center space-y-4">
+                  <div className="w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center text-2xl mx-auto shadow-md">
+                    🎉
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-emerald-950">
+                      Promotion Completed Successfully!
+                    </h4>
+                    <p className="text-xs text-emerald-800 mt-1 max-w-lg mx-auto">
+                      <strong>{promotionSuccessNotice.count}</strong> student(s) have been officially pushed to <strong>Semester {promotionSuccessNotice.toSemester}</strong> and auto-enrolled in their next semester courses.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                    <a
+                      href={`/bs/marks?programId=${promotionModal.programId}&session=${promotionModal.session}&semester=${promotionSuccessNotice.toSemester}`}
+                      className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5"
+                    >
+                      <span>📝</span>
+                      <span>Open Semester {promotionSuccessNotice.toSemester} Marks Entry</span>
+                    </a>
+                    <a
+                      href={`/bs/exams-results?programId=${promotionModal.programId}&session=${promotionModal.session}&semester=${promotionSuccessNotice.toSemester}`}
+                      className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-black shadow-sm transition-all flex items-center gap-1.5"
+                    >
+                      <span>📋</span>
+                      <span>Open Semester {promotionSuccessNotice.toSemester} Attendance</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSemester(promotionSuccessNotice.toSemester);
+                        setPromotionModal(null);
+                      }}
+                      className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition-all"
+                    >
+                      <span>View Gazette for Sem {promotionSuccessNotice.toSemester}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPromotionModal(null)}
+                      className="px-4 py-2.5 text-slate-500 hover:text-slate-800 text-xs font-bold"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Candidate Selection Table */
+                <>
+                  {/* Summary Pills */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">Total Students</div>
+                      <div className="text-xl font-black text-slate-800 mt-0.5">{promotionModal.candidates.length}</div>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                      <div className="text-[10px] font-bold text-emerald-700 uppercase">Eligible to Promote</div>
+                      <div className="text-xl font-black text-emerald-800 mt-0.5">
+                        {promotionModal.candidates.filter((c) => c.isEligible).length}
+                      </div>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                      <div className="text-[10px] font-bold text-amber-700 uppercase">Probation</div>
+                      <div className="text-xl font-black text-amber-800 mt-0.5">
+                        {promotionModal.candidates.filter((c) => c.status === "PROBATION").length}
+                      </div>
+                    </div>
+                    <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
+                      <div className="text-[10px] font-bold text-rose-700 uppercase">Ineligible / Absent</div>
+                      <div className="text-xl font-black text-rose-800 mt-0.5">
+                        {promotionModal.candidates.filter((c) => !c.isEligible).length}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Selection Toolbar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const eligibleIds = promotionModal.candidates
+                            .filter((c) => c.isEligible)
+                            .map((c) => c.id);
+                          setPromotionModal((prev) => (prev ? { ...prev, selectedIds: eligibleIds } : null));
+                        }}
+                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-all"
+                      >
+                        Select All Eligible
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allIds = promotionModal.candidates.map((c) => c.id);
+                          setPromotionModal((prev) => (prev ? { ...prev, selectedIds: allIds } : null));
+                        }}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold transition-all"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPromotionModal((prev) => (prev ? { ...prev, selectedIds: [] } : null));
+                        }}
+                        className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs font-bold transition-all"
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+                    <div className="text-xs font-bold text-slate-600">
+                      <span className="text-blue-700 font-black">{promotionModal.selectedIds.length}</span> of {promotionModal.candidates.length} students selected
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                    <div className="max-h-[340px] overflow-y-auto">
+                      <table className="w-full text-xs text-left border-collapse">
+                        <thead className="bg-slate-100 text-slate-700 uppercase font-black text-[10px] sticky top-0 z-10 border-b border-slate-200">
+                          <tr>
+                            <th className="py-2.5 px-3 text-center w-8">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  promotionModal.candidates.length > 0 &&
+                                  promotionModal.candidates.every((c) => promotionModal.selectedIds.includes(c.id))
+                                }
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setPromotionModal((prev) =>
+                                      prev ? { ...prev, selectedIds: prev.candidates.map((c) => c.id) } : null
+                                    );
+                                  } else {
+                                    setPromotionModal((prev) => (prev ? { ...prev, selectedIds: [] } : null));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+                              />
+                            </th>
+                            <th className="py-2.5 px-3">Roll Number</th>
+                            <th className="py-2.5 px-3">Student Name</th>
+                            <th className="py-2.5 px-3 text-center">GPA</th>
+                            <th className="py-2.5 px-3 text-center">Status</th>
+                            <th className="py-2.5 px-3 text-center">Progression</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                          {promotionModal.candidates.map((c) => {
+                            const isSelected = promotionModal.selectedIds.includes(c.id);
+                            return (
+                              <tr
+                                key={c.id}
+                                className={`hover:bg-blue-50/40 transition-colors ${
+                                  isSelected ? "bg-blue-50/20" : ""
+                                }`}
+                              >
+                                <td className="py-2.5 px-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      setPromotionModal((prev) => {
+                                        if (!prev) return null;
+                                        const exists = prev.selectedIds.includes(c.id);
+                                        return {
+                                          ...prev,
+                                          selectedIds: exists
+                                            ? prev.selectedIds.filter((x) => x !== c.id)
+                                            : [...prev.selectedIds, c.id],
+                                        };
+                                      });
+                                    }}
+                                    className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+                                  />
+                                </td>
+                                <td className="py-2.5 px-3 font-mono font-bold">{c.rollNumber}</td>
+                                <td className="py-2.5 px-3 font-bold">
+                                  <div>{c.name}</div>
+                                  {c.fatherName && <div className="text-[10px] text-slate-400 font-normal">S/O {c.fatherName}</div>}
+                                </td>
+                                <td className="py-2.5 px-3 text-center font-bold">{c.gpa.toFixed(2)}</td>
+                                <td className="py-2.5 px-3 text-center">
+                                  <span
+                                    className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full border ${
+                                      c.status === "PROMOTED"
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : c.status === "PROBATION"
+                                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                                        : "bg-rose-50 text-rose-700 border-rose-200"
+                                    }`}
+                                  >
+                                    {c.status}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-center">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded text-[11px] font-bold text-slate-600">
+                                    <span>Sem {promotionModal.fromSemester}</span>
+                                    <span>➔</span>
+                                    <span className="text-blue-700 font-black">Sem {promotionModal.toSemester}</span>
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!promotionSuccessNotice && (
+              <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPromotionModal(null)}
+                  disabled={promotionSubmitting}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 transition-colors"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmPromotion}
+                  disabled={promotionSubmitting || promotionModal.selectedIds.length === 0}
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {promotionSubmitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Promoting Students...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀</span>
+                      <span>
+                        Confirm & Push {promotionModal.selectedIds.length} Students to Semester {promotionModal.toSemester}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

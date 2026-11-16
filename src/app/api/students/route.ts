@@ -59,7 +59,72 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { student: { rollNumber: "asc" } },
       });
-      const students = enrollments.map((e) => e.student).filter(Boolean);
+      let students = enrollments.map((e) => e.student).filter(Boolean);
+
+      // Fallback: If no explicit enrollments exist yet for this course,
+      // fallback to active students matching this course's program and semester!
+      if (students.length === 0) {
+        const course = await prisma.course.findUnique({
+          where: { id: courseId },
+          select: { id: true, semester: true, programId: true, session: true },
+        });
+
+        if (course) {
+          const matchingStudents = await prisma.student.findMany({
+            where: {
+              ...(!includeInactive ? { isActive: true } : {}),
+              ...(collegeFilter && { collegeId: collegeFilter }),
+              programId: course.programId,
+              currentSemester: course.semester,
+              ...(sessionParam && sessionParam !== "ALL"
+                ? {
+                    OR: [
+                      { session: sessionParam },
+                      { session: { contains: sessionParam } },
+                    ],
+                  }
+                : course.session
+                ? {
+                    OR: [
+                      { session: course.session },
+                      { session: { contains: course.session } },
+                    ],
+                  }
+                : {}),
+            },
+            include: {
+              user: true,
+              program: true,
+              group: true,
+              statuses: true,
+              promotions: true,
+              college: true,
+            },
+            orderBy: { rollNumber: "asc" },
+          });
+
+          if (matchingStudents.length > 0) {
+            // Auto-enroll them in the background so future queries find them directly
+            try {
+              await prisma.enrollment.createMany({
+                data: matchingStudents.map((st) => ({
+                  studentId: st.id,
+                  courseId: course.id,
+                  semester: course.semester,
+                  status: "ACTIVE",
+                  isActive: true,
+                })),
+                skipDuplicates: true,
+              });
+            } catch (err) {
+              console.warn("Auto-enrollment fallback notice:", err);
+            }
+
+            return NextResponse.json(sortStudentsByRoll(matchingStudents));
+          }
+        }
+      }
+
       return NextResponse.json(sortStudentsByRoll(students));
     }
 
