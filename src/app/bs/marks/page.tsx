@@ -163,29 +163,72 @@ export default function AddResultPage() {
         const urlParams = new URLSearchParams(window.location.search);
         const paramCourseId = urlParams.get("courseId");
         const paramCourseTitle = urlParams.get("courseTitle");
+        const paramCourseCode = urlParams.get("courseCode");
         const paramProgramId = urlParams.get("programId");
         const paramSemester = urlParams.get("semester");
         const paramSession = urlParams.get("session");
 
-        let targetC = null;
-        if (paramCourseId) {
-          targetC = validCourses.find((c: any) => c.id === paramCourseId);
-        } else if (paramCourseTitle) {
-          targetC = validCourses.find((c: any) => c.title?.toLowerCase() === paramCourseTitle.toLowerCase());
-        }
+        if (paramCourseId || paramCourseTitle || paramCourseCode || paramProgramId || paramSemester || paramSession) {
+          let targetC = null;
+          if (paramCourseId) {
+            targetC = validCourses.find((c: any) => c.id === paramCourseId);
+          }
+          if (!targetC && paramCourseCode) {
+            targetC = validCourses.find(
+              (c: any) => c.code?.toLowerCase().trim() === paramCourseCode.toLowerCase().trim()
+            );
+          }
+          if (!targetC && paramCourseTitle) {
+            const cleanSearch = paramCourseTitle.replace(/\s*\([A-Za-z0-9\+\-]+\)\s*$/, "").toLowerCase().trim();
+            targetC = validCourses.find((c: any) => {
+              const cTitle = (c.title || "").toLowerCase().trim();
+              const progMatch = paramProgramId ? c.programId === paramProgramId : true;
+              const semMatch = paramSemester ? c.semester === parseInt(paramSemester) : true;
+              return progMatch && semMatch && (cTitle === cleanSearch || cTitle.includes(cleanSearch) || cleanSearch.includes(cTitle));
+            }) || validCourses.find((c: any) => {
+              const cTitle = (c.title || "").toLowerCase().trim();
+              return cTitle === cleanSearch || cTitle.includes(cleanSearch) || cleanSearch.includes(cTitle);
+            });
+          }
 
-        if (targetC) {
-          if (targetC.programId) setSelectedProgram(targetC.programId);
-          if (targetC.semester) setSelectedSemester(targetC.semester.toString());
-          if (targetC.session) setSelectedSession(targetC.session);
-          setSelectedCourse(targetC.id);
-          const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-          setCourseTotalMarks(totals[targetC.creditHours] ?? 100);
-          return;
-        } else if (paramProgramId || paramSemester || paramSession) {
-          if (paramProgramId) setSelectedProgram(paramProgramId);
-          if (paramSemester) setSelectedSemester(paramSemester);
-          if (paramSession) setSelectedSession(paramSession);
+          // Ensure session is set from URL parameter (e.g. 2022-2026), NOT overridden by course default session
+          if (paramSession) {
+            setSessions((prev) => (prev.includes(paramSession) ? prev : [paramSession, ...prev]));
+            setSelectedSession(paramSession);
+          } else if (targetC?.session) {
+            setSelectedSession(targetC.session);
+          }
+
+          if (paramProgramId) {
+            setSelectedProgram(paramProgramId);
+          } else if (targetC?.programId) {
+            setSelectedProgram(targetC.programId);
+          }
+
+          if (paramSemester) {
+            setSelectedSemester(paramSemester.toString());
+          } else if (targetC?.semester) {
+            setSelectedSemester(targetC.semester.toString());
+          }
+
+          if (targetC) {
+            setSelectedCourse(targetC.id);
+            const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
+            setCourseTotalMarks(totals[targetC.creditHours] ?? 100);
+            return;
+          } else if (paramProgramId || paramSemester) {
+            const matchedFallback = validCourses.find(
+              (c: any) =>
+                (!paramProgramId || c.programId === paramProgramId) &&
+                (!paramSemester || c.semester === parseInt(paramSemester))
+            );
+            if (matchedFallback) {
+              setSelectedCourse(matchedFallback.id);
+              const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
+              setCourseTotalMarks(totals[matchedFallback.creditHours] ?? 100);
+            }
+            return;
+          }
         }
       }
 
@@ -240,10 +283,10 @@ export default function AddResultPage() {
 
     const targetCourse = courses.find(c => c.id === courseId);
     if (targetCourse) {
-      // Auto-sync Program, Semester & Session to match the selected course
+      // Auto-sync Program & Semester to match the selected course
       if (targetCourse.programId) setSelectedProgram(targetCourse.programId);
       if (targetCourse.semester) setSelectedSemester(targetCourse.semester.toString());
-      if (targetCourse.session) setSelectedSession(targetCourse.session);
+      if (!selectedSession && targetCourse.session) setSelectedSession(targetCourse.session);
 
       const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
       setCourseTotalMarks(totals[targetCourse.creditHours] ?? 100);

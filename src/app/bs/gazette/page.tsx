@@ -13,7 +13,7 @@ type MarkEntry = {
   obtainedMarks: number;
   totalMarks: number;
   status?: string;
-  course: { id?: string; creditHours: number; title: string; semester?: number; code?: string; programId?: string; creditHoursFormat?: string };
+  course: { id?: string; creditHours: number; title: string; semester?: number; code?: string; programId?: string; creditHoursFormat?: string; session?: string };
 };
 
 type FailedCourse = {
@@ -21,6 +21,9 @@ type FailedCourse = {
   title: string;
   code?: string;
   programId?: string;
+  semester?: number;
+  session?: string;
+  isAbsent?: boolean;
 };
 
 type StudentData = {
@@ -229,10 +232,13 @@ function buildStudentResults(
 
     if ((gp === 0 || isAbsent) && sem === selectedSemester) {
       failedCourses.push({
-        id: m.course?.id,
-        title: isAbsent ? `${m.course?.title || "Subject"} (A)` : (m.course?.title || "Subject"),
+        id: m.course?.id || (m as any).courseId,
+        title: m.course?.title || "Subject",
         code: m.course?.code,
         programId: m.course?.programId || s.programId || undefined,
+        semester: m.course?.semester ?? sem,
+        session: s.session || m.course?.session || undefined,
+        isAbsent,
       });
     }
 
@@ -344,7 +350,7 @@ function buildStudentResults(
   } else if (isAllFailed) {
     remarks = "Failed in All Subjects";
   } else if (failedCourses.length > 0) {
-    const serializedFailed = failedCourses.map((c, i) => `${i + 1}. ${c.title}`).join(", ");
+    const serializedFailed = failedCourses.map((c, i) => `${i + 1}. ${c.title}${c.isAbsent ? " (A)" : ""}`).join(", ");
     remarks = `Failed in ${failedCourses.length} Paper(s): ${serializedFailed}`;
   }
 
@@ -1450,9 +1456,22 @@ export default function GazetteCompilerPage() {
                                         </div>
                                         <div className="space-y-0.5 text-[9px]">
                                           {failedCourses.map((c, i) => {
-                                            const targetUrl = c.id
-                                              ? `/bs/marks?courseId=${c.id}&programId=${c.programId || s.programId || ""}&semester=${selectedSemester}&session=${s.session || ""}`
-                                              : `/bs/marks?courseTitle=${encodeURIComponent(c.title)}&programId=${s.programId || ""}&semester=${selectedSemester}&session=${s.session || ""}`;
+                                            const sessVal = c.session || s.session || (selectedSession !== "ALL" ? selectedSession : "");
+                                            const semVal = c.semester || selectedSemester || 1;
+                                            const progVal = c.programId || s.programId || "";
+                                            const courseIdVal = c.id || "";
+                                            const cleanTitle = c.title || "";
+                                            const cleanCode = c.code || "";
+
+                                            const queryParams = new URLSearchParams();
+                                            if (courseIdVal) queryParams.set("courseId", courseIdVal);
+                                            if (cleanTitle) queryParams.set("courseTitle", cleanTitle);
+                                            if (cleanCode) queryParams.set("courseCode", cleanCode);
+                                            if (progVal) queryParams.set("programId", progVal);
+                                            if (semVal) queryParams.set("semester", String(semVal));
+                                            if (sessVal) queryParams.set("session", sessVal);
+
+                                            const targetUrl = `/bs/marks?${queryParams.toString()}`;
 
                                             return (
                                               <div key={i} className="flex items-center gap-1">
@@ -1461,10 +1480,11 @@ export default function GazetteCompilerPage() {
                                                   href={targetUrl}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
-                                                  title={`Click to enter/edit marks for ${c.title}`}
+                                                  title={`Click to enter/edit marks for ${cleanTitle} (Session: ${sessVal || 'Default'}, Sem: ${semVal})`}
                                                   className={`${colorScheme.linkColor} hover:underline font-semibold transition-colors inline-flex items-center gap-0.5 group print:no-underline print:text-slate-800`}
                                                 >
-                                                  <span>{c.title}</span>
+                                                  <span>{cleanTitle}</span>
+                                                  {c.isAbsent && <span className="text-[8px] font-bold text-rose-600 ml-0.5">(A)</span>}
                                                   <span className="text-[9px] opacity-60 group-hover:opacity-100 font-mono print:hidden">↗</span>
                                                 </a>
                                               </div>

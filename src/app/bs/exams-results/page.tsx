@@ -18,6 +18,33 @@ export default function ExamsResultsPage() {
   });
   const [sharedAttendance, setSharedAttendance] = useState<Record<string, "PRESENT" | "ABSENT">>({});
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get("tab");
+      const sessionParam = urlParams.get("session");
+      const programIdParam = urlParams.get("programId");
+      const semesterParam = urlParams.get("semester");
+      const courseIdParam = urlParams.get("courseId");
+
+      if (tabParam && ["paper_attendance", "marks", "results", "academic_actions", "merit"].includes(tabParam)) {
+        setActiveTab(tabParam);
+      } else if (courseIdParam || (sessionParam && semesterParam)) {
+        setActiveTab("marks");
+      }
+
+      if (sessionParam || programIdParam || semesterParam || courseIdParam) {
+        setSharedFilters(prev => ({
+          ...prev,
+          ...(sessionParam ? { session: sessionParam } : {}),
+          ...(programIdParam ? { programId: programIdParam } : {}),
+          ...(semesterParam ? { semester: semesterParam } : {}),
+          ...(courseIdParam ? { courseId: courseIdParam } : {}),
+        }));
+      }
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 print:hidden">
@@ -229,6 +256,27 @@ function PaperAttendanceModule({
 
       setPrograms(validProgs);
       setCourses(validCourses);
+
+      // Prioritize sharedFilters or query parameters if passed
+      const targetCourseId = sharedFilters.courseId;
+      const targetProgId = sharedFilters.programId;
+      const targetSem = sharedFilters.semester;
+      const targetSession = sharedFilters.session;
+
+      if (targetSession) {
+        setSessions(prev => prev.includes(targetSession) ? prev : [targetSession, ...prev]);
+        setSelectedSession(targetSession);
+      }
+
+      if (targetCourseId && validCourses.some((c: any) => c.id === targetCourseId)) {
+        const found = validCourses.find((c: any) => c.id === targetCourseId);
+        if (found) {
+          if (targetProgId || found.programId) setSelectedProgram(targetProgId || found.programId);
+          if (targetSem || found.semester) setSelectedSemester((targetSem || found.semester).toString());
+          setSelectedCourse(found.id);
+          return;
+        }
+      }
 
       const userEmail = session?.user?.email;
       const facultyAssignedCourse = validCourses.find((c: any) =>
@@ -827,6 +875,29 @@ function MarksEntryTable({
 
       setPrograms(validProgs);
       setCourses(validCourses);
+
+      // Prioritize sharedFilters or query parameters if passed
+      const targetCourseId = sharedFilters.courseId;
+      const targetProgId = sharedFilters.programId;
+      const targetSem = sharedFilters.semester;
+      const targetSession = sharedFilters.session;
+
+      if (targetSession) {
+        setSessions(prev => prev.includes(targetSession) ? prev : [targetSession, ...prev]);
+        setSelectedSession(targetSession);
+      }
+
+      if (targetCourseId && validCourses.some((c: any) => c.id === targetCourseId)) {
+        const found = validCourses.find((c: any) => c.id === targetCourseId);
+        if (found) {
+          if (targetProgId || found.programId) setSelectedProgram(targetProgId || found.programId);
+          if (targetSem || found.semester) setSelectedSemester((targetSem || found.semester).toString());
+          setSelectedCourse(found.id);
+          const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
+          setCourseTotalMarks(totals[found.creditHours] ?? 100);
+          return;
+        }
+      }
 
       const userEmail = session?.user?.email;
       const facultyAssignedCourse = validCourses.find((c: any) =>
