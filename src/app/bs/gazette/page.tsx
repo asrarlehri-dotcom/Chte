@@ -1220,17 +1220,19 @@ export default function GazetteCompilerPage() {
                         })}
                       </tr>
 
-                      {/* Row 3: Marks | GP sub-headers */}
+                      {/* Row 3: MO | GP sub-headers */}
                       <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-b border-slate-700 print:border-slate-400">
                         {courses.map((c, i) => (
                           <Fragment key={`r3-subhdr-${group.programId}-${c.title}-${i}`}>
                             <th
                               className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[8px] print:text-black border-l border-slate-700 print:border-slate-400 ${marksColWidth} ${theme.headerBg}`}
+                              title="Marks Obtained (MO)"
                             >
-                              Marks
+                              MO
                             </th>
                             <th
                               className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[8px] print:text-black border-l border-slate-700 print:border-slate-400 ${gpColWidth} ${theme.headerBg}`}
+                              title="Grade Point (GP)"
                             >
                               GP
                             </th>
