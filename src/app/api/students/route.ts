@@ -4,55 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { sortStudentsByRoll } from "@/lib/domainParsers";
-
-function isStudentPromotedFromSem(s: any, fromSem: number): boolean {
-  const semMarks = (s.marks || []).filter((m: any) => {
-    const sSem = m.course?.semester ?? m.semester;
-    return sSem === fromSem;
-  });
-  if (semMarks.length === 0) return false;
-
-  let qualityPoints = 0;
-  let totalCredits = 0;
-  let totalAbsent = 0;
-  let totalMax = 0;
-
-  for (const m of semMarks) {
-    const cr = m.course?.creditHours || 3;
-    const isAbs = m.status === "ABSENT" || m.status === "A";
-    const obt = isAbs ? 0 : typeof m.obtainedMarks === "number" ? m.obtainedMarks : 0;
-    const max = typeof m.totalMarks === "number" && m.totalMarks > 0 ? m.totalMarks : 100;
-
-    if (isAbs) {
-      totalAbsent++;
-    } else {
-      const pct = (obt / max) * 100;
-      let gp = 0;
-      if (pct >= 85) gp = 4.0;
-      else if (pct >= 80) gp = 3.66;
-      else if (pct >= 75) gp = 3.33;
-      else if (pct >= 71) gp = 3.0;
-      else if (pct >= 68) gp = 2.66;
-      else if (pct >= 64) gp = 2.33;
-      else if (pct >= 61) gp = 2.0;
-      else if (pct >= 58) gp = 1.66;
-      else if (pct >= 54) gp = 1.3;
-      else if (pct >= 50) gp = 1.0;
-      else gp = 0.0;
-
-      qualityPoints += gp * cr;
-    }
-    totalMax += max;
-    totalCredits += cr;
-  }
-
-  // If student was absent in all papers of that semester, they are NOT promoted
-  if (totalAbsent > 0 && totalAbsent === semMarks.length) return false;
-  if (totalMax === 0 || totalCredits === 0) return false;
-
-  const gpa = qualityPoints / totalCredits;
-  return gpa >= 1.00;
-}
+import { isStudentPromotedFromSem } from "@/lib/promotionHelper";
 
 export async function GET(req: NextRequest) {
   try {

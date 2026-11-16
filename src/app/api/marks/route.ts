@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { compareRollNumbers } from "@/lib/domainParsers";
+import { autoPromoteStudentsForCourseOrSemester } from "@/lib/promotionHelper";
 
 const ADMIN_ROLES = [
   "CHTE_ADMIN",
@@ -252,6 +253,17 @@ export async function POST(req: NextRequest) {
       }
     } catch {
       // Attendance sync fallback
+    }
+
+    // Auto-promote student to next semester if eligible and enroll in next courses
+    try {
+      await autoPromoteStudentsForCourseOrSemester({
+        courseId,
+        studentId,
+        promotedBy: `${session.user?.name || session.user?.email || "Admin"} (${userRole})`,
+      });
+    } catch {
+      // Non-blocking auto-promotion
     }
 
     return NextResponse.json(marksRecord, { status: 200 });

@@ -708,15 +708,35 @@ export default function AddResultPage() {
       setResultStatus(targetStatus);
       setIsLocked(lockVal);
       loadMetrics();
-      if (targetStatus === "SAVED") {
-        setSuccessMsg("💾 Marks saved as Draft!");
-      } else if (targetStatus === "PENDING_APPROVAL") {
-        setSuccessMsg("🚀 Result published & submitted for Admin Approval!");
+
+      let baseMsg = "💾 Marks saved as Draft!";
+      if (targetStatus === "PENDING_APPROVAL") {
+        baseMsg = "🚀 Result published & submitted for Admin Approval!";
       } else if (targetStatus === "APPROVED") {
-        setSuccessMsg("✅ Result approved & locked for Faculty!");
+        baseMsg = "✅ Result approved & locked for Faculty!";
       } else if (targetStatus === "REJECTED") {
-        setSuccessMsg("🔓 Result unlocked & returned to Faculty for editing.");
+        baseMsg = "🔓 Result unlocked & returned to Faculty for editing.";
       }
+      setSuccessMsg(baseMsg);
+
+      // Trigger automatic promotion & next-semester enrollment for eligible students
+      fetch("/api/students/auto-promote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: selectedCourse,
+          programId: selectedProgram,
+          session: selectedSession,
+          semester: parseInt(selectedSemester),
+        }),
+      })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.promotedCount > 0) {
+            setSuccessMsg((prev) => `${prev} • 🚀 ${res.promotedCount} student(s) automatically pushed to next semester!`);
+          }
+        })
+        .catch(() => {});
     } else {
       setErrorMsg(lastError ? `Failed to save marks: ${lastError}` : "Failed to update result status. Please try again.");
     }

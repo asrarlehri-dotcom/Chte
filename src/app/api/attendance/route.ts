@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       }
 
       // 1. Fetch enrolled students (only active students)
-      const enrollments = await prisma.enrollment.findMany({
+      let enrollments = await prisma.enrollment.findMany({
         where: {
           courseId,
           status: "ACTIVE",
@@ -45,6 +45,63 @@ export async function GET(request: Request) {
           }
         }
       });
+
+      // If no explicit enrollments exist yet, auto-discover active students for this course's semester
+      if (enrollments.length === 0) {
+        const course = await prisma.course.findUnique({
+          where: { id: courseId },
+          select: { id: true, semester: true, programId: true, session: true },
+        });
+
+        if (course) {
+          const matchingStudents = await prisma.student.findMany({
+            where: {
+              isActive: true,
+              programId: course.programId,
+              currentSemester: { gte: course.semester },
+              ...(course.session && course.session !== "ALL"
+                ? {
+                    OR: [
+                      { session: course.session },
+                      { session: { contains: course.session } },
+                    ],
+                  }
+                : {}),
+            },
+            include: {
+              user: { select: { name: true } },
+            },
+          });
+
+          if (matchingStudents.length > 0) {
+            await prisma.enrollment.createMany({
+              data: matchingStudents.map((s) => ({
+                studentId: s.id,
+                courseId: course.id,
+                semester: course.semester,
+                status: "ACTIVE",
+                isActive: true,
+              })),
+              skipDuplicates: true,
+            });
+
+            enrollments = await prisma.enrollment.findMany({
+              where: {
+                courseId,
+                status: "ACTIVE",
+                student: { isActive: true },
+              },
+              include: {
+                student: {
+                  include: {
+                    user: { select: { name: true } },
+                  },
+                },
+              },
+            });
+          }
+        }
+      }
 
       const students = enrollments.map(e => ({
         id: e.student.id,
