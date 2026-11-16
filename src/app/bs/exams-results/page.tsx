@@ -1107,6 +1107,48 @@ function MarksEntryTable({
     setStudents(students.map(s => s.id === id ? { ...s, [field]: numValue } : s));
   };
 
+  const handleTotalMarksChange = (studentId: string, valStr: string) => {
+    if (isFacultyLocked) return;
+    if (valStr === "") {
+      setStudents(prev => prev.map(s => {
+        if (s.id !== studentId) return s;
+        return {
+          ...s,
+          assignment: 0,
+          quiz: 0,
+          practical: 0,
+          mid: 0,
+          final: 0,
+          totalOnly: 0,
+        };
+      }));
+      return;
+    }
+
+    const num = parseFloat(valStr);
+    if (isNaN(num) || num < 0) return;
+
+    const clampedTotal = Math.min(num, courseTotalMarks);
+    const dist = distributeTotalMarks(clampedTotal, {
+      isPracticalCourse,
+      examScheme,
+      courseTotalMarks,
+    });
+
+    setStudents(prev => prev.map(s => {
+      if (s.id !== studentId || s.attendance === "ABSENT") return s;
+      return {
+        ...s,
+        assignment: dist.assignment,
+        quiz: dist.quiz,
+        practical: dist.practical,
+        mid: dist.mid,
+        final: dist.final,
+        totalOnly: clampedTotal,
+      };
+    }));
+  };
+
   const handleDistributeStudent = (studentId: string, forceTotal?: number) => {
     if (isFacultyLocked) return;
     setStudents(prev => prev.map(s => {
@@ -1198,30 +1240,22 @@ function MarksEntryTable({
         };
       }
 
-      if (pasteTargetCol === "total") {
-        if (autoDistributeOnPaste) {
-          const dist = distributeTotalMarks(markVal, {
-            isPracticalCourse,
-            examScheme,
-            courseTotalMarks,
-          });
-          return {
-            ...s,
-            attendance: "PRESENT",
-            assignment: dist.assignment,
-            quiz: dist.quiz,
-            practical: dist.practical,
-            mid: dist.mid,
-            final: dist.final,
-            totalOnly: markVal,
-          };
-        } else {
-          return {
-            ...s,
-            attendance: "PRESENT",
-            totalOnly: markVal,
-          };
-        }
+      if (pasteTargetCol === "total" || match.assignment === undefined) {
+        const dist = distributeTotalMarks(markVal, {
+          isPracticalCourse,
+          examScheme,
+          courseTotalMarks,
+        });
+        return {
+          ...s,
+          attendance: "PRESENT",
+          assignment: dist.assignment,
+          quiz: dist.quiz,
+          practical: dist.practical,
+          mid: dist.mid,
+          final: dist.final,
+          totalOnly: markVal,
+        };
       }
 
       // Specific single component
@@ -2021,27 +2055,19 @@ function MarksEntryTable({
                                   A (ABSENT)
                                 </span>
                               ) : (
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md font-mono text-sm">{obtained}</span>
-                                  <button
-                                    type="button"
+                                <div className="flex items-center justify-center">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={courseTotalMarks}
+                                    step="0.5"
                                     disabled={isFacultyLocked || isAbsent}
-                                    onClick={() => {
-                                      const promptVal = prompt(`Enter Direct Total Marks (0 - ${courseTotalMarks}) for ${s.name}:`, String(obtained || 100));
-                                      if (promptVal !== null) {
-                                        const num = parseFloat(promptVal);
-                                        if (!isNaN(num) && num >= 0 && num <= courseTotalMarks) {
-                                          handleDistributeStudent(s.id, num);
-                                        } else {
-                                          alert(`Invalid marks! Please enter a value between 0 and ${courseTotalMarks}.`);
-                                        }
-                                      }
-                                    }}
-                                    className="px-1.5 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded text-[11px] font-bold shadow-sm transition-all"
-                                    title="Set Direct Total Marks and Auto-Distribute into Quiz, Mid & Final"
-                                  >
-                                    🎲 Split
-                                  </button>
+                                    placeholder="0"
+                                    value={obtained > 0 ? obtained : ""}
+                                    onChange={(e) => handleTotalMarksChange(s.id, e.target.value)}
+                                    className="w-20 px-2 py-1.5 border-2 border-blue-200 rounded-lg text-center font-mono font-bold text-blue-800 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-300 bg-blue-50/40 hover:bg-white shadow-2xs transition-all"
+                                    title="Enter or paste Total Marks here — it automatically splits into Quiz, Assignment, Mid & Final!"
+                                  />
                                 </div>
                               )}
                             </td>
@@ -2053,25 +2079,16 @@ function MarksEntryTable({
                                 A (ABSENT)
                               </span>
                             ) : (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-center">
                                 <input
                                   type="number" min="0" max={courseTotalMarks} step="0.5"
                                   disabled={isFacultyLocked || isAbsent}
                                   placeholder="e.g. 78"
-                                  className="w-24 px-3 py-1.5 border-2 border-blue-200 rounded-lg focus:border-blue-500 font-mono font-bold text-blue-700 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm"
-                                  value={s.totalOnly || ""}
-                                  onChange={e => handleMarkChange(s.id, "totalOnly", e.target.value)}
+                                  className="w-24 px-3 py-1.5 border-2 border-blue-200 rounded-lg focus:border-blue-500 font-mono font-bold text-blue-700 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed shadow-sm text-center"
+                                  value={s.totalOnly > 0 ? s.totalOnly : (obtained > 0 ? obtained : "")}
+                                  onChange={e => handleTotalMarksChange(s.id, e.target.value)}
+                                  title="Enter or paste Total Marks here — it automatically splits into Quiz, Assignment, Mid & Final!"
                                 />
-                                <button
-                                  type="button"
-                                  disabled={isFacultyLocked || isAbsent || !s.totalOnly}
-                                  onClick={() => handleDistributeStudent(s.id)}
-                                  className="px-2.5 py-1.5 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1 shadow-sm"
-                                  title="Randomly distribute Total into Quiz, Assignment, Mid & Final components"
-                                >
-                                  <span>🎲</span>
-                                  <span>Distribute</span>
-                                </button>
                               </div>
                             )}
                           </td>
@@ -2359,18 +2376,11 @@ function MarksEntryTable({
                 </select>
               </div>
 
-              <div className="flex items-center pt-5">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={autoDistributeOnPaste}
-                    onChange={(e) => setAutoDistributeOnPaste(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                  />
-                  <span className="text-xs font-bold text-purple-950">
-                    🎲 Auto-distribute Total into Quiz, Mid & Final breakdown
-                  </span>
-                </label>
+              <div className="flex items-center pt-4">
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
+                  <span>⚡</span>
+                  <span>Total marks automatically split into Quiz, Assignment, Mid & Final breakdown!</span>
+                </span>
               </div>
             </div>
 
