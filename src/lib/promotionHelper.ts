@@ -1,16 +1,39 @@
 import { prisma } from "@/lib/prisma";
+import { getGPValue } from "@/lib/cgpa";
 
-export function isStudentPromotedFromSem(s: any, fromSem: number): boolean {
-  const semMarks = (s.marks || []).filter((m: any) => {
-    const sSem = m.course?.semester ?? m.semester;
+export interface StudentPromotionEvaluation {
+  isEligible: boolean;
+  status: "PROMOTED" | "PROBATION" | "DROPOUT" | "ABSENT";
+  gpa: number;
+  cgpa: number;
+}
+
+/**
+ * Official University & HEC Semester Promotion Rules:
+ * - 1st Semester: GPA >= 1.00 is PROMOTED and eligible for next semester. (GPA < 1.00 is DROPOUT)
+ * - 2nd Semester: CGPA >= 1.50 is PROMOTED. (CGPA 1.00-1.49 is PROBATION, eligible for next semester. < 1.00 is DROPOUT)
+ * - 3rd Semester: CGPA >= 1.75 is PROMOTED. (CGPA 1.00-1.74 is PROBATION, eligible for next semester. < 1.00 is DROPOUT)
+ * - 4th to 8th Semester: CGPA >= 2.00 is PROMOTED. (CGPA 1.00-1.99 is PROBATION, eligible for next semester. < 1.00 is DROPOUT)
+ * 
+ * NOTE: Number of failed papers in current or previous semesters does NOT block promotion
+ * as long as the student's GPA/CGPA satisfies the academic criteria.
+ */
+export function evaluateStudentPromotion(s: any, fromSem: number): StudentPromotionEvaluation {
+  const allMarks = s.marks || [];
+
+  // Marks in target semester fromSem
+  const semMarks = allMarks.filter((m: any) => {
+    const sSem = m.course?.semester ?? m.semester ?? 1;
     return sSem === fromSem;
   });
-  if (semMarks.length === 0) return false;
 
-  let qualityPoints = 0;
-  let totalCredits = 0;
-  let totalAbsent = 0;
-  let totalMax = 0;
+  if (semMarks.length === 0) {
+    return { isEligible: false, status: "DROPOUT", gpa: 0, cgpa: 0 };
+  }
+
+  let semQualityPoints = 0;
+  let semCredits = 0;
+  let semAbsentCount = 0;
 
   for (const m of semMarks) {
     const cr = m.course?.creditHours || 3;
@@ -19,34 +42,81 @@ export function isStudentPromotedFromSem(s: any, fromSem: number): boolean {
     const max = typeof m.totalMarks === "number" && m.totalMarks > 0 ? m.totalMarks : 100;
 
     if (isAbs) {
-      totalAbsent++;
+      semAbsentCount++;
     } else {
-      const pct = (obt / max) * 100;
-      let gp = 0;
-      if (pct >= 85) gp = 4.0;
-      else if (pct >= 80) gp = 3.66;
-      else if (pct >= 75) gp = 3.33;
-      else if (pct >= 71) gp = 3.0;
-      else if (pct >= 68) gp = 2.66;
-      else if (pct >= 64) gp = 2.33;
-      else if (pct >= 61) gp = 2.0;
-      else if (pct >= 58) gp = 1.66;
-      else if (pct >= 54) gp = 1.3;
-      else if (pct >= 50) gp = 1.0;
-      else gp = 0.0;
-
-      qualityPoints += gp * cr;
+      const gp = getGPValue(obt, max);
+      semQualityPoints += gp * cr;
     }
-    totalMax += max;
-    totalCredits += cr;
+    semCredits += cr;
   }
 
-  // If student was absent in all papers of that semester, they are NOT promoted
-  if (totalAbsent > 0 && totalAbsent === semMarks.length) return false;
-  if (totalMax === 0 || totalCredits === 0) return false;
+  // Absent in all papers of fromSem
+  if (semAbsentCount > 0 && semAbsentCount === semMarks.length) {
+    return { isEligible: false, status: "ABSENT", gpa: 0, cgpa: 0 };
+  }
 
-  const gpa = qualityPoints / totalCredits;
-  return gpa >= 1.00;
+  const gpa = semCredits > 0 ? parseFloat((semQualityPoints / semCredits).toFixed(2)) : 0;
+
+  // Calculate Cumulative GPA (CGPA) up to fromSem
+  const minSem = s.bsAdmissionType === "BRIDGING_5TH" ? 5 : 1;
+  let cumQualityPoints = 0;
+  let cumCredits = 0;
+
+  allMarks.forEach((m: any) => {
+    const sem = m.course?.semester ?? m.semester ?? 1;
+    if (sem >= minSem && sem <= fromSem) {
+      const cr = m.course?.creditHours || 3;
+      const isAbs = m.status === "ABSENT" || m.status === "A";
+      const obt = isAbs ? 0 : typeof m.obtainedMarks === "number" ? m.obtainedMarks : 0;
+      const max = typeof m.totalMarks === "number" && m.totalMarks > 0 ? m.totalMarks : 100;
+      const gp = isAbs ? 0.0 : getGPValue(obt, max);
+      cumQualityPoints += gp * cr;
+      cumCredits += cr;
+    }
+  });
+
+  const cgpa = cumCredits > 0 ? parseFloat((cumQualityPoints / cumCredits).toFixed(2)) : gpa;
+
+  // Evaluation by semester based on official formula
+  if (fromSem === 1) {
+    if (gpa >= 1.00) {
+      return { isEligible: true, status: "PROMOTED", gpa, cgpa };
+    }
+    return { isEligible: false, status: "DROPOUT", gpa, cgpa };
+  }
+
+  if (fromSem === 2) {
+    if (cgpa >= 1.50) {
+      return { isEligible: true, status: "PROMOTED", gpa, cgpa };
+    }
+    if (cgpa >= 1.00) {
+      return { isEligible: true, status: "PROBATION", gpa, cgpa };
+    }
+    return { isEligible: false, status: "DROPOUT", gpa, cgpa };
+  }
+
+  if (fromSem === 3) {
+    if (cgpa >= 1.75) {
+      return { isEligible: true, status: "PROMOTED", gpa, cgpa };
+    }
+    if (cgpa >= 1.00) {
+      return { isEligible: true, status: "PROBATION", gpa, cgpa };
+    }
+    return { isEligible: false, status: "DROPOUT", gpa, cgpa };
+  }
+
+  // Semesters 4 to 8: Minimum CGPA 2.00 is PROMOTED, CGPA 1.00-1.99 is PROBATION
+  if (cgpa >= 2.00) {
+    return { isEligible: true, status: "PROMOTED", gpa, cgpa };
+  }
+  if (cgpa >= 1.00) {
+    return { isEligible: true, status: "PROBATION", gpa, cgpa };
+  }
+  return { isEligible: false, status: "DROPOUT", gpa, cgpa };
+}
+
+export function isStudentPromotedFromSem(s: any, fromSem: number): boolean {
+  return evaluateStudentPromotion(s, fromSem).isEligible;
 }
 
 export interface AutoPromoteOptions {
@@ -112,12 +182,17 @@ export async function autoPromoteStudentsForCourseOrSemester({
     },
   });
 
-  const eligible = candidates.filter((s) => isStudentPromotedFromSem(s, fromSem));
-  if (eligible.length === 0) {
+  const evaluations = candidates.map((s) => ({
+    student: s,
+    eval: evaluateStudentPromotion(s, fromSem),
+  }));
+
+  const eligibleList = evaluations.filter((e) => e.eval.isEligible);
+  if (eligibleList.length === 0) {
     return { promotedCount: 0, promotedStudentIds: [], nextCoursesCount: 0 };
   }
 
-  const eligibleIds = eligible.map((s) => s.id);
+  const eligibleIds = eligibleList.map((e) => e.student.id);
 
   // 1. Advance currentSemester to toSem
   await prisma.student.updateMany({
@@ -125,13 +200,15 @@ export async function autoPromoteStudentsForCourseOrSemester({
     data: { currentSemester: toSem },
   });
 
-  // 2. Insert Promotion history
+  // 2. Insert Promotion history records with evaluated status and GPAs
   await prisma.promotion.createMany({
-    data: eligible.map((s) => ({
-      studentId: s.id,
+    data: eligibleList.map(({ student, eval: ev }) => ({
+      studentId: student.id,
       fromSemester: fromSem,
       toSemester: toSem,
-      status: "PROMOTED",
+      status: ev.status,
+      gpa: ev.gpa,
+      cgpa: ev.cgpa,
       promotedBy,
     })),
     skipDuplicates: true,
@@ -155,7 +232,7 @@ export async function autoPromoteStudentsForCourseOrSemester({
       isActive: boolean;
     }> = [];
 
-    for (const st of eligible) {
+    for (const { student: st } of eligibleList) {
       // Find courses for this student's program
       const studentCourses = nextCourses.filter((c) => {
         if (c.programId && st.programId && c.programId !== st.programId) return false;
@@ -183,9 +260,8 @@ export async function autoPromoteStudentsForCourseOrSemester({
   }
 
   return {
-    promotedCount: eligible.length,
+    promotedCount: eligibleList.length,
     promotedStudentIds: eligibleIds,
     nextCoursesCount: nextCourses.length,
   };
 }
-
