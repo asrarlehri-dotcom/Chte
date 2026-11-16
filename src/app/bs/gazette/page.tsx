@@ -13,7 +13,7 @@ type MarkEntry = {
   obtainedMarks: number;
   totalMarks: number;
   status?: string;
-  course: { id?: string; creditHours: number; title: string; semester?: number; code?: string; programId?: string };
+  course: { id?: string; creditHours: number; title: string; semester?: number; code?: string; programId?: string; creditHoursFormat?: string };
 };
 
 type FailedCourse = {
@@ -323,11 +323,11 @@ function buildStudentResults(
 
   // Serialized / numbered failed papers: "1. Math, 2. Physics"
   let remarks = "Passed";
-  const isAllFailed = semPaperCount > 0 && (failedCourses.length >= semPaperCount || totalAbsentCount >= semPaperCount);
+  const isAllFailed = semPaperCount > 0 && (failedCourses.length >= semPaperCount || totalAbsentCount >= semPaperCount || status === "ABSENT");
   if (totalMax === 0) {
     remarks = "—";
   } else if (isAllFailed) {
-    remarks = "Failed All";
+    remarks = "Failed in All Subjects";
   } else if (failedCourses.length > 0) {
     const serializedFailed = failedCourses.map((c, i) => `${i + 1}. ${c.title}`).join(", ");
     remarks = `Failed in ${failedCourses.length} Paper(s): ${serializedFailed}`;
@@ -359,7 +359,7 @@ type ProgramSessionGroup = {
   programName: string;
   session: string;
   students: StudentData[];
-  courses: Array<{ id?: string; title: string; code?: string; creditHours: number }>;
+  courses: Array<{ id?: string; title: string; code?: string; creditHours: number; creditHoursFormat?: string }>;
   courseMaxMarks: Record<string, number>;
   grandTotalMax: number;
   theme: ReturnType<typeof getProgramColor>;
@@ -845,14 +845,22 @@ export default function GazetteCompilerPage() {
         .filter((m) => (m.course?.semester ?? m.semester ?? 1) === selectedSemester)
         .forEach((m) => {
           const t = m.course?.title || "Subject";
-          if (!seenTitles.has(t)) {
+          const existingCourse = group.courses.find((c) => c.title === t);
+          if (!existingCourse) {
             seenTitles.add(t);
             group.courses.push({
               id: m.course?.id,
               title: t,
               code: m.course?.code,
               creditHours: m.course?.creditHours || 3,
+              creditHoursFormat: (m.course as any)?.creditHoursFormat,
             });
+          } else {
+            if (!existingCourse.id && m.course?.id) existingCourse.id = m.course.id;
+            if (!existingCourse.code && m.course?.code) existingCourse.code = m.course.code;
+            if (!existingCourse.creditHoursFormat && (m.course as any)?.creditHoursFormat) {
+              existingCourse.creditHoursFormat = (m.course as any).creditHoursFormat;
+            }
           }
           if (!group.courseMaxMarks[t] || m.totalMarks > group.courseMaxMarks[t]) {
             group.courseMaxMarks[t] = m.totalMarks;
@@ -1259,21 +1267,36 @@ export default function GazetteCompilerPage() {
                         <th rowSpan={2} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Name</th>
 
                         {/* Program-specific Papers */}
-                        {courses.map((course, i) => (
-                          <th
-                            key={`hdr-${group.programId}-${course.title}-${i}`}
-                            className={`px-2 py-1.5 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 transition-colors ${theme.headerBg}`}
-                            title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
-                          >
-                            <div className="font-black text-[9px]">Paper {i + 1}</div>
-                            <div className="font-semibold text-slate-200 print:text-slate-700 text-[8px] truncate max-w-[75px] mx-auto">
-                              {course.title.length > 18 ? course.title.slice(0, 16) + "…" : course.title}
-                            </div>
-                            <div className="text-slate-400 print:text-slate-500 text-[7.5px]">
-                              / {courseMaxMarks[course.title] ?? "—"}
-                            </div>
-                          </th>
-                        ))}
+                        {courses.map((course, i) => {
+                          const creditStr = course.creditHoursFormat
+                            ? (course.creditHoursFormat.toLowerCase().includes("cr") ? course.creditHoursFormat : `${course.creditHoursFormat} Cr`)
+                            : course.creditHours
+                              ? `${course.creditHours} Cr`
+                              : "";
+
+                          return (
+                            <th
+                              key={`hdr-${group.programId}-${course.title}-${i}`}
+                              className={`px-1.5 py-1.5 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 transition-colors min-w-[75px] max-w-[125px] print:min-w-0 print:max-w-none print:w-auto ${theme.headerBg}`}
+                              title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
+                            >
+                              <div className="font-black text-[9px] print:text-black">Paper {i + 1}</div>
+                              <div className="font-bold text-slate-100 print:text-slate-900 text-[8px] print:text-[8px] whitespace-normal break-words leading-tight mt-0.5 mx-auto">
+                                {course.title}
+                              </div>
+                              {(course.code || creditStr) && (
+                                <div className="text-[7.5px] font-mono font-bold text-slate-300 print:text-slate-800 leading-tight mt-0.5 whitespace-normal break-words">
+                                  {course.code ? <span>{course.code}</span> : null}
+                                  {course.code && creditStr ? <span className="opacity-60 mx-0.5">•</span> : null}
+                                  {creditStr ? <span>{creditStr}</span> : null}
+                                </div>
+                              )}
+                              <div className="text-slate-400 print:text-slate-600 font-semibold text-[7.5px] mt-0.5">
+                                / {courseMaxMarks[course.title] ?? "—"}
+                              </div>
+                            </th>
+                          );
+                        })}
 
                         <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
                           Total<br />
@@ -1422,14 +1445,16 @@ export default function GazetteCompilerPage() {
                               </span>
                             </td>
                             <td className="px-2.5 py-2 text-xs font-semibold border-l border-slate-100 print:border-slate-300 align-middle">
-                              {isAllPass ? (
+                              {totalMax === 0 ? (
+                                <span className="text-slate-400 font-bold text-xs">—</span>
+                              ) : isAllPass ? (
                                 <span className="inline-flex items-center gap-1 font-bold text-emerald-600 text-xs whitespace-nowrap">
                                   <span className="text-emerald-500 font-bold">✓</span> Passed
                                 </span>
                               ) : isAllFailed ? (
-                                <div className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-lg border bg-rose-50 text-rose-800 border-rose-300 shadow-2xs whitespace-nowrap print:border-none print:p-0 print:text-rose-900">
+                                <div className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-black rounded-lg border bg-rose-50 text-rose-800 border-rose-300 shadow-2xs whitespace-nowrap print:border-none print:p-0 print:text-rose-900 print:font-bold">
                                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500 print:hidden"></span>
-                                  <span>Failed All</span>
+                                  <span>Failed in All Subjects</span>
                                 </div>
                               ) : (
                                 (() => {
