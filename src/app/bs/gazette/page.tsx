@@ -1120,9 +1120,9 @@ export default function GazetteCompilerPage() {
                 <div className="overflow-x-auto gazette-table-container print:overflow-visible">
                   <table className="w-full text-sm text-left border-collapse">
                     <thead>
-                      {/* Row 1: Left Columns (rowSpan 5), Paper Numbers (colSpan 2 each), Right Columns (rowSpan 5) */}
+                      {/* Row 1: Left Columns (rowSpan 3), Paper Numbers (colSpan 2 each), Right Columns (rowSpan 3) */}
                       <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-b border-slate-700 print:border-slate-400">
-                        <th rowSpan={5} className="px-2 py-2 w-8 text-center align-middle border-r border-slate-700 print:border-slate-300 print:hidden">
+                        <th rowSpan={3} className="px-2 py-2 w-8 text-center align-middle border-r border-slate-700 print:border-slate-300 print:hidden">
                           <input
                             type="checkbox"
                             className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
@@ -1138,101 +1138,92 @@ export default function GazetteCompilerPage() {
                             }}
                           />
                         </th>
-                        <th rowSpan={5} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider text-center align-middle border-r border-slate-700 print:border-slate-300">#</th>
-                        <th rowSpan={5} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Roll No</th>
-                        <th rowSpan={5} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Name</th>
-                        <th rowSpan={5} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Father Name</th>
+                        <th rowSpan={3} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider text-center align-middle border-r border-slate-700 print:border-slate-300">#</th>
+                        <th rowSpan={3} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Roll No</th>
+                        <th rowSpan={3} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Name</th>
+                        <th rowSpan={3} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Father Name</th>
 
                         {/* Paper Numbers */}
                         {courses.map((course, i) => (
                           <th
                             key={`r1-paper-${group.programId}-${course.title}-${i}`}
                             colSpan={2}
-                            className={`py-1.5 px-1 font-black text-[9px] print:text-[8px] print:text-black uppercase text-center border-l border-slate-700 print:border-slate-400 ${courseColWidth} ${theme.headerBg}`}
+                            className={`py-1.5 px-1 font-black text-[9.5px] print:text-[8.5px] print:text-black uppercase text-center border-l border-slate-700 print:border-slate-400 ${courseColWidth} ${theme.headerBg}`}
                           >
                             Paper-{i + 1}
                           </th>
                         ))}
 
-                        <th rowSpan={5} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
+                        <th rowSpan={3} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
                           Total<br />
                           <span className="text-slate-400 text-[7.5px] font-semibold">
                             out of {grandTotalMax || "—"}
                           </span>
                         </th>
-                        <th rowSpan={5} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">%age</th>
-                        <th rowSpan={5} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">GPA</th>
+                        <th rowSpan={3} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">%age</th>
+                        <th rowSpan={3} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">GPA</th>
                         {selectedSemester > 1 && (
-                          <th rowSpan={5} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">CGPA</th>
+                          <th rowSpan={3} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">CGPA</th>
                         )}
-                        <th rowSpan={5} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Grade</th>
-                        <th rowSpan={5} className="px-2.5 py-2 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
+                        <th rowSpan={3} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Grade</th>
+                        <th rowSpan={3} className="px-2.5 py-2 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle bg-slate-800 print:bg-slate-200 whitespace-nowrap">
                           Overall Total<br />
                           <span className="text-slate-400 text-[7.5px] font-semibold">
                             (Sem 1 to {selectedSemester})
                           </span>
                         </th>
-                        <th rowSpan={5} className="px-2.5 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Status</th>
-                        <th rowSpan={5} className="px-2.5 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Remarks</th>
-                        <th rowSpan={5} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:hidden align-middle bg-slate-800">Print Cards</th>
+                        <th rowSpan={3} className="px-2.5 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Status</th>
+                        <th rowSpan={3} className="px-2.5 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Remarks</th>
+                        <th rowSpan={3} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:hidden align-middle bg-slate-800">Print Cards</th>
                       </tr>
 
-                      {/* Row 2: Course Names */}
-                      <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-b border-slate-700 print:border-slate-400">
-                        {courses.map((course, i) => (
-                          <th
-                            key={`r2-title-${group.programId}-${course.title}-${i}`}
-                            colSpan={2}
-                            className={`py-1.5 px-1 font-black text-slate-100 print:text-slate-900 uppercase text-center border-l border-slate-700 print:border-slate-400 ${courseColWidth} ${theme.headerBg}`}
-                            title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
-                          >
-                            <div className={`whitespace-normal break-words mx-auto ${getCourseTitleStyle(course.title)}`}>
-                              {course.title}
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-
-                      {/* Row 3: Course Codes */}
-                      <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-b border-slate-700 print:border-slate-400">
-                        {courses.map((course, i) => (
-                          <th
-                            key={`r3-code-${group.programId}-${course.title}-${i}`}
-                            colSpan={2}
-                            className={`py-1 px-1 font-mono font-bold text-slate-200 print:text-slate-900 text-[8px] print:text-[7.5px] uppercase text-center border-l border-slate-700 print:border-slate-400 leading-tight ${courseColWidth} ${theme.headerBg}`}
-                          >
-                            {course.code || "—"}
-                          </th>
-                        ))}
-                      </tr>
-
-                      {/* Row 4: Credit Hours & Total Marks */}
-                      <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-b border-slate-700 print:border-slate-400">
+                      {/* Row 2: Unified Course Details (Course Name, Code, Credit Hours, Total Marks in one box) */}
+                      <tr className="border-b border-slate-700 print:border-slate-400 bg-slate-800/90 print:bg-slate-200 text-white print:text-black">
                         {courses.map((course, i) => {
-                          const rawCredit = course.creditHoursFormat || (course.creditHours ? `${course.creditHours}(${course.creditHours}-0)` : "3(3-0)");
-                          const creditDisplay = rawCredit.toLowerCase().startsWith("cr")
-                            ? rawCredit
-                            : `Cr. ${rawCredit}`;
+                          const rawCredit = course.creditHoursFormat || (course.creditHours ? `${course.creditHours} (${course.creditHours}-0)` : "3 (3-0)");
+                          let creditDisplay = rawCredit;
+                          if (!creditDisplay.toLowerCase().startsWith("cr")) {
+                            creditDisplay = `Cr. ${creditDisplay}`;
+                          }
+                          creditDisplay = creditDisplay.replace(/^Cr\.\s*/i, "Cr. ").replace(/(\d)\(/, "$1 (");
 
                           return (
                             <th
-                              key={`r4-credit-${group.programId}-${course.title}-${i}`}
+                              key={`r2-detail-${group.programId}-${course.title}-${i}`}
                               colSpan={2}
-                              className={`py-1 px-1 font-bold text-[7.5px] print:text-[7px] text-slate-200 print:text-slate-900 text-center border-l border-slate-700 print:border-slate-400 leading-tight ${courseColWidth} ${theme.headerBg}`}
+                              className={`py-2 px-1 text-center border-l border-slate-700 print:border-slate-400 ${courseColWidth} bg-slate-800/90 print:bg-slate-200 text-slate-100 print:text-black`}
+                              title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
                             >
-                              <div>{creditDisplay}</div>
-                              <div className="text-slate-300 print:text-black font-extrabold mt-0.5">
-                                Marks {courseMaxMarks[course.title] || 100}
+                              <div className="flex flex-col items-center justify-center space-y-1">
+                                {/* Course Name */}
+                                <div className={`font-black uppercase text-slate-100 print:text-black whitespace-normal break-words mx-auto ${getCourseTitleStyle(course.title)}`}>
+                                  {course.title}
+                                </div>
+
+                                {/* Course Code */}
+                                <div className="font-mono font-bold text-slate-200 print:text-black text-[8px] print:text-[7.5px] uppercase leading-tight">
+                                  {course.code || "—"}
+                                </div>
+
+                                {/* Credit Hours */}
+                                <div className="font-bold text-[7.5px] print:text-[7px] text-slate-200 print:text-black leading-tight">
+                                  {creditDisplay}
+                                </div>
+
+                                {/* Total Marks */}
+                                <div className="font-extrabold text-[7.5px] print:text-[7px] text-slate-200 print:text-black leading-tight">
+                                  Marks {courseMaxMarks[course.title] || 100}
+                                </div>
                               </div>
                             </th>
                           );
                         })}
                       </tr>
 
-                      {/* Row 5: Marks | GP sub-headers */}
+                      {/* Row 3: Marks | GP sub-headers */}
                       <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-b border-slate-700 print:border-slate-400">
                         {courses.map((c, i) => (
-                          <Fragment key={`r5-subhdr-${group.programId}-${c.title}-${i}`}>
+                          <Fragment key={`r3-subhdr-${group.programId}-${c.title}-${i}`}>
                             <th
                               className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[8px] print:text-black border-l border-slate-700 print:border-slate-400 ${marksColWidth} ${theme.headerBg}`}
                             >
