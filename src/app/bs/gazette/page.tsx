@@ -1470,8 +1470,10 @@ export default function GazetteCompilerPage() {
                                             if (progVal) queryParams.set("programId", progVal);
                                             if (semVal) queryParams.set("semester", String(semVal));
                                             if (sessVal) queryParams.set("session", sessVal);
+                                            if (s.id) queryParams.set("studentId", s.id);
+                                            if (s.rollNumber) queryParams.set("rollNumber", s.rollNumber);
 
-                                            const targetUrl = `/bs/marks?${queryParams.toString()}`;
+                                            const targetUrl = `/bs/marks?${queryParams.toString()}#fail-cell-${s.id}`;
 
                                             return (
                                               <div key={i} className="flex items-center gap-1">

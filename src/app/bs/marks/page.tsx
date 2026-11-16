@@ -57,6 +57,8 @@ export default function AddResultPage() {
 
   const [courseTotalMarks, setCourseTotalMarks] = useState(100);
   const [students, setStudents] = useState<any[]>([]);
+  const [targetStudentId, setTargetStudentId] = useState("");
+  const [targetRollNumber, setTargetRollNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fetchingCourses, setFetchingCourses] = useState(false);
@@ -135,7 +137,44 @@ export default function AddResultPage() {
 
   useEffect(() => {
     loadMetrics();
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sId = urlParams.get("studentId");
+      const rNum = urlParams.get("rollNumber");
+      if (sId) setTargetStudentId(sId);
+      if (rNum) setTargetRollNumber(rNum);
+    }
   }, []);
+
+  // When students table is populated, auto-scroll and highlight the targeted student's fail cell & focus mark input
+  useEffect(() => {
+    if ((targetStudentId || targetRollNumber) && students.length > 0) {
+      const matched = students.find(
+        (s) =>
+          (targetStudentId && s.id === targetStudentId) ||
+          (targetRollNumber && s.roll?.toLowerCase().trim() === targetRollNumber.toLowerCase().trim())
+      );
+      if (matched) {
+        const timer = setTimeout(() => {
+          const cellEl =
+            document.getElementById(`fail-cell-${matched.id}`) ||
+            document.getElementById(`student-row-${matched.id}`);
+          if (cellEl) {
+            cellEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+          }
+          const inputEl =
+            (document.getElementById(`input-final-${matched.id}`) as HTMLInputElement) ||
+            (document.getElementById(`input-total-${matched.id}`) as HTMLInputElement) ||
+            (document.getElementById(`input-assignment-${matched.id}`) as HTMLInputElement);
+          if (inputEl && !inputEl.disabled) {
+            inputEl.focus();
+            inputEl.select?.();
+          }
+        }, 350);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [students, targetStudentId, targetRollNumber]);
 
   // Fetch all programs and courses (with no-store cache to get latest DB changes)
   const fetchProgramsAndCourses = () => {
@@ -167,6 +206,11 @@ export default function AddResultPage() {
         const paramProgramId = urlParams.get("programId");
         const paramSemester = urlParams.get("semester");
         const paramSession = urlParams.get("session");
+        const paramStudentId = urlParams.get("studentId");
+        const paramRollNumber = urlParams.get("rollNumber");
+
+        if (paramStudentId) setTargetStudentId(paramStudentId);
+        if (paramRollNumber) setTargetRollNumber(paramRollNumber);
 
         if (paramCourseId || paramCourseTitle || paramCourseCode || paramProgramId || paramSemester || paramSession) {
           let targetC = null;
@@ -1481,9 +1525,25 @@ export default function AddResultPage() {
                       const gp = isBlocked ? 0.0 : getGP(calculatedObtained, courseTotalMarks);
                       const grade = isDropout ? "-" : isAbsent ? "F (A)" : getGrade(calculatedObtained, courseTotalMarks);
                       const isPass = !isBlocked && gp >= 1.0;
+                      const isTargetStudent = Boolean(
+                        (targetStudentId && st.id === targetStudentId) ||
+                        (targetRollNumber && st.roll?.toLowerCase().trim() === targetRollNumber.toLowerCase().trim())
+                      );
 
                       return (
-                        <tr key={st.id} className={`border-b transition-colors ${isDropout ? "bg-gray-50/80" : isAbsent ? "bg-red-50/20" : "hover:bg-gray-50/50"}`}>
+                        <tr
+                          id={`student-row-${st.id}`}
+                          key={st.id}
+                          className={`border-b transition-all duration-300 ${
+                            isTargetStudent
+                              ? "bg-amber-100/70 ring-2 ring-amber-400 font-medium shadow-md"
+                              : isDropout
+                              ? "bg-gray-50/80"
+                              : isAbsent
+                              ? "bg-red-50/20"
+                              : "hover:bg-gray-50/50"
+                          }`}
+                        >
                           <td className="p-3 text-center text-xs font-bold text-gray-400">
                             {idx + 1}
                           </td>
@@ -1515,6 +1575,7 @@ export default function AddResultPage() {
                             <>
                               <td className="p-3">
                                 <input
+                                  id={`input-assignment-${st.id}`}
                                   type="number"
                                   min="0"
                                   max={totalQuizAssignLimit}
@@ -1535,6 +1596,7 @@ export default function AddResultPage() {
                               </td>
                               <td className="p-3">
                                 <input
+                                  id={`input-quiz-${st.id}`}
                                   type="number"
                                   min="0"
                                   max={totalQuizAssignLimit}
@@ -1556,6 +1618,7 @@ export default function AddResultPage() {
                               {isPracticalCourse && (
                                 <td className="p-3 bg-blue-50/70 border-x border-blue-200">
                                   <input
+                                    id={`input-practical-${st.id}`}
                                     type="number"
                                     placeholder={isDropout ? "-" : "0"}
                                     value={isBlocked ? (isDropout ? "" : 0) : (st.practical || "")}
@@ -1573,6 +1636,7 @@ export default function AddResultPage() {
                               )}
                               <td className="p-3">
                                 <input
+                                  id={`input-mid-${st.id}`}
                                   type="number"
                                   value={isBlocked || examScheme === "TERMINAL" ? (isDropout ? "" : 0) : (st.mid || "")}
                                   onChange={(e) => handleMarkChange(st.id, "mid", e.target.value)}
@@ -1591,6 +1655,7 @@ export default function AddResultPage() {
                               </td>
                               <td className={`p-3 ${examScheme === "TERMINAL" ? "bg-purple-50/70 border-x border-purple-200" : ""}`}>
                                 <input
+                                  id={`input-final-${st.id}`}
                                   type="number"
                                   value={isBlocked ? (isDropout ? "" : 0) : (st.final || "")}
                                   onChange={(e) => handleMarkChange(st.id, "final", e.target.value)}
@@ -1629,6 +1694,7 @@ export default function AddResultPage() {
                                 </span>
                               ) : (
                                 <input
+                                  id={`input-total-${st.id}`}
                                   type="number"
                                   value={st.totalOnly || ""}
                                   onChange={(e) => handleTotalOnlyChange(st.id, e.target.value)}
@@ -1641,18 +1707,26 @@ export default function AddResultPage() {
 
                           <td className={`p-3 font-extrabold ${isDropout ? "text-gray-400 font-bold" : isAbsent ? "text-red-600 font-black" : "text-blue-900"}`}>{grade}</td>
                           <td className={`p-3 font-mono font-bold ${isDropout ? "text-gray-400 font-semibold" : isAbsent ? "text-red-600" : "text-indigo-900"}`}>{isDropout ? "-" : gp.toFixed(2)}</td>
-                          <td className="p-3">
+                          <td id={`fail-cell-${st.id}`} className="p-3">
                             <div className="flex items-center gap-2">
-                              <span className={`px-2.5 py-1 text-xs rounded-full font-black ${isDropout
+                              <span className={`px-2.5 py-1 text-xs rounded-full font-black transition-all ${
+                                isTargetStudent && !isPass
+                                  ? 'bg-red-600 text-white ring-4 ring-red-400 ring-offset-2 animate-pulse shadow-lg scale-105'
+                                  : isDropout
                                   ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-sm'
                                   : isAbsent
-                                    ? 'bg-red-100 text-red-800 border border-red-200'
-                                    : isPass
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-red-100 text-red-800'
-                                }`}>
+                                  ? 'bg-red-100 text-red-800 border border-red-200'
+                                  : isPass
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
                                 {isDropout ? '🚫 Dropout' : isAbsent ? '❌ ABSENT (A)' : isPass ? '✅ Pass' : '❌ Fail'}
                               </span>
+                              {isTargetStudent && !isPass && (
+                                <span className="text-[10px] font-black uppercase text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300 animate-pulse whitespace-nowrap">
+                                  👈 Target Cell
+                                </span>
+                              )}
                               {isAdmin && !isDropout && (calculatedObtained > 0 || isAbsent) && (
                                 <button
                                   type="button"

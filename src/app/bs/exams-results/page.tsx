@@ -799,10 +799,51 @@ function MarksEntryTable({
 
   const [courseTotalMarks, setCourseTotalMarks] = useState(100);
   const [students, setStudents] = useState<any[]>([]);
+  const [targetStudentId, setTargetStudentId] = useState("");
+  const [targetRollNumber, setTargetRollNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sId = urlParams.get("studentId");
+      const rNum = urlParams.get("rollNumber");
+      if (sId) setTargetStudentId(sId);
+      if (rNum) setTargetRollNumber(rNum);
+    }
+  }, []);
+
+  // When students table is populated, auto-scroll and highlight the targeted student's fail cell & focus mark input
+  useEffect(() => {
+    if ((targetStudentId || targetRollNumber) && students.length > 0) {
+      const matched = students.find(
+        (s) =>
+          (targetStudentId && s.id === targetStudentId) ||
+          (targetRollNumber && s.roll?.toLowerCase().trim() === targetRollNumber.toLowerCase().trim())
+      );
+      if (matched) {
+        const timer = setTimeout(() => {
+          const cellEl =
+            document.getElementById(`fail-cell-${matched.id}`) ||
+            document.getElementById(`exam-student-row-${matched.id}`);
+          if (cellEl) {
+            cellEl.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+          }
+          const inputEl =
+            (document.getElementById(`exam-input-final-${matched.id}`) as HTMLInputElement) ||
+            (document.getElementById(`exam-input-assignment-${matched.id}`) as HTMLInputElement);
+          if (inputEl && !inputEl.disabled) {
+            inputEl.focus();
+            inputEl.select?.();
+          }
+        }, 350);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [students, targetStudentId, targetRollNumber]);
 
   // Sync to parent sharedFilters
   useEffect(() => {
@@ -1999,9 +2040,23 @@ function MarksEntryTable({
                     const gp = isAbsent ? 0.0 : getGP(obtained, courseTotalMarks);
                     const grade = isAbsent ? "F (A)" : getGrade(obtained, courseTotalMarks);
                     const pass = !isAbsent && gp >= 1.0;
+                    const isTargetStudent = Boolean(
+                      (targetStudentId && s.id === targetStudentId) ||
+                      (targetRollNumber && s.roll?.toLowerCase().trim() === targetRollNumber.toLowerCase().trim())
+                    );
 
                     return (
-                      <tr key={s.id} className={`transition-colors ${isAbsent ? "bg-red-50/20" : "hover:bg-gray-50"}`}>
+                      <tr
+                        id={`exam-student-row-${s.id}`}
+                        key={s.id}
+                        className={`transition-all duration-300 ${
+                          isTargetStudent
+                            ? "bg-amber-100/70 ring-2 ring-amber-400 font-medium shadow-md"
+                            : isAbsent
+                            ? "bg-red-50/20"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium text-gray-900">{s.name}</span>
@@ -2207,7 +2262,7 @@ function MarksEntryTable({
                           </span>
                         </td>
 
-                        <td className="px-4 py-3 text-center">
+                        <td id={`fail-cell-${s.id}`} className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
                             {isAbsent ? (
                               <span className="px-2.5 py-1 text-xs rounded-full font-black bg-red-100 text-red-800 border border-red-200">
@@ -2220,8 +2275,19 @@ function MarksEntryTable({
                                 ✅ Pass
                               </span>
                             ) : (
-                              <span className="px-3 py-1 text-xs rounded-full font-bold bg-red-100 text-red-700 border border-red-200">
+                              <span
+                                className={`px-3 py-1 text-xs rounded-full font-bold transition-all ${
+                                  isTargetStudent
+                                    ? "bg-red-600 text-white ring-4 ring-red-400 ring-offset-2 animate-pulse shadow-lg scale-105"
+                                    : "bg-red-100 text-red-700 border border-red-200"
+                                }`}
+                              >
                                 ❌ Fail
+                              </span>
+                            )}
+                            {isTargetStudent && !pass && (
+                              <span className="text-[10px] font-black uppercase text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300 animate-pulse whitespace-nowrap">
+                                👈 Target Cell
                               </span>
                             )}
                             {isAdmin && (s.marksRecord || obtained > 0) && (
