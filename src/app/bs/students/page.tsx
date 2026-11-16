@@ -45,6 +45,9 @@ type StudentRecord = {
   contactNumber?: string;
   residentAddress?: string;
   statuses?: any[];
+  enrollments?: any[];
+  marks?: any[];
+  promotions?: any[];
 };
 
 const INPUT_STYLE =
@@ -185,7 +188,17 @@ export default function BSStudentsPage() {
 
       if (filterProgram !== "ALL" && s.programId !== filterProgram) return false;
 
-      if (filterSemester !== "ALL" && String(s.currentSemester) !== filterSemester) return false;
+      if (filterSemester !== "ALL") {
+        const targetSem = parseInt(filterSemester);
+        const curSem = s.currentSemester || 1;
+        const hasEnrollment = (s.enrollments || []).some((e: any) => e.semester === targetSem);
+        const hasMarks = (s.marks || []).some((m: any) => (m.course?.semester ?? m.semester) === targetSem);
+        const hasPromotion = (s.promotions || []).some((p: any) => p.fromSemester === targetSem || p.toSemester === targetSem);
+        // Student is shown if currently in this semester, or has completed it (previous semester), or has records in it
+        if (curSem !== targetSem && curSem < targetSem && !hasEnrollment && !hasMarks && !hasPromotion) {
+          return false;
+        }
+      }
 
       if (filterStatus !== "ALL") {
         const stObj = getStudentStatusObj(s);
