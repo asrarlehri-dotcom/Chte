@@ -19,6 +19,7 @@ import {
   Hash,
   FileText,
   FileCheck2,
+  Clock,
 } from "lucide-react";
 
 interface CollegeOption {
@@ -86,6 +87,11 @@ interface StudentResult {
   academicStatus: string;
   failedCoursesCount: number;
   failedCourses: CourseMark[];
+  previousBacklogsCount?: number;
+  previousBacklogs?: any[];
+  totalLifetimeFailedCount?: number;
+  allFailedCourses?: any[];
+  availableSemesters?: number[];
   courses: CourseMark[];
 }
 
@@ -232,6 +238,28 @@ export default function StudentResultSearch({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSelectSemester = async (sem: number) => {
+    if (!selectedResult) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedResult.college.id) params.append("collegeId", selectedResult.college.id);
+      if (selectedResult.session) params.append("session", selectedResult.session);
+      if (selectedResult.program.id) params.append("programId", selectedResult.program.id);
+      params.append("semester", sem.toString());
+      params.append("query", selectedResult.rollNumber);
+
+      const res = await fetch(`/api/public/results?${params.toString()}`);
+      const data = await res.json();
+      if (data.students && data.students.length > 0) {
+        setSelectedResult(data.students[0]);
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -576,9 +604,30 @@ export default function StudentResultSearch({
                   <span className="inline-block px-3 py-1 bg-slate-900 text-white rounded-md text-xs font-black uppercase tracking-wider">
                     SEMESTER RESULT SLIP
                   </span>
-                  <div className="text-[11px] font-mono text-slate-500 mt-1">
+                  <div className="text-[11px] font-mono text-slate-500 mt-1 font-bold">
                     SEMESTER {selectedResult.semester} EXAMINATION
                   </div>
+
+                  {/* Quick Semester Switcher Tabs (Hidden when printing) */}
+                  {selectedResult.availableSemesters && selectedResult.availableSemesters.length > 1 && (
+                    <div className="flex flex-wrap items-center justify-center sm:justify-end gap-1.5 mt-2.5 print:hidden">
+                      <span className="text-[10px] font-bold text-slate-500 mr-0.5">Switch Sem:</span>
+                      {selectedResult.availableSemesters.map((sem) => (
+                        <button
+                          key={sem}
+                          type="button"
+                          onClick={() => handleSelectSemester(sem)}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all ${
+                            selectedResult.semester === sem
+                              ? "bg-[#0c5938] text-white shadow-xs scale-105"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300"
+                          }`}
+                        >
+                          Sem {sem}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -812,34 +861,136 @@ export default function StudentResultSearch({
               </div>
             </div>
 
-            {/* Paper-wise Pass / Fail Alerts */}
-            {selectedResult.failedCoursesCount > 0 ? (
-              <div className="p-4 bg-red-50 border border-red-300 rounded-xl text-red-900 mb-6 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            {/* ── Status Notices & Alerts ── */}
+            {/* 1. Result Awaited / No Papers Entered in this semester */}
+            {selectedResult.courses.length === 0 || selectedResult.academicStatus === "RESULT_AWAITED" ? (
+              <div className="p-4 bg-slate-100 border border-slate-300 rounded-xl text-slate-800 mb-6 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center flex-shrink-0 text-slate-600 font-bold">
+                  <Clock className="w-4 h-4 text-slate-600" />
+                </div>
                 <div className="text-xs">
-                  <div className="font-black text-red-950">
-                    Failed in {selectedResult.failedCoursesCount} Paper(s) in this Semester:
+                  <div className="font-black text-slate-900 text-sm">
+                    Result Awaited — No Examination Records for Semester {selectedResult.semester}
                   </div>
-                  <ul className="list-disc list-inside mt-1 space-y-0.5 font-bold">
-                    {selectedResult.failedCourses.map((fc, i) => (
-                      <li key={i}>
-                        {fc.courseTitle} ({fc.courseCode}) — {fc.isAbsent ? "ABSENT" : `Obtained Marks: ${fc.obtainedMarks} / ${fc.totalMarks}`}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-[11px] text-red-700 font-normal mt-1">
-                    * The student is eligible to appear in the supplementary examination as per college regulations.
+                  <p className="text-slate-600 mt-1">
+                    Official marks for Semester {selectedResult.semester} have not been uploaded by the examination department yet.
+                    {selectedResult.availableSemesters && selectedResult.availableSemesters.length > 0 && (
+                      <span className="block mt-1.5 font-bold text-slate-800">
+                        👉 Exam records are available for Semester:{" "}
+                        {selectedResult.availableSemesters.map((sem) => (
+                          <button
+                            key={sem}
+                            type="button"
+                            onClick={() => handleSelectSemester(sem)}
+                            className="underline text-blue-700 mx-1 hover:text-blue-900 font-bold cursor-pointer"
+                          >
+                            Semester {sem}
+                          </button>
+                        ))}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
-            ) : (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 mb-6 flex items-center gap-2.5 text-xs font-bold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>
-                  Congratulations! All semester papers passed successfully with satisfactory academic standing.
-                </span>
+            ) : null}
+
+            {/* 2. Failed Papers in THIS Semester */}
+            {selectedResult.failedCoursesCount > 0 && (
+              <div className="p-4 bg-red-50 border-2 border-red-400 rounded-xl text-red-950 mb-6 shadow-xs">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs w-full">
+                    <div className="font-black text-red-950 text-sm flex items-center justify-between">
+                      <span>❌ Failed in {selectedResult.failedCoursesCount} Paper(s) in Semester {selectedResult.semester}:</span>
+                      <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-black rounded-md">
+                        SUPPLEMENTARY REQUIRED
+                      </span>
+                    </div>
+                    <div className="mt-2 divide-y divide-red-200 border border-red-200 rounded-lg overflow-hidden bg-white/70">
+                      {selectedResult.failedCourses.map((fc, i) => (
+                        <div key={i} className="p-2.5 flex items-center justify-between gap-3 text-xs">
+                          <span className="font-extrabold text-red-950">
+                            {i + 1}. {fc.courseTitle} ({fc.courseCode})
+                          </span>
+                          <span className="font-mono font-bold text-red-700 flex-shrink-0">
+                            {fc.isAbsent ? (
+                              <span className="px-2 py-0.5 bg-red-100 rounded text-red-800 font-black">ABSENT (A)</span>
+                            ) : (
+                              <span>Obtained: {fc.obtainedMarks} / {fc.totalMarks} (GP: {fc.gp}, Grade: {fc.grade})</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-red-700 font-medium mt-2">
+                      * As per university policy, the student must register and clear these failed papers in subsequent supplementary examinations.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
+
+            {/* 3. Previous Semesters Backlog Alert */}
+            {selectedResult.previousBacklogs && selectedResult.previousBacklogs.length > 0 && (
+              <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 mb-6 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs w-full">
+                  <div className="font-black text-amber-900 text-sm">
+                    ⚠️ Previous Backlogs Notice: Student has {selectedResult.previousBacklogs.length} uncleared paper(s) from earlier semesters:
+                  </div>
+                  <div className="mt-2 divide-y divide-amber-200 border border-amber-200 rounded-lg overflow-hidden bg-white/70">
+                    {selectedResult.previousBacklogs.map((pb: any, i: number) => (
+                      <div key={i} className="p-2 flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-800">
+                          Semester {pb.semester}: {pb.courseTitle} ({pb.courseCode})
+                        </span>
+                        <span className="font-mono font-bold text-red-600">
+                          {pb.isAbsent ? "ABSENT" : `Marks: ${pb.obtainedMarks}/${pb.totalMarks} (${pb.grade})`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-amber-800 mt-1">
+                    * Pending backlogs must be cleared prior to final degree award.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 4. Academic Standing Warning (Probation or Dropout) */}
+            {(selectedResult.academicStatus === "DROPOUT" || selectedResult.academicStatus === "PROBATION") && (
+              <div className={`p-4 rounded-xl border-2 mb-6 flex items-start gap-3 ${
+                selectedResult.academicStatus === "DROPOUT"
+                  ? "bg-red-50 border-red-500 text-red-950"
+                  : "bg-amber-50 border-amber-400 text-amber-950"
+              }`}>
+                <XCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />
+                <div className="text-xs">
+                  <div className="font-black text-sm uppercase">
+                    {selectedResult.academicStatus === "DROPOUT" ? "🚫 Academic Dropout Notice" : "⚠️ Academic Probation Notice"}
+                  </div>
+                  <p className="mt-1 font-semibold">
+                    {selectedResult.academicStatus === "DROPOUT"
+                      ? `Cumulative CGPA (${selectedResult.cumulativeCGPA.toFixed(2)}) is below the minimum threshold required for continuation.`
+                      : `Cumulative CGPA (${selectedResult.cumulativeCGPA.toFixed(2)}) is under probation. The student must improve GPA in subsequent semester.`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 5. Congratulations Box ONLY WHEN TRULY PASSED EVERYTHING */}
+            {selectedResult.courses.length > 0 &&
+              selectedResult.failedCoursesCount === 0 &&
+              (!selectedResult.previousBacklogs || selectedResult.previousBacklogs.length === 0) &&
+              (!selectedResult.totalLifetimeFailedCount || selectedResult.totalLifetimeFailedCount === 0) &&
+              selectedResult.academicStatus === "PROMOTED" && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 mb-6 flex items-center gap-2.5 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>
+                    🎉 Congratulations! All semester papers passed successfully with satisfactory academic standing.
+                  </span>
+                </div>
+              )}
 
             {/* Footer Signatures Area (Official Slip Style) */}
             <div className="pt-8 border-t border-slate-300 flex flex-col sm:flex-row items-end justify-between gap-6 text-center text-xs font-bold text-slate-700">
@@ -874,3 +1025,4 @@ export default function StudentResultSearch({
     </div>
   );
 }
+

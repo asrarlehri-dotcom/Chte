@@ -99,21 +99,38 @@ export async function GET(req: NextRequest) {
     }
 
     const results = students.map((s) => {
-      // 1. Determine target semester
-      let targetSemester = semesterParam ? parseInt(semesterParam) : 0;
+      // 1. Identify all semesters where marks actually exist
+      const semWithMarks = Array.from(
+        new Set((s.marks || []).map((m) => m.course?.semester || 1))
+      ).sort((a, b) => a - b);
+
+      // Determine target semester:
+      // If user passed a specific semester, use it.
+      // Otherwise, default to the latest semester that HAS MARKS (so we don't show an empty semester like Sem 8 when marks are in Sem 3)!
+      let targetSemester = semesterParam && semesterParam !== "ALL" ? parseInt(semesterParam) : 0;
       if (!targetSemester || isNaN(targetSemester)) {
-        if (s.currentSemester) {
+        if (semWithMarks.length > 0) {
+          targetSemester = semWithMarks[semWithMarks.length - 1]; // latest semester with actual exam marks
+        } else if (s.currentSemester) {
           targetSemester = s.currentSemester;
         } else {
-          // Detect latest semester from marks
-          const semList = (s.marks || [])
-            .map((m) => m.course?.semester || 1)
-            .filter(Boolean);
-          targetSemester = semList.length > 0 ? Math.max(...semList) : 1;
+          targetSemester = 1;
         }
       }
 
-      // 2. Build multi-semester data for GPA & CGPA calculation
+      // 2. Track all failed / unpassed courses across the student's entire degree history
+      const allFailedCourses: Array<{
+        semester: number;
+        courseTitle: string;
+        courseCode: string;
+        obtainedMarks: number;
+        totalMarks: number;
+        gp: string;
+        grade: string;
+        isAbsent: boolean;
+      }> = [];
+
+      // Build multi-semester data for GPA & CGPA calculation
       const semestersMap: Record<
         number,
         { gpPoints: number; credits: number; obtained: number; total: number }
@@ -124,6 +141,20 @@ export async function GET(req: NextRequest) {
         const credit = m.course?.creditHours || 3;
         const isAbsent = m.status === "ABSENT" || m.status === "A";
         const gp = isAbsent ? 0.0 : getGPValue(m.obtainedMarks, m.totalMarks);
+        const isPass = !isAbsent && gp >= 1.0;
+
+        if (!isPass) {
+          allFailedCourses.push({
+            semester: sem,
+            courseTitle: m.course?.title || "Subject",
+            courseCode: m.course?.code || "SUBJ",
+            obtainedMarks: isAbsent ? 0 : m.obtainedMarks,
+            totalMarks: m.totalMarks || 100,
+            gp: gp.toFixed(2),
+            grade: isAbsent ? "F (A)" : getGrade(m.obtainedMarks, m.totalMarks),
+            isAbsent,
+          });
+        }
 
         if (!semestersMap[sem]) {
           semestersMap[sem] = { gpPoints: 0, credits: 0, obtained: 0, total: 0 };
@@ -184,8 +215,11 @@ export async function GET(req: NextRequest) {
           };
         });
 
-      // 4. Failed courses in target semester
-      const failedCourses = targetMarks.filter((tm) => !tm.isPass);
+      // 4. Failed courses in target semester vs previous backlogs
+      const failedCoursesInTargetSem = targetMarks.filter((tm) => !tm.isPass);
+      const previousBacklogs = allFailedCourses.filter(
+        (fc) => fc.semester < targetSemester
+      );
 
       // Semester totals
       const semTotalObtained = targetMarks.reduce(
@@ -250,6 +284,7 @@ export async function GET(req: NextRequest) {
         cnic: s.cnic || "—",
         session: s.session || "2024-2028",
         semester: targetSemester,
+        availableSemesters: semWithMarks,
         educationLevel: s.educationLevel || "BS",
         bsAdmissionType: s.bsAdmissionType || "REGULAR",
         college: {
@@ -276,8 +311,12 @@ export async function GET(req: NextRequest) {
           total: cumTotalMax,
         },
         academicStatus,
-        failedCoursesCount: failedCourses.length,
-        failedCourses,
+        failedCoursesCount: failedCoursesInTargetSem.length,
+        failedCourses: failedCoursesInTargetSem,
+        previousBacklogsCount: previousBacklogs.length,
+        previousBacklogs,
+        totalLifetimeFailedCount: allFailedCourses.length,
+        allFailedCourses,
         courses: targetMarks,
       };
     });
@@ -294,3 +333,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
