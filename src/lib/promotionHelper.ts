@@ -90,7 +90,7 @@ export function evaluateStudentPromotion(s: any, fromSem: number): StudentPromot
       return { isEligible: true, status: "PROMOTED", gpa, cgpa };
     }
     if (cgpa >= 1.00) {
-      return { isEligible: true, status: "PROBATION", gpa, cgpa };
+      return { isEligible: false, status: "PROBATION", gpa, cgpa };
     }
     return { isEligible: false, status: "DROPOUT", gpa, cgpa };
   }
@@ -100,7 +100,7 @@ export function evaluateStudentPromotion(s: any, fromSem: number): StudentPromot
       return { isEligible: true, status: "PROMOTED", gpa, cgpa };
     }
     if (cgpa >= 1.00) {
-      return { isEligible: true, status: "PROBATION", gpa, cgpa };
+      return { isEligible: false, status: "PROBATION", gpa, cgpa };
     }
     return { isEligible: false, status: "DROPOUT", gpa, cgpa };
   }
@@ -110,7 +110,7 @@ export function evaluateStudentPromotion(s: any, fromSem: number): StudentPromot
     return { isEligible: true, status: "PROMOTED", gpa, cgpa };
   }
   if (cgpa >= 1.00) {
-    return { isEligible: true, status: "PROBATION", gpa, cgpa };
+    return { isEligible: false, status: "PROBATION", gpa, cgpa };
   }
   return { isEligible: false, status: "DROPOUT", gpa, cgpa };
 }

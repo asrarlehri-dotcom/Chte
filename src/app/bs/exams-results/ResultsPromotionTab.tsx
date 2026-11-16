@@ -216,7 +216,7 @@ export default function ResultsPromotionTab({
       status = cgpa >= 2.0 ? "PROMOTED" : cgpa >= 1.0 ? "PROBATION" : "DROPOUT";
     }
 
-    const isEligible = status === "PROMOTED" || status === "PROBATION";
+    const isEligible = status === "PROMOTED";
 
     return {
       totalObtained,
