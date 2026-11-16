@@ -23,7 +23,7 @@ type Admission = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:  "bg-yellow-100 text-yellow-800",
+  PENDING: "bg-yellow-100 text-yellow-800",
   APPROVED: "bg-green-100  text-green-800",
   REJECTED: "bg-red-100    text-red-800",
 };
@@ -33,11 +33,11 @@ export default function IntermediateAdmissionsPage() {
   const userCollegeId = (session?.user as any)?.collegeId;
   const { can } = usePermissions();
   const [admissions, setAdmissions] = useState<Admission[]>([]);
-  const [programs, setPrograms]     = useState<any[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [search, setSearch]         = useState("");
-  const [filter, setFilter]         = useState("ALL");
-  const [msg, setMsg]               = useState({ type: "", text: "" });
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("ALL");
+  const [msg, setMsg] = useState({ type: "", text: "" });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -55,9 +55,9 @@ export default function IntermediateAdmissionsPage() {
     errors: { row: number; student: string; reason: string }[];
   } | null>(null);
 
-  const canAdd    = can(MODULES.INTER_ADMISSIONS, ACTIONS.ADD);
-  const canEdit   = can(MODULES.INTER_ADMISSIONS, ACTIONS.EDIT);
-  const canApprove= can(MODULES.INTER_ADMISSIONS, ACTIONS.APPROVE);
+  const canAdd = can(MODULES.INTER_ADMISSIONS, ACTIONS.ADD);
+  const canEdit = can(MODULES.INTER_ADMISSIONS, ACTIONS.EDIT);
+  const canApprove = can(MODULES.INTER_ADMISSIONS, ACTIONS.APPROVE);
   const canDelete = can(MODULES.INTER_ADMISSIONS, ACTIONS.DELETE);
 
   useEffect(() => {

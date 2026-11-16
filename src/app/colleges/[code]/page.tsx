@@ -25,6 +25,7 @@ import {
   Quote,
   Award
 } from "lucide-react";
+import StudentResultSearch from "@/components/StudentResultSearch";
 
 type Department = {
   id: string;
@@ -300,6 +301,9 @@ export default function CollegePortalHomePage() {
             <Link href={loginUrl} className="text-amber-400 hover:text-amber-300 transition-colors font-black">
               CMS PORTAL
             </Link>
+            <a href="#results" className="text-amber-400 hover:text-white transition-colors font-black">
+              RESULTS
+            </a>
             <a href="#programs" className="text-slate-300 hover:text-white transition-colors">
               PROGRAMS
             </a>
@@ -666,6 +670,17 @@ export default function CollegePortalHomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* ── 6.2. STUDENT EXAMINATION RESULT PORTAL ── */}
+      <section id="results" className="max-w-7xl mx-auto px-4 sm:px-8 pt-12 pb-4">
+        <StudentResultSearch
+          isChtePortal={false}
+          collegeId={college.id}
+          collegeName={college.name}
+          collegeCode={college.code}
+          themeColor={s.primaryColor || themeColor || "#0c5938"}
+        />
       </section>
 
       {/* ── 6.5. FEATURED PROFILES & CAMPUS LEADERSHIP (فیچرڈ پروفائلز) ── */}

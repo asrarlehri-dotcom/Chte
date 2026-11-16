@@ -32,6 +32,7 @@ import {
   Award
 } from "lucide-react";
 import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS, ChteHomepageSettings } from "@/lib/chte-settings";
+import StudentResultSearch from "@/components/StudentResultSearch";
 
 interface PublicCollege {
   id: string;
@@ -246,6 +247,17 @@ export default function ChteHomePage() {
             </a>
 
             <div className="h-8 w-px bg-slate-200 mx-1" />
+
+            {/* Student Results */}
+            <a
+              href="#results"
+              onClick={() => setActiveTab("results")}
+              className="flex flex-col items-center justify-center px-3 py-1 text-center text-slate-700 hover:text-[#0c5938] transition-colors group cursor-pointer"
+            >
+              <Award className={`w-5 h-5 transition-transform group-hover:scale-110 ${activeTab === "results" ? "text-[#0c5938]" : "text-amber-600"}`} />
+              <span className={`text-xs font-semibold mt-1 ${activeTab === "results" ? "text-[#0c5938] font-bold" : "text-slate-700"}`}>Student Results</span>
+              <span className={`w-full h-1 rounded-full mt-1 ${activeTab === "results" ? "bg-[#0c5938]" : "bg-transparent"}`} />
+            </a>
 
             {/* Colleges Directory */}
             <a
@@ -610,6 +622,13 @@ export default function ChteHomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* 6.5. ONLINE STUDENT EXAMINATION RESULT VERIFICATION         */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      <section id="results" className="max-w-7xl mx-auto w-full px-4 sm:px-8 py-8">
+        <StudentResultSearch isChtePortal={true} />
       </section>
 
       {/* ─────────────────────────────────────────────────────────── */}
