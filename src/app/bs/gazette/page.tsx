@@ -1111,6 +1111,7 @@ export default function GazetteCompilerPage() {
                         <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider text-center align-middle border-r border-slate-700 print:border-slate-300">#</th>
                         <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Roll No</th>
                         <th rowSpan={2} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Name</th>
+                        <th rowSpan={2} className="px-3 py-2 font-black uppercase text-[9.5px] tracking-wider align-middle border-r border-slate-700 print:border-slate-300 whitespace-nowrap">Father Name</th>
 
                         {/* Program-specific Papers */}
                         {courses.map((course, i) => {
@@ -1123,18 +1124,21 @@ export default function GazetteCompilerPage() {
                           return (
                             <th
                               key={`hdr-${group.programId}-${course.title}-${i}`}
-                              className={`px-1.5 py-1.5 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 transition-colors min-w-[75px] max-w-[125px] print:min-w-0 print:max-w-none print:w-auto ${theme.headerBg}`}
+                              className={`px-1.5 py-1.5 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 transition-colors w-[90px] min-w-[90px] max-w-[90px] print:w-[62px] print:min-w-[62px] print:max-w-[62px] ${theme.headerBg}`}
                               title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
                             >
                               <div className="font-black text-[9px] print:text-black">Paper {i + 1}</div>
                               <div className="font-bold text-slate-100 print:text-slate-900 text-[8px] print:text-[8px] whitespace-normal break-words leading-tight mt-0.5 mx-auto">
                                 {course.title}
                               </div>
-                              {(course.code || creditStr) && (
-                                <div className="text-[7.5px] font-mono font-bold text-slate-300 print:text-slate-800 leading-tight mt-0.5 whitespace-normal break-words">
-                                  {course.code ? <span>{course.code}</span> : null}
-                                  {course.code && creditStr ? <span className="opacity-60 mx-0.5">•</span> : null}
-                                  {creditStr ? <span>{creditStr}</span> : null}
+                              {course.code && (
+                                <div className="text-[7.5px] font-mono font-bold text-slate-300 print:text-slate-800 leading-tight mt-0.5 break-words">
+                                  {course.code}
+                                </div>
+                              )}
+                              {creditStr && (
+                                <div className="text-[7.5px] font-mono font-bold text-slate-400 print:text-slate-700 leading-tight break-words">
+                                  {creditStr}
                                 </div>
                               )}
                               <div className="text-slate-400 print:text-slate-600 font-semibold text-[7.5px] mt-0.5">
@@ -1168,7 +1172,12 @@ export default function GazetteCompilerPage() {
                       </tr>
                       {/* Empty second row for rowspan alignment */}
                       <tr className="bg-slate-800 print:bg-slate-50 h-0">
-                        {courses.map((c, i) => <th key={`sp-${group.programId}-${c.title}-${i}`} className="p-0 border-none"></th>)}
+                        {courses.map((c, i) => (
+                          <th
+                            key={`sp-${group.programId}-${c.title}-${i}`}
+                            className="p-0 border-none w-[90px] min-w-[90px] max-w-[90px] print:w-[62px] print:min-w-[62px] print:max-w-[62px]"
+                          ></th>
+                        ))}
                       </tr>
                     </thead>
 
@@ -1211,19 +1220,22 @@ export default function GazetteCompilerPage() {
                             <td className="px-2.5 py-2 text-xs font-bold text-slate-400 text-center border-r border-slate-100 print:border-slate-300">{idx + 1}</td>
                             <td className="px-2.5 py-2 font-mono font-bold text-slate-700 border-r border-slate-100 print:border-slate-300 whitespace-nowrap text-xs">{s.rollNumber}</td>
                             <td className="px-3 py-2 font-bold text-slate-900 border-r border-slate-100 print:border-slate-300 whitespace-nowrap text-xs">{s.user?.name}</td>
+                            <td className="px-3 py-2 font-medium text-slate-700 print:text-slate-900 border-r border-slate-100 print:border-slate-300 whitespace-nowrap text-xs">{s.fatherName || "—"}</td>
 
                             {courses.map((course) => {
                               const obtained = (course.id && courseMarksById[course.id] !== undefined)
                                 ? courseMarksById[course.id]
                                 : courseMarksByTitle[course.title.trim().toLowerCase()];
                               const isAbsentPaper = obtained === "A";
-                              const maxMark = courseMaxMarks[course.title] || 0;
+                              const maxMark = courseMaxMarks[course.title] || 100;
                               const paperPct = !isAbsentPaper && maxMark > 0 && typeof obtained === "number" ? (obtained / maxMark) * 100 : -1;
                               const isFail = isAbsentPaper || (paperPct >= 0 && paperPct < 50);
+                              const paperGP = !isAbsentPaper && typeof obtained === "number" ? getGPValue(obtained, maxMark) : 0;
+
                               return (
                                 <td
                                   key={`${s.id}-${course.title}`}
-                                  className={`px-2 py-2 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 ${isAbsentPaper
+                                  className={`px-1.5 py-1.5 text-center font-bold border-l border-slate-100 print:border-slate-300 w-[90px] min-w-[90px] max-w-[90px] print:w-[62px] print:min-w-[62px] print:max-w-[62px] ${isAbsentPaper
                                     ? "text-rose-700 bg-rose-50/70 font-black print:text-rose-900"
                                     : isFail
                                       ? "text-rose-600 bg-rose-50/40 print:bg-transparent"
@@ -1233,11 +1245,23 @@ export default function GazetteCompilerPage() {
                                     }`}
                                 >
                                   {isAbsentPaper ? (
-                                    <span className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-700 rounded font-black text-[11px]">
-                                      A
-                                    </span>
+                                    <div className="flex flex-col items-center justify-center leading-tight">
+                                      <span className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-700 rounded font-black text-[10px]">
+                                        A
+                                      </span>
+                                      <span className="text-[8px] font-mono text-rose-600 print:text-rose-800 font-bold mt-0.5">
+                                        0.0
+                                      </span>
+                                    </div>
                                   ) : obtained !== undefined ? (
-                                    obtained
+                                    <div className="flex flex-col items-center justify-center leading-tight">
+                                      <span className={`text-xs ${isFail ? "text-rose-600 font-black" : "text-slate-900 print:text-black font-extrabold"}`}>
+                                        {obtained}
+                                      </span>
+                                      <span className={`text-[8.5px] font-mono font-bold mt-0.5 ${isFail ? "text-rose-500 font-bold" : "text-slate-500 print:text-slate-700 font-semibold"}`}>
+                                        {paperGP.toFixed(1)}
+                                      </span>
+                                    </div>
                                   ) : (
                                     "—"
                                   )}
