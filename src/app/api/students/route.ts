@@ -118,6 +118,11 @@ export async function GET(req: NextRequest) {
 
     // ── Enrollment-based filtering ───────────────────────────────────────────
     if (courseId) {
+      const targetCourse = await prisma.course.findUnique({
+        where: { id: courseId },
+        select: { id: true, semester: true, programId: true, session: true },
+      });
+
       const enrollments = await prisma.enrollment.findMany({
         where: {
           courseId,
@@ -131,6 +136,7 @@ export async function GET(req: NextRequest) {
                 { session: { contains: sessionParam } },
               ],
             }),
+            ...(targetCourse?.semester ? { currentSemester: { gte: targetCourse.semester } } : {}),
           },
         },
         include: {
@@ -145,7 +151,7 @@ export async function GET(req: NextRequest) {
       // Fallback: If no explicit enrollments exist yet for this course,
       // fallback to active students matching this course's program and semester!
       if (students.length === 0) {
-        const course = await prisma.course.findUnique({
+        const course = targetCourse || await prisma.course.findUnique({
           where: { id: courseId },
           select: { id: true, semester: true, programId: true, session: true },
         });
@@ -263,17 +269,11 @@ export async function GET(req: NextRequest) {
             { session: { contains: sessionParam } },
           ],
         }),
-        // Crucial: A student remains visible in their previous semesters (gte) as well as current/enrolled/graded semesters!
+        // Crucial: A student must have reached at least targetSem (gte) to appear in that semester
         ...(currentSemesterParam && (() => {
           const targetSem = parseInt(currentSemesterParam);
           return {
-            OR: [
-              { currentSemester: targetSem },
-              { currentSemester: { gte: targetSem } },
-              { enrollments: { some: { semester: targetSem } } },
-              { marks: { some: { course: { semester: targetSem } } } },
-              { promotions: { some: { OR: [{ fromSemester: targetSem }, { toSemester: targetSem }] } } },
-            ],
+            currentSemester: { gte: targetSem },
           };
         })()),
       },
