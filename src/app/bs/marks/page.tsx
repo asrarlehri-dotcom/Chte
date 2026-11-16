@@ -823,7 +823,7 @@ export default function AddResultPage() {
             setSuccessMsg((prev) => `${prev} • 🚀 ${res.promotedCount} student(s) automatically pushed to next semester!`);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
       setErrorMsg(lastError ? `Failed to save marks: ${lastError}` : "Failed to update result status. Please try again.");
     }
@@ -1534,15 +1534,14 @@ export default function AddResultPage() {
                         <tr
                           id={`student-row-${st.id}`}
                           key={st.id}
-                          className={`border-b transition-all duration-300 ${
-                            isTargetStudent
+                          className={`border-b transition-all duration-300 ${isTargetStudent
                               ? "bg-amber-100/70 ring-2 ring-amber-400 font-medium shadow-md"
                               : isDropout
-                              ? "bg-gray-50/80"
-                              : isAbsent
-                              ? "bg-red-50/20"
-                              : "hover:bg-gray-50/50"
-                          }`}
+                                ? "bg-gray-50/80"
+                                : isAbsent
+                                  ? "bg-red-50/20"
+                                  : "hover:bg-gray-50/50"
+                            }`}
                         >
                           <td className="p-3 text-center text-xs font-bold text-gray-400">
                             {idx + 1}
@@ -1585,12 +1584,12 @@ export default function AddResultPage() {
                                   placeholder={isDropout ? "-" : undefined}
                                   title={isDropout ? "Student is Dropout. Marks Entry Blocked!" : isAbsent ? "Student is Absent. Cells locked!" : (quizHasFullMarks ? `Quiz has taken full ${totalQuizAssignLimit} marks. Assignment auto-blocked!` : `Max allowed: ${Math.max(0, totalQuizAssignLimit - (st.quiz || 0))}`)}
                                   className={`w-16 px-2.5 py-1 border rounded-lg text-xs font-bold text-center ${isDropout
-                                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                      : isAbsent
-                                        ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                        : quizHasFullMarks
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
-                                          : "bg-white"
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : isAbsent
+                                      ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                      : quizHasFullMarks
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
+                                        : "bg-white"
                                     }`}
                                 />
                               </td>
@@ -1606,12 +1605,12 @@ export default function AddResultPage() {
                                   placeholder={isDropout ? "-" : undefined}
                                   title={isDropout ? "Student is Dropout. Marks Entry Blocked!" : isAbsent ? "Student is Absent. Cells locked!" : (assignHasFullMarks ? `Assignment has taken full ${totalQuizAssignLimit} marks. Quiz auto-blocked!` : `Max allowed: ${Math.max(0, totalQuizAssignLimit - (st.assignment || 0))}`)}
                                   className={`w-16 px-2.5 py-1 border rounded-lg text-xs font-bold text-center ${isDropout
-                                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                      : isAbsent
-                                        ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                        : assignHasFullMarks
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
-                                          : "bg-white"
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : isAbsent
+                                      ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                      : assignHasFullMarks
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
+                                        : "bg-white"
                                     }`}
                                 />
                               </td>
@@ -1626,10 +1625,10 @@ export default function AddResultPage() {
                                     disabled={isFacultyLocked || isBlocked}
                                     title={isDropout ? "Student is Dropout. Marks Entry Blocked!" : isAbsent ? "Student is Absent. Cells locked!" : ""}
                                     className={`w-16 px-2.5 py-1 border rounded-lg text-xs font-black text-center ${isDropout
-                                        ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-                                        : isAbsent
-                                          ? "bg-red-50 border-red-200 text-red-400 cursor-not-allowed"
-                                          : "border-blue-400 bg-white text-blue-900 focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                      ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                                      : isAbsent
+                                        ? "bg-red-50 border-red-200 text-red-400 cursor-not-allowed"
+                                        : "border-blue-400 bg-white text-blue-900 focus:ring-2 focus:ring-blue-500 shadow-sm"
                                       }`}
                                   />
                                 </td>
@@ -1644,12 +1643,12 @@ export default function AddResultPage() {
                                   placeholder={isDropout ? "-" : undefined}
                                   title={isDropout ? "Student is Dropout. Marks Entry Blocked!" : isAbsent ? "Student is Absent. Cells locked!" : ""}
                                   className={`w-16 px-2.5 py-1 border rounded-lg text-xs font-bold text-center ${isDropout
-                                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                      : isAbsent
-                                        ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                        : examScheme === "TERMINAL"
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                          : "bg-white"
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : isAbsent
+                                      ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                      : examScheme === "TERMINAL"
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                        : "bg-white"
                                     }`}
                                 />
                               </td>
@@ -1663,12 +1662,12 @@ export default function AddResultPage() {
                                   placeholder={isDropout ? "-" : undefined}
                                   title={isDropout ? "Student is Dropout. Marks Entry Blocked!" : isAbsent ? "Student is Absent. Cells locked!" : ""}
                                   className={`w-16 px-2.5 py-1 border rounded-lg text-xs font-bold text-center ${isDropout
-                                      ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                      : isAbsent
-                                        ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                        : examScheme === "TERMINAL"
-                                          ? "bg-white border-purple-400 font-black text-purple-950 focus:ring-2 focus:ring-purple-500 shadow-sm"
-                                          : "bg-white"
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : isAbsent
+                                      ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                      : examScheme === "TERMINAL"
+                                        ? "bg-white border-purple-400 font-black text-purple-950 focus:ring-2 focus:ring-purple-500 shadow-sm"
+                                        : "bg-white"
                                     }`}
                                 />
                               </td>
@@ -1709,17 +1708,16 @@ export default function AddResultPage() {
                           <td className={`p-3 font-mono font-bold ${isDropout ? "text-gray-400 font-semibold" : isAbsent ? "text-red-600" : "text-indigo-900"}`}>{isDropout ? "-" : gp.toFixed(2)}</td>
                           <td id={`fail-cell-${st.id}`} className="p-3">
                             <div className="flex items-center gap-2">
-                              <span className={`px-2.5 py-1 text-xs rounded-full font-black transition-all ${
-                                isTargetStudent && !isPass
+                              <span className={`px-2.5 py-1 text-xs rounded-full font-black transition-all ${isTargetStudent && !isPass
                                   ? 'bg-red-600 text-white ring-4 ring-red-400 ring-offset-2 animate-pulse shadow-lg scale-105'
                                   : isDropout
-                                  ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-sm'
-                                  : isAbsent
-                                  ? 'bg-red-100 text-red-800 border border-red-200'
-                                  : isPass
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-sm'
+                                    : isAbsent
+                                      ? 'bg-red-100 text-red-800 border border-red-200'
+                                      : isPass
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
+                                }`}>
                                 {isDropout ? '🚫 Dropout' : isAbsent ? '❌ ABSENT (A)' : isPass ? '✅ Pass' : '❌ Fail'}
                               </span>
                               {isTargetStudent && !isPass && (

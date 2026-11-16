@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
 
@@ -24,6 +25,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function BsAdmissionsPage() {
+  const { data: session } = useSession();
+  const userCollegeId = (session?.user as any)?.collegeId;
   const { can } = usePermissions();
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -97,7 +100,7 @@ export default function BsAdmissionsPage() {
         </div>
         {canAdd && (
           <a
-            href="/admission"
+            href={userCollegeId ? `/admission?collegeId=${userCollegeId}` : "/admission"}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
           >
             + New Application

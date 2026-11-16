@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
 import {
@@ -53,6 +54,8 @@ type ChallanStatus = {
 };
 
 export default function BsAdmissionsPage() {
+  const { data: session } = useSession();
+  const userCollegeId = (session?.user as any)?.collegeId;
   const { can } = usePermissions();
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [challanMap, setChallanMap] = useState<Record<string, ChallanStatus>>({});
@@ -540,7 +543,7 @@ export default function BsAdmissionsPage() {
 
           {canAdd && (
             <a
-              href="/admission"
+              href={userCollegeId ? `/admission?collegeId=${userCollegeId}` : "/admission"}
               className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs font-semibold transition-all shadow-sm shadow-blue-600/30 flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />

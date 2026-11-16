@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
 import { Download, Upload, FileSpreadsheet, Loader2, CheckCircle2, X, ClipboardList } from "lucide-react";
@@ -28,6 +29,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function IntermediateAdmissionsPage() {
+  const { data: session } = useSession();
+  const userCollegeId = (session?.user as any)?.collegeId;
   const { can } = usePermissions();
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [programs, setPrograms]     = useState<any[]>([]);
@@ -291,7 +294,7 @@ export default function IntermediateAdmissionsPage() {
 
           {canAdd && (
             <a
-              href="/admission"
+              href={userCollegeId ? `/admission?collegeId=${userCollegeId}` : "/admission"}
               className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors"
             >
               + New Application

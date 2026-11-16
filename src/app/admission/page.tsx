@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { School, Building2, ShieldCheck, MapPin } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { School, Building2, ShieldCheck, MapPin, Lock } from "lucide-react";
 
 type Program = {
   id: string;
@@ -46,8 +47,19 @@ const CURRENT_YEAR = new Date().getFullYear().toString();
 function AdmissionFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+
+  const sessionUser = session?.user as any;
+  const userCollegeId = sessionUser?.collegeId;
+  const userRole = sessionUser?.role;
+  const isCollegeAdmin = Boolean(
+    userCollegeId &&
+    userRole !== "SUPER_ADMIN" &&
+    userRole !== "CHTE_ADMIN"
+  );
 
   const [colleges, setColleges] = useState<CollegeOption[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("ALL");
   const [selectedCollegeId, setSelectedCollegeId] = useState<string>("");
   const [selectedCollege, setSelectedCollege] = useState<CollegeOption | null>(null);
 
@@ -123,13 +135,79 @@ function AdmissionFormContent() {
   const [successData, setSuccessData] = useState<{ admissionId: string; challanId: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // 1. Fetch Colleges and match URL query param
+  // Derive unique sorted districts from fetched colleges
+  const districts = useMemo(() => {
+    const dSet = new Set<string>();
+    colleges.forEach((col) => {
+      if (col.district && col.district.trim()) {
+        dSet.add(col.district.trim());
+      }
+    });
+    return Array.from(dSet).sort((a, b) => a.localeCompare(b));
+  }, [colleges]);
+
+  // If college admin, only their own college is visible!
+  // If student / CHTE portal, colleges are filtered by selected district.
+  const filteredColleges = useMemo(() => {
+    if (isCollegeAdmin && userCollegeId) {
+      return colleges.filter((c) => c.id === userCollegeId);
+    }
+    if (selectedDistrict === "ALL") {
+      return colleges;
+    }
+    return colleges.filter(
+      (c) => c.district?.trim().toLowerCase() === selectedDistrict.trim().toLowerCase()
+    );
+  }, [colleges, selectedDistrict, isCollegeAdmin, userCollegeId]);
+
+  const handleDistrictChange = (district: string) => {
+    setSelectedDistrict(district);
+    const matching =
+      district === "ALL"
+        ? colleges
+        : colleges.filter((c) => c.district?.trim().toLowerCase() === district.trim().toLowerCase());
+
+    if (matching.length > 0) {
+      const isStillInMatching = matching.some((c) => c.id === selectedCollegeId);
+      if (!isStillInMatching) {
+        setSelectedCollegeId(matching[0].id);
+        setSelectedCollege(matching[0]);
+        setProgramId("");
+      }
+    } else {
+      setSelectedCollegeId("");
+      setSelectedCollege(null);
+      setProgramId("");
+    }
+  };
+
+  const handleCollegeChange = (id: string) => {
+    setSelectedCollegeId(id);
+    const chosen = colleges.find((c) => c.id === id) || null;
+    setSelectedCollege(chosen);
+    setProgramId("");
+  };
+
+  // 1. Fetch Colleges and match URL query param / Admin College
   useEffect(() => {
     fetch("/api/public/colleges")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setColleges(data);
+
+          // If College Admin: lock directly to their college
+          if (isCollegeAdmin && userCollegeId) {
+            const adminCol = data.find((c: any) => c.id === userCollegeId);
+            if (adminCol) {
+              setSelectedCollegeId(adminCol.id);
+              setSelectedCollege(adminCol);
+              if (adminCol.district) setSelectedDistrict(adminCol.district);
+              return;
+            }
+          }
+
+          // Student / Public mode
           const paramCollegeId = searchParams.get("collegeId");
           const paramInstitute = searchParams.get("institute");
           let initial = null;
@@ -139,28 +217,49 @@ function AdmissionFormContent() {
             initial = data.find((c: any) => c.code.toLowerCase() === paramInstitute.toLowerCase());
           }
           const chosen = initial || data[0];
-          setSelectedCollegeId(chosen.id);
-          setSelectedCollege(chosen);
+          if (chosen) {
+            setSelectedCollegeId(chosen.id);
+            setSelectedCollege(chosen);
+            if ((paramCollegeId || paramInstitute) && chosen.district) {
+              setSelectedDistrict(chosen.district);
+            }
+          }
         }
       })
       .catch(() => {});
 
     fetch("/api/settings")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         let parsedCustomFields = [];
         if (data.ADMISSION_CUSTOM_FIELDS) {
-          try { parsedCustomFields = JSON.parse(data.ADMISSION_CUSTOM_FIELDS); } catch(e) {}
+          try {
+            parsedCustomFields = JSON.parse(data.ADMISSION_CUSTOM_FIELDS);
+          } catch (e) {}
         }
         setAdmissionSettings({
-          requiredFields: data.ADMISSION_REQUIRED_FIELDS ? data.ADMISSION_REQUIRED_FIELDS.split(",").map((s:string) => s.trim()) : ["studentName", "fatherName", "cnic", "dateOfBirth", "contactNumber", "email"],
+          requiredFields: data.ADMISSION_REQUIRED_FIELDS
+            ? data.ADMISSION_REQUIRED_FIELDS.split(",").map((s: string) => s.trim())
+            : ["studentName", "fatherName", "cnic", "dateOfBirth", "contactNumber", "email"],
           cnicLength: parseInt(data.ADMISSION_CNIC_LENGTH) || 15,
           contactLength: parseInt(data.ADMISSION_CONTACT_LENGTH) || 11,
-          customFields: parsedCustomFields
+          customFields: parsedCustomFields,
         });
       })
       .catch(() => {});
-  }, [searchParams]);
+  }, [searchParams, isCollegeAdmin, userCollegeId]);
+
+  // Synchronize college selection when session finishes loading for College Admin
+  useEffect(() => {
+    if (isCollegeAdmin && userCollegeId && colleges.length > 0) {
+      const adminCol = colleges.find((c) => c.id === userCollegeId);
+      if (adminCol && selectedCollegeId !== adminCol.id) {
+        setSelectedCollegeId(adminCol.id);
+        setSelectedCollege(adminCol);
+        if (adminCol.district) setSelectedDistrict(adminCol.district);
+      }
+    }
+  }, [isCollegeAdmin, userCollegeId, colleges, selectedCollegeId]);
 
   // 2. Fetch Programs scoped to selected college
   useEffect(() => {
@@ -341,56 +440,165 @@ function AdmissionFormContent() {
           <form onSubmit={handleSubmit} className="space-y-8">
 
             {/* ── 0. Target Institution / College Selection ── */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 border border-blue-200/90 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50/80 via-indigo-50/40 to-blue-50/60 border border-blue-200/90 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2.5 border-b border-blue-200/60">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-blue-700" />
-                  <h3 className="text-sm font-bold text-blue-950 uppercase tracking-wide">
-                    Target Institution / College
+                  <h3 className="text-sm font-black text-blue-950 uppercase tracking-wide">
+                    Target Institution / College Selection
                   </h3>
                 </div>
-                <span className="text-[11px] font-semibold text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-full self-start sm:self-auto">
-                  Higher & Technical Education (CHTE) Balochistan
+                <span
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full self-start sm:self-auto ${
+                    isCollegeAdmin
+                      ? "bg-amber-100 text-amber-900 border border-amber-300"
+                      : "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {isCollegeAdmin
+                    ? "🔒 College Admin Campus Mode"
+                    : "🌐 CHTE Balochistan Public Portal"}
                 </span>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Select College</label>
-                  <select
-                    value={selectedCollegeId}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setSelectedCollegeId(id);
-                      setSelectedCollege(colleges.find(c => c.id === id) || null);
-                      setProgramId("");
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-white border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-semibold text-sm text-slate-900 shadow-sm outline-none"
-                  >
-                    {colleges.map((col) => (
-                      <option key={col.id} value={col.id}>
-                        {col.name} ({col.code}) {col.district ? `— ${col.district}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
-                {selectedCollege && (
-                  <div className="text-xs text-blue-950 bg-white/90 p-3 rounded-xl border border-blue-200 flex items-center gap-2.5 self-end sm:mt-5 shadow-sm">
-                    {selectedCollege.logoUrl ? (
-                      <img src={selectedCollege.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded-lg flex-shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center flex-shrink-0 text-xs">
-                        {selectedCollege.code.substring(0, 3)}
+              {isCollegeAdmin ? (
+                /* College Admin Mode: ONLY their college is visible, no other colleges, locked badge */
+                <div className="bg-white rounded-xl border border-blue-300/90 p-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      {selectedCollege?.logoUrl ? (
+                        <img
+                          src={selectedCollege.logoUrl}
+                          alt="Logo"
+                          className="w-12 h-12 object-contain rounded-xl bg-white p-1 border border-blue-100 shadow-xs flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-700 to-indigo-800 text-white font-black flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
+                          {selectedCollege?.code?.substring(0, 3) || sessionUser?.collegeCode?.substring(0, 3) || "COL"}
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-base font-black text-slate-900">
+                            {selectedCollege?.name || sessionUser?.collegeName || "Your College Campus"}
+                          </h4>
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[11px] font-black rounded-md">
+                            {selectedCollege?.code || sessionUser?.collegeCode}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                          <span>
+                            {selectedCollege?.district ? `District: ${selectedCollege.district}` : "Campus"} • Higher & Technical Education Department
+                          </span>
+                        </p>
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="font-bold truncate">{selectedCollege.code} Campus</div>
-                      <div className="text-[10px] text-slate-500 truncate">{selectedCollege.district || "Balochistan"}</div>
+                    </div>
+
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs font-semibold self-start sm:self-auto">
+                      <Lock className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                      <span>Direct Campus Entry (Other colleges restricted)</span>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                /* Public / Student Mode: District selection filter + Filtered Colleges dropdown */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    {/* District Filter Dropdown */}
+                    <div className="sm:col-span-5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                        <span>1. Select District / ضلع منتخب کریں</span>
+                      </label>
+                      <select
+                        value={selectedDistrict}
+                        onChange={(e) => handleDistrictChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-xs sm:text-sm text-slate-900 shadow-xs outline-none"
+                      >
+                        <option value="ALL">🌐 All Districts ({colleges.length} Colleges)</option>
+                        {districts.map((d) => {
+                          const countInDistrict = colleges.filter(
+                            (c) => c.district?.trim().toLowerCase() === d.toLowerCase()
+                          ).length;
+                          return (
+                            <option key={d} value={d}>
+                              📍 {d} ({countInDistrict} {countInDistrict === 1 ? "College" : "Colleges"})
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Filter institutions by your local district
+                      </span>
+                    </div>
+
+                    {/* College Selector Dropdown (shows only colleges in selected district) */}
+                    <div className="sm:col-span-7">
+                      <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                        <School className="w-3.5 h-3.5 text-blue-600" />
+                        <span>2. Select College / کالج منتخب کریں</span>
+                      </label>
+                      <select
+                        value={selectedCollegeId}
+                        onChange={(e) => handleCollegeChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white border border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-xs sm:text-sm text-slate-900 shadow-xs outline-none"
+                      >
+                        {filteredColleges.length === 0 ? (
+                          <option value="" disabled>
+                            No colleges found in {selectedDistrict}
+                          </option>
+                        ) : (
+                          filteredColleges.map((col) => (
+                            <option key={col.id} value={col.id}>
+                              {col.name} ({col.code}){col.district ? ` — ${col.district}` : ""}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        {filteredColleges.length}{" "}
+                        {filteredColleges.length === 1 ? "college" : "colleges"} available{" "}
+                        {selectedDistrict !== "ALL" ? `in ${selectedDistrict}` : "across Balochistan"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Selected College Preview Card */}
+                  {selectedCollege && (
+                    <div className="bg-white/95 p-3 rounded-xl border border-blue-200 flex items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {selectedCollege.logoUrl ? (
+                          <img
+                            src={selectedCollege.logoUrl}
+                            alt="Logo"
+                            className="w-9 h-9 object-contain rounded-lg flex-shrink-0 border border-slate-100 bg-white"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center flex-shrink-0 text-xs">
+                            {selectedCollege.code.substring(0, 3)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-bold text-xs text-slate-900 truncate">
+                            {selectedCollege.name} ({selectedCollege.code})
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-400" />
+                            {selectedCollege.district
+                              ? `${selectedCollege.district} District`
+                              : "Balochistan"}{" "}
+                            Campus
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg flex-shrink-0 hidden sm:inline-flex items-center gap-1">
+                        ✓ Selected Campus
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── 1. Personal Details ──────────────────────── */}
