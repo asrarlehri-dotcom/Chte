@@ -818,6 +818,9 @@ export default function GazetteCompilerPage() {
               font-size: 7.5px !important;
               padding: 2px 2.5px !important;
             }
+            th.course-header-cell {
+              padding: 0 !important;
+            }
             .gazette-section {
               page-break-after: always;
               margin-bottom: 12px;
@@ -1124,10 +1127,10 @@ export default function GazetteCompilerPage() {
                             <th
                               key={`hdr-${group.programId}-${course.title}-${i}`}
                               colSpan={2}
-                              className={`p-0 font-black uppercase text-center border-l border-slate-700 print:border-slate-300 transition-colors w-[83px] min-w-[83px] max-w-[83px] print:w-[58px] print:min-w-[58px] print:max-w-[58px] ${theme.headerBg}`}
+                              className={`course-header-cell p-0 font-black uppercase text-center border-l border-slate-700 print:border-slate-400 transition-colors w-[83px] min-w-[83px] max-w-[83px] print:w-[58px] print:min-w-[58px] print:max-w-[58px] ${theme.headerBg}`}
                               title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
                             >
-                              <div className="divide-y divide-slate-700/60 print:divide-slate-300">
+                              <div className="divide-y divide-slate-700/60 print:divide-slate-400">
                                 <div className="py-1 px-1 font-black text-[9px] print:text-black">
                                   Paper-{i + 1}
                                 </div>
@@ -1137,9 +1140,9 @@ export default function GazetteCompilerPage() {
                                 <div className="py-0.5 px-1 font-mono font-bold text-slate-200 print:text-slate-900 text-[8px] leading-tight">
                                   {course.code || "—"}
                                 </div>
-                                <div className="py-1 px-1 text-[7.5px] font-bold text-slate-300 print:text-slate-800 leading-tight">
+                                <div className="py-1 px-1 text-[7.5px] font-bold text-slate-200 print:text-slate-900 leading-tight">
                                   <div>{creditDisplay}</div>
-                                  <div className="text-slate-400 print:text-slate-600 font-semibold mt-0.5">
+                                  <div className="text-slate-300 print:text-black font-extrabold mt-0.5">
                                     Marks {courseMaxMarks[course.title] || 100}
                                   </div>
                                 </div>
@@ -1171,16 +1174,16 @@ export default function GazetteCompilerPage() {
                         <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:hidden align-middle bg-slate-800">Print Cards</th>
                       </tr>
                       {/* Second row: Marks | GP sub-headers for each course */}
-                      <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-t border-slate-700 print:border-slate-300">
+                      <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-t border-slate-700 print:border-slate-400">
                         {courses.map((c, i) => (
                           <Fragment key={`subhdr-${group.programId}-${c.title}-${i}`}>
                             <th
-                              className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[7.5px] border-l border-slate-700 print:border-slate-300 w-[45px] min-w-[45px] max-w-[45px] print:w-[32px] print:min-w-[32px] print:max-w-[32px] ${theme.headerBg}`}
+                              className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[8px] print:text-black border-l border-slate-700 print:border-slate-400 w-[45px] min-w-[45px] max-w-[45px] print:w-[32px] print:min-w-[32px] print:max-w-[32px] ${theme.headerBg}`}
                             >
                               Marks
                             </th>
                             <th
-                              className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[7.5px] border-l border-slate-700 print:border-slate-300 w-[38px] min-w-[38px] max-w-[38px] print:w-[26px] print:min-w-[26px] print:max-w-[26px] ${theme.headerBg}`}
+                              className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[8px] print:text-black border-l border-slate-700 print:border-slate-400 w-[38px] min-w-[38px] max-w-[38px] print:w-[26px] print:min-w-[26px] print:max-w-[26px] ${theme.headerBg}`}
                             >
                               GP
                             </th>
