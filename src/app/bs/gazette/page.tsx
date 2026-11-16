@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { getGPValue, calculateStudentCGPA } from "@/lib/cgpa";
 import { useSettings } from "@/lib/useSettings";
 import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
@@ -1115,34 +1115,34 @@ export default function GazetteCompilerPage() {
 
                         {/* Program-specific Papers */}
                         {courses.map((course, i) => {
-                          const creditStr = course.creditHoursFormat
-                            ? (course.creditHoursFormat.toLowerCase().includes("cr") ? course.creditHoursFormat : `${course.creditHoursFormat} Cr`)
-                            : course.creditHours
-                              ? `${course.creditHours} Cr`
-                              : "";
+                          const rawCredit = course.creditHoursFormat || (course.creditHours ? `${course.creditHours}(${course.creditHours}-0)` : "3(3-0)");
+                          const creditDisplay = rawCredit.toLowerCase().startsWith("cr")
+                            ? rawCredit
+                            : `Cr. ${rawCredit}`;
 
                           return (
                             <th
                               key={`hdr-${group.programId}-${course.title}-${i}`}
-                              className={`px-1.5 py-1.5 font-black uppercase text-[8.5px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 transition-colors w-[90px] min-w-[90px] max-w-[90px] print:w-[62px] print:min-w-[62px] print:max-w-[62px] ${theme.headerBg}`}
+                              colSpan={2}
+                              className={`p-0 font-black uppercase text-center border-l border-slate-700 print:border-slate-300 transition-colors w-[83px] min-w-[83px] max-w-[83px] print:w-[58px] print:min-w-[58px] print:max-w-[58px] ${theme.headerBg}`}
                               title={`${course.title} ${course.code ? `(${course.code})` : ""}`}
                             >
-                              <div className="font-black text-[9px] print:text-black">Paper {i + 1}</div>
-                              <div className="font-bold text-slate-100 print:text-slate-900 text-[8px] print:text-[8px] whitespace-normal break-words leading-tight mt-0.5 mx-auto">
-                                {course.title}
-                              </div>
-                              {course.code && (
-                                <div className="text-[7.5px] font-mono font-bold text-slate-300 print:text-slate-800 leading-tight mt-0.5 break-words">
-                                  {course.code}
+                              <div className="divide-y divide-slate-700/60 print:divide-slate-300">
+                                <div className="py-1 px-1 font-black text-[9px] print:text-black">
+                                  Paper-{i + 1}
                                 </div>
-                              )}
-                              {creditStr && (
-                                <div className="text-[7.5px] font-mono font-bold text-slate-400 print:text-slate-700 leading-tight break-words">
-                                  {creditStr}
+                                <div className="py-1 px-1 font-black text-slate-100 print:text-slate-900 text-[8px] print:text-[8px] whitespace-normal break-words leading-tight mx-auto">
+                                  {course.title}
                                 </div>
-                              )}
-                              <div className="text-slate-400 print:text-slate-600 font-semibold text-[7.5px] mt-0.5">
-                                / {courseMaxMarks[course.title] ?? "—"}
+                                <div className="py-0.5 px-1 font-mono font-bold text-slate-200 print:text-slate-900 text-[8px] leading-tight">
+                                  {course.code || "—"}
+                                </div>
+                                <div className="py-1 px-1 text-[7.5px] font-bold text-slate-300 print:text-slate-800 leading-tight">
+                                  <div>{creditDisplay}</div>
+                                  <div className="text-slate-400 print:text-slate-600 font-semibold mt-0.5">
+                                    Marks {courseMaxMarks[course.title] || 100}
+                                  </div>
+                                </div>
                               </div>
                             </th>
                           );
@@ -1170,13 +1170,21 @@ export default function GazetteCompilerPage() {
                         <th rowSpan={2} className="px-2.5 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:border-slate-300 align-middle">Remarks</th>
                         <th rowSpan={2} className="px-2 py-2 font-black uppercase text-[9px] tracking-wider text-center border-l border-slate-700 print:hidden align-middle bg-slate-800">Print Cards</th>
                       </tr>
-                      {/* Empty second row for rowspan alignment */}
-                      <tr className="bg-slate-800 print:bg-slate-50 h-0">
+                      {/* Second row: Marks | GP sub-headers for each course */}
+                      <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 border-t border-slate-700 print:border-slate-300">
                         {courses.map((c, i) => (
-                          <th
-                            key={`sp-${group.programId}-${c.title}-${i}`}
-                            className="p-0 border-none w-[90px] min-w-[90px] max-w-[90px] print:w-[62px] print:min-w-[62px] print:max-w-[62px]"
-                          ></th>
+                          <Fragment key={`subhdr-${group.programId}-${c.title}-${i}`}>
+                            <th
+                              className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[7.5px] border-l border-slate-700 print:border-slate-300 w-[45px] min-w-[45px] max-w-[45px] print:w-[32px] print:min-w-[32px] print:max-w-[32px] ${theme.headerBg}`}
+                            >
+                              Marks
+                            </th>
+                            <th
+                              className={`py-1 px-0.5 text-center font-black uppercase text-[8px] print:text-[7.5px] border-l border-slate-700 print:border-slate-300 w-[38px] min-w-[38px] max-w-[38px] print:w-[26px] print:min-w-[26px] print:max-w-[26px] ${theme.headerBg}`}
+                            >
+                              GP
+                            </th>
+                          </Fragment>
                         ))}
                       </tr>
                     </thead>
@@ -1233,39 +1241,45 @@ export default function GazetteCompilerPage() {
                               const paperGP = !isAbsentPaper && typeof obtained === "number" ? getGPValue(obtained, maxMark) : 0;
 
                               return (
-                                <td
-                                  key={`${s.id}-${course.title}`}
-                                  className={`px-1.5 py-1.5 text-center font-bold border-l border-slate-100 print:border-slate-300 w-[90px] min-w-[90px] max-w-[90px] print:w-[62px] print:min-w-[62px] print:max-w-[62px] ${isAbsentPaper
-                                    ? "text-rose-700 bg-rose-50/70 font-black print:text-rose-900"
-                                    : isFail
-                                      ? "text-rose-600 bg-rose-50/40 print:bg-transparent"
-                                      : obtained !== undefined
-                                        ? "text-slate-800"
-                                        : "text-slate-300"
+                                <Fragment key={`${s.id}-${course.title}`}>
+                                  {/* Marks Cell */}
+                                  <td
+                                    className={`px-1 py-2 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 w-[45px] min-w-[45px] max-w-[45px] print:w-[32px] print:min-w-[32px] print:max-w-[32px] ${
+                                      isAbsentPaper
+                                        ? "text-rose-700 bg-rose-50/70 font-black print:text-rose-900"
+                                        : isFail
+                                          ? "text-rose-600 bg-rose-50/40 font-black print:bg-transparent"
+                                          : obtained !== undefined
+                                            ? "text-slate-900 print:text-black font-extrabold"
+                                            : "text-slate-300"
                                     }`}
-                                >
-                                  {isAbsentPaper ? (
-                                    <div className="flex flex-col items-center justify-center leading-tight">
+                                  >
+                                    {isAbsentPaper ? (
                                       <span className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-700 rounded font-black text-[10px]">
                                         A
                                       </span>
-                                      <span className="text-[8px] font-mono text-rose-600 print:text-rose-800 font-bold mt-0.5">
-                                        0.0
-                                      </span>
-                                    </div>
-                                  ) : obtained !== undefined ? (
-                                    <div className="flex flex-col items-center justify-center leading-tight">
-                                      <span className={`text-xs ${isFail ? "text-rose-600 font-black" : "text-slate-900 print:text-black font-extrabold"}`}>
-                                        {obtained}
-                                      </span>
-                                      <span className={`text-[8.5px] font-mono font-bold mt-0.5 ${isFail ? "text-rose-500 font-bold" : "text-slate-500 print:text-slate-700 font-semibold"}`}>
-                                        {paperGP.toFixed(1)}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    "—"
-                                  )}
-                                </td>
+                                    ) : obtained !== undefined ? (
+                                      obtained
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </td>
+
+                                  {/* GP Cell */}
+                                  <td
+                                    className={`px-1 py-2 text-center font-mono font-bold text-[10.5px] border-l border-slate-100 print:border-slate-300 w-[38px] min-w-[38px] max-w-[38px] print:w-[26px] print:min-w-[26px] print:max-w-[26px] ${
+                                      isAbsentPaper
+                                        ? "text-rose-600 bg-rose-50/70 font-black print:text-rose-900"
+                                        : isFail
+                                          ? "text-rose-500 bg-rose-50/40 font-bold print:bg-transparent"
+                                          : obtained !== undefined
+                                            ? "text-slate-700 print:text-slate-900 font-bold"
+                                            : "text-slate-300"
+                                    }`}
+                                  >
+                                    {isAbsentPaper ? "0.0" : obtained !== undefined ? paperGP.toFixed(1) : "—"}
+                                  </td>
+                                </Fragment>
                               );
                             })}
 
