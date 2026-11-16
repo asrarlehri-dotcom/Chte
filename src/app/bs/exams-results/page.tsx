@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { sortStudentsByRoll, distributeTotalMarks, parsePastedMarksText } from "@/lib/domainParsers";
 import ResultsPromotionTab from "./ResultsPromotionTab";
+import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
+import { useSettings } from "@/lib/useSettings";
 
 export default function ExamsResultsPage() {
   const [activeTab, setActiveTab] = useState("paper_attendance");
@@ -2702,54 +2704,79 @@ function MeritScholarshipsTab() {
 }
 
 function StatusAcademicActionsTab() {
+  const { collegeName, collegeLogo, collegeAddress, settings } = useSettings();
+  const universityName = settings?.UNIVERSITY_NAME || "University of Balochistan";
+
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionType, setActionType] = useState("FREEZE");
+  const [actionType, setActionType] = useState<"FREEZE" | "QUIT" | "MIGRATION">("FREEZE");
   const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [destinationCollege, setDestinationCollege] = useState("");
+  const [relievingNo, setRelievingNo] = useState(`NOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
   const [reason, setReason] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/students")
+  // Dual Document Modal state (Migration Certificate & Transcript)
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [docModalTab, setDocModalTab] = useState<"report" | "transcript">("report");
+  const [migratedStudent, setMigratedStudent] = useState<any | null>(null);
+  const [docDetails, setDocDetails] = useState<{
+    destinationCollege: string;
+    relievingNo: string;
+    reason: string;
+    issueDate: string;
+  }>({
+    destinationCollege: "",
+    relievingNo: "",
+    reason: "",
+    issueDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+  });
+
+  const loadStudents = () => {
+    setLoading(true);
+    fetch("/api/students?educationLevel=BS&includeInactive=true")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
           const bsOnly = sortStudentsByRoll(data.filter((s: any) => s.educationLevel === "BS"));
           setStudents(bsOnly);
-          if (bsOnly.length > 0) setSelectedStudentId(bsOnly[0].id);
+          const activeOnly = bsOnly.filter((s: any) => s.isActive !== false);
+          if (activeOnly.length > 0 && !selectedStudentId) {
+            setSelectedStudentId(activeOnly[0].id);
+          }
         }
       })
+      .catch((err) => console.error("Error fetching students:", err))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadStudents();
   }, []);
 
-  const handlePromote = async (studentId: string, currentSem: number) => {
-    const nextSem = currentSem + 1;
-    if (nextSem > 8) {
-      alert("Student is already in the final 8th semester!");
-      return;
-    }
-    try {
-      const res = await fetch(`/api/students/${studentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentSemester: nextSem }),
-      });
-      if (res.ok) {
-        setSuccess(`Student successfully promoted to Semester ${nextSem}!`);
-        setStudents((prev) =>
-          prev.map((s) => (s.id === studentId ? { ...s, currentSemester: nextSem } : s))
-        );
-        setTimeout(() => setSuccess(""), 4000);
-      }
-    } catch {
-      alert("Promotion failed.");
-    }
-  };
+  const activeCandidates = students.filter((s) => s.isActive !== false);
+  const filteredActiveCandidates = activeCandidates.filter((s) => {
+    if (!studentSearch.trim()) return true;
+    const q = studentSearch.toLowerCase();
+    const name = s.user?.name?.toLowerCase() || "";
+    const roll = s.rollNumber?.toLowerCase() || "";
+    return name.includes(q) || roll.includes(q);
+  });
+
+  const selectedStudent = students.find((s) => s.id === selectedStudentId);
+
+  // List of students who have undergone migration
+  const migratedStudentsList = students.filter((s) =>
+    s.statuses?.some(
+      (st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT"
+    )
+  );
 
   const handleStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudentId) return;
+    if (!selectedStudentId || !selectedStudent) return;
     setSaving(true);
     try {
       const res = await fetch("/api/students/status-action", {
@@ -2758,13 +2785,41 @@ function StatusAcademicActionsTab() {
         body: JSON.stringify({
           studentId: selectedStudentId,
           statusType: actionType,
-          reason,
+          reason: actionType === "MIGRATION" ? (destinationCollege || "Outward Migration") : reason,
+          notes: actionType === "MIGRATION"
+            ? `Destination: ${destinationCollege}. NOC No: ${relievingNo}. Remarks: ${reason}`
+            : reason,
+          relievingNo: actionType === "MIGRATION" ? relievingNo : undefined,
         }),
       });
+
       if (res.ok) {
-        setSuccess(`Status action '${actionType}' updated successfully!`);
-        setReason("");
-        setTimeout(() => setSuccess(""), 4000);
+        setSuccess(`Academic action '${actionType}' recorded successfully!`);
+
+        if (actionType === "MIGRATION") {
+          // Immediately generate migration certificate and official transcript
+          setMigratedStudent(selectedStudent);
+          setDocDetails({
+            destinationCollege: destinationCollege || "Destination Institution",
+            relievingNo: relievingNo || `NOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            reason: reason || "Outward Migration",
+            issueDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+          });
+          setDocModalTab("report");
+          setShowDocModal(true);
+
+          setDestinationCollege("");
+          setReason("");
+          setRelievingNo(`NOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+        } else {
+          setReason("");
+        }
+
+        loadStudents();
+        setTimeout(() => setSuccess(""), 5000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Action failed to execute.");
       }
     } catch {
       alert("Action failed to execute.");
@@ -2772,29 +2827,80 @@ function StatusAcademicActionsTab() {
     setSaving(false);
   };
 
+  const openDocumentsForStudent = (student: any, tab: "report" | "transcript" = "report") => {
+    const migStatus = student.statuses?.find(
+      (st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT"
+    );
+    let dest = migStatus?.reason || "Destination Institution";
+    let certNo = `NOC-${new Date().getFullYear()}-${student.rollNumber.replace(/[^a-zA-Z0-9]/g, "")}`;
+    if (migStatus?.notes && migStatus.notes.includes("NOC No: ")) {
+      const parts = migStatus.notes.split("NOC No: ");
+      if (parts[1]) certNo = parts[1].split(".")[0].trim();
+    }
+    setMigratedStudent(student);
+    setDocDetails({
+      destinationCollege: dest,
+      relievingNo: certNo,
+      reason: migStatus?.notes || migStatus?.reason || "Outward Migration",
+      issueDate: migStatus?.createdAt
+        ? new Date(migStatus.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+        : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+    });
+    setDocModalTab(tab);
+    setShowDocModal(true);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
+      {/* Print isolation style: when modal is active, hide everything else and print the document container */}
+      {showDocModal && (
+        <style>{`
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+            #migration-print-container, #migration-print-container * {
+              visibility: visible !important;
+            }
+            #migration-print-container {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              background: white !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+          }
+        `}</style>
+      )}
+
+      <div className="flex justify-between items-center border-b pb-4 print:hidden">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Student Academic Status & Actions</h2>
-          <p className="text-gray-500 text-sm">Manage semester promotions, academic freezing, dropouts, quit, and migrations.</p>
+          <h2 className="text-xl font-black text-gray-900 tracking-tight">Student Academic Status & Actions</h2>
+          <p className="text-gray-500 text-xs mt-0.5">Manage academic semester freezing, student quit, and outward migrations with reports.</p>
         </div>
       </div>
 
       {/* Quick Action Selection Tabs */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2.5 print:hidden">
         {[
           { key: "FREEZE", label: "❄️ Freeze", desc: "Freeze Semester" },
-          { key: "PROMOTED", label: "🏆 Promoted", desc: "Semester Promotion" },
-          { key: "DROPOUT", label: "🚫 Dropout", desc: "Mark Dropout" },
           { key: "QUIT", label: "🚪 Quit", desc: "Quit Program" },
-          { key: "MIGRATION_IN", label: "➡️ Migration In", desc: "Incoming Migration" },
-          { key: "MIGRATION_OUT", label: "⬅️ Migration Out", desc: "Outward Migration" },
-        ].map(act => (
+          { key: "MIGRATION", label: "🔄 Migration", desc: "Outward Migration & Clearance" },
+        ].map((act) => (
           <button
             key={act.key}
-            onClick={() => setActionType(act.key)}
-            className={`px-4 py-2 text-xs font-extrabold rounded-xl border transition-all ${actionType === act.key ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+            type="button"
+            onClick={() => {
+              setActionType(act.key as any);
+              setSuccess("");
+            }}
+            className={`px-5 py-2.5 text-xs font-black rounded-xl border transition-all cursor-pointer ${
+              actionType === act.key
+                ? "bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-300"
+                : "bg-white text-gray-700 hover:bg-gray-100 border-gray-200"
+            }`}
           >
             {act.label}
           </button>
@@ -2802,87 +2908,412 @@ function StatusAcademicActionsTab() {
       </div>
 
       {success && (
-        <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 text-sm font-semibold">
-          {success}
+        <div className="bg-green-50 text-green-800 p-4 rounded-xl border border-green-200 text-sm font-bold flex items-center justify-between print:hidden">
+          <span>✅ {success}</span>
+          <button onClick={() => setSuccess("")} className="text-xs text-green-700 hover:underline">Dismiss</button>
         </div>
       )}
 
-      {actionType === "PROMOTED" ? (
-        <div className="bg-white rounded-xl border overflow-hidden shadow-sm">
-          <div className="p-4 border-b bg-gray-50 font-bold text-gray-800 flex justify-between items-center">
-            <span>🏆 Semester Promotions List</span>
-            <span className="text-xs font-normal text-gray-500">{students.length} Students</span>
-          </div>
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 font-semibold text-gray-600">Student Name</th>
-                <th className="px-4 py-3 font-semibold text-gray-600">Roll Number</th>
-                <th className="px-4 py-3 font-semibold text-center">Current Semester</th>
-                <th className="px-4 py-3 font-semibold text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map(s => (
-                <tr key={s.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3 font-bold text-gray-900">{s.user?.name}</td>
-                  <td className="px-4 py-3 text-gray-600 font-mono text-xs">{s.rollNumber}</td>
-                  <td className="px-4 py-3 text-center font-extrabold text-blue-600">Semester {s.currentSemester || 1}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => handlePromote(s.id, s.currentSemester || 1)}
-                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
-                    >
-                      🚀 Promote to Sem {(s.currentSemester || 1) + 1}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="bg-white p-6 rounded-xl border shadow-sm max-w-xl">
-          <h3 className="text-base font-bold mb-4 text-gray-800 flex items-center gap-2">
-            <span>⚙️ Update Academic Action:</span>
-            <span className="px-2.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">{actionType}</span>
-          </h3>
-          <form onSubmit={handleStatusSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Select Student</label>
+      {/* Action Input Form */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm max-w-2xl print:hidden">
+        <h3 className="text-base font-black mb-4 text-gray-800 flex items-center gap-2">
+          <span>⚙️ Update Academic Action:</span>
+          <span className={`px-3 py-1 text-xs rounded-full font-bold ${
+            actionType === "MIGRATION" ? "bg-amber-100 text-amber-800" :
+            actionType === "FREEZE" ? "bg-cyan-100 text-cyan-800" :
+            "bg-red-100 text-red-800"
+          }`}>
+            {actionType === "MIGRATION" ? "🔄 MIGRATION" : actionType}
+          </span>
+        </h3>
+
+        <form onSubmit={handleStatusSubmit} className="space-y-4">
+          {/* Quick Search & Select Student */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-black text-gray-600 uppercase tracking-wider">
+                Select Active Student ({filteredActiveCandidates.length} eligible)
+              </label>
+              <span className="text-[11px] text-gray-400">Search by roll or name below</span>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="🔍 Type roll no or student name to filter..."
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                className="w-full px-3.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-400"
+              />
+
               <select
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-400"
+                required
+                className="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-bold text-gray-800 focus:ring-2 focus:ring-blue-400 shadow-sm"
               >
-                {students.map((s) => (
+                {filteredActiveCandidates.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.user?.name} ({s.rollNumber})
+                    {s.rollNumber} — {s.user?.name} ({s.program?.name || "BS Degree"}) [Sem {s.currentSemester || 1}]
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Reason / Institutional Notes</label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                required
-                rows={3}
-                placeholder="Specify reason for freeze, quit, migration, or dropout..."
-                className="w-full px-4 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-400"
-              />
+            {selectedStudent && (
+              <div className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center justify-between text-slate-700">
+                <span><strong>Father Name:</strong> {selectedStudent.fatherName || "—"}</span>
+                <span><strong>Session:</strong> {selectedStudent.session || "—"}</span>
+                <span><strong>Current Sem:</strong> Semester {selectedStudent.currentSemester || 1}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Migration Specific Fields */}
+          {actionType === "MIGRATION" ? (
+            <>
+              <div>
+                <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                  Destination Institution / College <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={destinationCollege}
+                  onChange={(e) => setDestinationCollege(e.target.value)}
+                  required
+                  placeholder="e.g. University of Balochistan / Govt Degree College Quetta"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-amber-400 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                  Relieving / NOC Certificate Serial No.
+                </label>
+                <input
+                  type="text"
+                  value={relievingNo}
+                  onChange={(e) => setRelievingNo(e.target.value)}
+                  required
+                  placeholder="e.g. NOC-2026-4821"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-xs font-mono font-bold bg-white focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                  Migration Reason / Justification
+                </label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={2}
+                  placeholder="Specify reason (e.g. Family relocation, student transfer, personal reasons)..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
+                <span className="text-base">📜</span>
+                <p className="leading-relaxed">
+                  <strong>Automatic Document Issuance:</strong> Upon confirmation, student will be relieved from the college, and both the <strong>Migration Report (NOC Certificate)</strong> and <strong>Official Academic Transcript</strong> will be instantly generated for viewing and printing.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || !selectedStudentId}
+                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <span>🔄</span>
+                <span>{saving ? "Processing Migration..." : "Confirm Migration & Issue Documents"}</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                  Reason / Institutional Notes <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  required
+                  rows={3}
+                  placeholder={`Specify official reason for ${actionType.toLowerCase()}...`}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || !selectedStudentId}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-sm transition-all shadow-md disabled:opacity-50 cursor-pointer"
+              >
+                {saving ? "Updating..." : `Confirm ${actionType} Status Update`}
+              </button>
+            </>
+          )}
+        </form>
+      </div>
+
+      {/* Migrated Students Directory & Instant Reprints */}
+      {actionType === "MIGRATION" && (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm print:hidden">
+          <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <h4 className="text-sm font-black text-gray-800 flex items-center gap-2">
+              <span>📜 Migrated Students Directory</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">
+                {migratedStudentsList.length} Students
+              </span>
+            </h4>
+            <span className="text-xs text-gray-500">View or reprint issued NOC reports & official transcripts</span>
+          </div>
+
+          {migratedStudentsList.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-xs font-semibold">
+              No students have been migrated yet. Use the form above to process a migration.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-b text-xs font-black text-gray-600 uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Roll Number</th>
+                    <th className="px-4 py-3">Student Name</th>
+                    <th className="px-4 py-3">Program & Sem</th>
+                    <th className="px-4 py-3">Destination / NOC</th>
+                    <th className="px-4 py-3 text-center">Issued Documents</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {migratedStudentsList.map((st) => {
+                    const migStatus = st.statuses?.find(
+                      (s: any) => s.statusType === "MIGRATION" || s.statusType === "MIGRATION_OUT"
+                    );
+                    return (
+                      <tr key={st.id} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-gray-800">{st.rollNumber}</td>
+                        <td className="px-4 py-3 font-black text-gray-900">
+                          <div>{st.user?.name}</div>
+                          <div className="text-[11px] font-normal text-gray-500">{st.fatherName || "—"}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-700">
+                          <span className="font-bold">{st.program?.name || "BS"}</span>
+                          <span className="ml-1.5 px-2 py-0.5 rounded bg-gray-100 text-[10px] font-bold text-gray-600">
+                            Sem {st.currentSemester || 1}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <div className="font-semibold text-gray-800">{migStatus?.reason || "Outward Migration"}</div>
+                          <div className="text-[11px] font-mono text-gray-500">
+                            {migStatus?.notes || "NOC Issued"}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openDocumentsForStudent(st, "report")}
+                              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                              title="Print / View Migration Report (NOC)"
+                            >
+                              <span>📜</span>
+                              <span>Migration Report</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openDocumentsForStudent(st, "transcript")}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                              title="Print / View Official Academic Transcript"
+                            >
+                              <span>🎓</span>
+                              <span>Transcript</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DUAL DOCUMENT MODAL: MIGRATION REPORT (NOC) + OFFICIAL TRANSCRIPT */}
+      {showDocModal && migratedStudent && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+            {/* Modal Top Control Header (Always hidden in Print) */}
+            <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
+              <div>
+                <h3 className="text-base font-black flex items-center gap-2">
+                  <span>🎓 Issued Migration Documents</span>
+                  <span className="text-xs font-mono font-normal bg-slate-800 px-2 py-0.5 rounded text-blue-300">
+                    {migratedStudent.rollNumber}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300">
+                  {migratedStudent.user?.name} — {migratedStudent.program?.name || "BS Degree"} (Semester {migratedStudent.currentSemester || 1})
+                </p>
+              </div>
+
+              {/* Document Switcher Tabs */}
+              <div className="flex items-center bg-slate-800 p-1 rounded-xl gap-1">
+                <button
+                  type="button"
+                  onClick={() => setDocModalTab("report")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    docModalTab === "report"
+                      ? "bg-amber-500 text-slate-950 font-black shadow"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  📜 1. Migration Report / NOC
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocModalTab("transcript")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    docModalTab === "transcript"
+                      ? "bg-blue-600 text-white font-black shadow"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  🎓 2. Official Academic Transcript
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>🖨️</span>
+                  <span>Print {docModalTab === "report" ? "Migration Report" : "Transcript"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDocModal(false)}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  ✕ Close
+                </button>
+              </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition-all shadow-sm disabled:opacity-50"
-            >
-              {saving ? "Updating..." : `Confirm ${actionType} Status Update`}
-            </button>
-          </form>
+            {/* Modal Body Container */}
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
+              <div id="migration-print-container">
+                {docModalTab === "report" ? (
+                  /* Printable Migration Report / NOC */
+                  <div className="bg-white border-2 border-slate-900 rounded-xl p-8 max-w-3xl mx-auto space-y-6 shadow-md print:shadow-none print:border-2 print:border-black print:m-0 print:p-8">
+                    {/* Header */}
+                    <div className="text-center border-b-2 border-slate-900 pb-5 space-y-1.5">
+                      {collegeLogo ? (
+                        <img src={collegeLogo} alt="Logo" className="w-16 h-16 object-contain mx-auto" />
+                      ) : (
+                        <div className="text-3xl mx-auto">🏛️</div>
+                      )}
+                      <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight font-serif">
+                        {collegeName}
+                      </h1>
+                      <p className="text-xs text-gray-600 font-semibold uppercase tracking-wider">
+                        {collegeAddress}
+                      </p>
+                      <div className="pt-2">
+                        <span className="inline-block px-4 py-1.5 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded shadow-sm">
+                          NO OBJECTION & RELIEVING CERTIFICATE (NOC) / MIGRATION REPORT
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Ref & Date */}
+                    <div className="flex justify-between items-center text-xs font-mono font-bold text-gray-700 border-b pb-3">
+                      <span>Ref / Certificate No: <strong className="text-slate-900 text-sm">{docDetails.relievingNo}</strong></span>
+                      <span>Date: <strong className="text-slate-900">{docDetails.issueDate}</strong></span>
+                    </div>
+
+                    {/* Body */}
+                    <div className="space-y-4 text-sm text-gray-800 leading-relaxed text-justify pt-2">
+                      <p>
+                        This is to certify that <strong>{migratedStudent.user?.name}</strong>, Son / Daughter of{" "}
+                        <strong>{migratedStudent.fatherName || "—"}</strong>, holding Roll No{" "}
+                        <strong className="font-mono bg-gray-100 px-1.5 py-0.5 rounded border border-gray-300 text-slate-900">
+                          {migratedStudent.rollNumber}
+                        </strong>
+                        {migratedStudent.registrationNo ? (
+                          <> and Registration No <strong className="font-mono">{migratedStudent.registrationNo}</strong></>
+                        ) : null}, was a bona fide regular student of this institution enrolled in the{" "}
+                        <strong>{migratedStudent.program?.name || "BS Degree Program"}</strong> (Academic Session:{" "}
+                        <strong>{migratedStudent.session || "2024-2028"}</strong>).
+                      </p>
+
+                      <p>
+                        The student has successfully completed coursework and academic tenure up to{" "}
+                        <strong>Semester {migratedStudent.currentSemester || 1}</strong> at this college. Upon formal application and fulfillment of institutional requirements, the candidate has been officially relieved from this institution on account of outward migration to:
+                      </p>
+
+                      <div className="p-3.5 bg-amber-50 border-2 border-amber-300 rounded-xl text-center font-black text-sm text-slate-900 tracking-wide uppercase">
+                        🏛️ {docDetails.destinationCollege || "Destination Institution / University"}
+                      </div>
+
+                      <p>
+                        The College Administration, Academic Council, and Examination Branch have{" "}
+                        <strong>NO OBJECTION (NOC)</strong> to his/her admission or continuation of studies at the destination institution.
+                      </p>
+
+                      <p>
+                        All institutional library books, laboratory apparatus, college hostel, and tuition fee dues have been{" "}
+                        <strong className="text-green-700">FULLY SETTLED & CLEARED</strong> up to Semester{" "}
+                        {migratedStudent.currentSemester || 1}.
+                      </p>
+
+                      <p>
+                        During their academic tenure at this college, the student&apos;s moral character, discipline, and academic conduct remained{" "}
+                        <strong>Satisfactory / Good</strong>. We wish the candidate success in their future academic endeavors.
+                      </p>
+                    </div>
+
+                    {/* Signatures */}
+                    <div className="pt-16 grid grid-cols-3 gap-6 text-center text-xs">
+                      <div className="space-y-6">
+                        <div className="border-b border-gray-400"></div>
+                        <div className="font-bold text-gray-800">In-Charge Admissions</div>
+                      </div>
+                      <div className="space-y-6">
+                        <div className="border-b border-gray-400"></div>
+                        <div className="font-bold text-gray-800">Head of Department (HOD)</div>
+                      </div>
+                      <div className="space-y-6">
+                        <div className="border-b border-gray-400"></div>
+                        <div className="font-bold text-gray-800">Controller of Examinations / Principal</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Official Academic Transcript */
+                  <div className="overflow-x-auto">
+                    <OfficialTranscriptDocument
+                      student={migratedStudent}
+                      fromSemester={1}
+                      toSemester={migratedStudent.currentSemester || 8}
+                      collegeName={collegeName}
+                      collegeLogo={collegeLogo}
+                      collegeAddress={collegeAddress}
+                      universityName={universityName}
+                      issueDate={docDetails.issueDate}
+                      serialNumber={docDetails.relievingNo}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

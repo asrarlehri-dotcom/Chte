@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 2. Update Student model activity status
-    const shouldDeactivate = ["FREEZE", "QUIT", "ADP", "DROPOUT", "MIGRATION_OUT"].includes(statusType.toUpperCase());
+    const shouldDeactivate = ["FREEZE", "QUIT", "ADP", "DROPOUT", "MIGRATION_OUT", "MIGRATION"].includes(statusType.toUpperCase());
     
     await prisma.student.update({
       where: { id: studentId },
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       await prisma.studentStatus.updateMany({
         where: {
           studentId,
-          statusType: { in: ["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT"] },
+          statusType: { in: ["FREEZE", "DROPOUT", "QUIT", "ADP", "MIGRATION_OUT", "MIGRATION"] },
           isActive: true,
         },
         data: { isActive: false },
