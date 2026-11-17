@@ -804,7 +804,9 @@ export default function StudentResultSearch({
                   Semester {selectedResult.semester} GPA
                 </span>
                 <div className="text-2xl font-black text-amber-300 mt-0.5">
-                  {selectedResult.semesterGPA.toFixed(2)}
+                  {selectedResult.academicStatus === "RESULT_AWAITED" || selectedResult.semesterMarks.total === 0
+                    ? "—"
+                    : selectedResult.semesterGPA.toFixed(2)}
                 </div>
                 <span className="text-[10px] text-slate-400">Scale of 4.00</span>
               </div>
@@ -815,11 +817,14 @@ export default function StudentResultSearch({
                   Cumulative CGPA
                 </span>
                 <div className="text-2xl font-black text-cyan-300 mt-0.5">
-                  {selectedResult.cumulativeCGPA.toFixed(2)}
+                  {selectedResult.academicStatus === "RESULT_AWAITED" || selectedResult.semesterMarks.total === 0 || selectedResult.cumulativeCGPA === 0
+                    ? "—"
+                    : selectedResult.cumulativeCGPA.toFixed(2)}
                 </div>
                 <span className="text-[10px] text-slate-400">
-                  Total Marks: {selectedResult.cumulativeMarks.obtained} /{" "}
-                  {selectedResult.cumulativeMarks.total}
+                  {selectedResult.academicStatus === "RESULT_AWAITED" || selectedResult.semesterMarks.total === 0
+                    ? "Result Not Compiled Yet"
+                    : `Total Marks: ${selectedResult.cumulativeMarks.obtained} / ${selectedResult.cumulativeMarks.total}`}
                 </span>
               </div>
 

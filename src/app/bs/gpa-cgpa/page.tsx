@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { calculateStudentCGPA } from "@/lib/cgpa";
+import { calculateStudentCGPA, getGPValue } from "@/lib/cgpa";
 
 type StudentData = {
   id: string;
@@ -10,10 +10,11 @@ type StudentData = {
   bsAdmissionType: string | null;
   currentSemester: number | null;
   marks: Array<{
-    semester: number;
+    semester?: number;
     obtainedMarks: number;
     totalMarks: number;
-    course: { creditHours: number; title: string };
+    status?: string;
+    course?: { creditHours: number; title: string; semester?: number };
   }>;
 };
 
@@ -41,12 +42,10 @@ export default function GPACGPATrackerPage() {
     const semestersMap: Record<number, { gpPoints: number; credits: number }> = {};
     
     s.marks?.forEach((m) => {
-      const sem = m.semester;
+      const sem = m.course?.semester ?? (m as any).semester ?? 1;
       const credit = m.course?.creditHours || 3;
-      const pct = m.totalMarks > 0 ? (m.obtainedMarks / m.totalMarks) * 100 : 0;
-      let gp = 0;
-      if (pct >= 80) gp = 4.0;
-      else if (pct >= 50) gp = 1.0 + (Math.round(pct) - 50) * 0.1;
+      const isAbsent = (m as any).status === "ABSENT" || (m as any).status === "A";
+      const gp = isAbsent ? 0.0 : getGPValue(m.obtainedMarks, m.totalMarks);
       
       if (!semestersMap[sem]) {
         semestersMap[sem] = { gpPoints: 0, credits: 0 };

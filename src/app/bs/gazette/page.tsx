@@ -226,6 +226,9 @@ function buildStudentResults(
 
   (s.marks || []).forEach((m) => {
     const sem = m.course?.semester ?? m.semester ?? 1;
+    // CRITICAL: Only count semesters up to the currently selected Gazette semester!
+    if (sem > selectedSemester) return;
+
     const credit = m.course?.creditHours || 3;
     const isAbsent = (m as any).status === "ABSENT" || (m as any).status === "A";
     const gp = isAbsent ? 0.0 : getGPValue(m.obtainedMarks, m.totalMarks);
@@ -253,9 +256,19 @@ function buildStudentResults(
     creditHours: d.credits,
   }));
 
-  const { cgpa } = calculateStudentCGPA({ bsAdmissionType: s.bsAdmissionType }, semestersData);
+  const targetSemesterMarks = (s.marks || []).filter(
+    (m) => (m.course?.semester ?? m.semester ?? 1) === selectedSemester
+  );
+  const semPaperCount = targetSemesterMarks.length;
+
+  // Only calculate CGPA if student has marks up to selectedSemester
+  const hasMarksInSelectedSem = semPaperCount > 0;
+  const { cgpa } = hasMarksInSelectedSem
+    ? calculateStudentCGPA({ bsAdmissionType: s.bsAdmissionType }, semestersData)
+    : { cgpa: 0 };
+
   const targetSem = semestersData.find((sd) => sd.semester === selectedSemester);
-  const gpa = targetSem ? targetSem.gpa : 0;
+  const gpa = targetSem && hasMarksInSelectedSem ? targetSem.gpa : 0;
 
   // Per-course marks + totals for selected semester (supports both ID and Title lookup)
   const courseMarksById: Record<string, number | "A"> = {};
@@ -1354,11 +1367,11 @@ export default function GazetteCompilerPage() {
                               {totalMax > 0 ? pct.toFixed(1) : "—"}
                             </td>
                             <td className="px-2 py-2 text-center font-bold text-slate-700 border-l border-slate-100 print:border-slate-300 text-xs">
-                              {gpa.toFixed(2)}
+                              {totalMax > 0 && semPaperCount > 0 ? gpa.toFixed(2) : "—"}
                             </td>
                             {selectedSemester > 1 && (
                               <td className="px-2 py-2 text-center font-black text-blue-700 border-l border-slate-100 print:border-slate-300 bg-blue-50/20 print:bg-transparent text-xs">
-                                {cgpa.toFixed(2)}
+                                {totalMax > 0 && semPaperCount > 0 ? cgpa.toFixed(2) : "—"}
                               </td>
                             )}
                             <td className="px-2 py-2 text-center font-black text-slate-800 border-l border-slate-100 print:border-slate-300 text-xs">

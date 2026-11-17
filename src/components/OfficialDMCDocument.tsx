@@ -142,10 +142,13 @@ export default function OfficialDMCDocument({
     creditHours: d.credits,
   }));
 
-  const { cgpa } = calculateStudentCGPA(
-    { bsAdmissionType: student.bsAdmissionType || null },
-    semestersData
-  );
+  const hasCurrentSemesterMarks = coursesDetails.length > 0 && totalMax > 0;
+  const { cgpa } = hasCurrentSemesterMarks
+    ? calculateStudentCGPA(
+        { bsAdmissionType: student.bsAdmissionType || null },
+        semestersData
+      )
+    : { cgpa: 0 };
 
   // Status computation based on HEC rules
   let status = "PROMOTED";
@@ -393,10 +396,10 @@ export default function OfficialDMCDocument({
           Grade <strong className="underline ml-1 text-black font-black">{semGrade}</strong>
         </div>
         <div>
-          SGPA <strong className="underline ml-1 text-black font-black">{sgpa}</strong>
+          GPA <strong className="underline ml-1 text-black font-black">{hasCurrentSemesterMarks ? sgpa : "—"}</strong>
         </div>
         <div>
-          CGPA <strong className="underline ml-1 text-black font-black">{cgpa.toFixed(2)}</strong>
+          CGPA <strong className="underline ml-1 text-black font-black">{hasCurrentSemesterMarks ? cgpa.toFixed(2) : "—"}</strong>
         </div>
         <div>
           Standing: <strong className="underline ml-1 text-black font-black uppercase">{status}</strong>

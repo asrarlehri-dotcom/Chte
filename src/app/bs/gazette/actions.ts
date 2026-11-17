@@ -52,6 +52,8 @@ export async function getGazetteData(programId: string, semester: number) {
 
     student.marks.forEach(m => {
       const sem = m.course.semester;
+      if (sem > semester) return; // Only count semesters up to target semester!
+
       const credit = m.course.creditHours || 3;
       const isAbsent = (m as any).status === "ABSENT" || (m as any).status === "A";
       // Protect against division by zero
@@ -94,13 +96,16 @@ export async function getGazetteData(programId: string, semester: number) {
       creditHours: d.credits,
     }));
 
-    const { cgpa } = calculateStudentCGPA(
-      { bsAdmissionType: student.bsAdmissionType },
-      semestersData
-    );
+    const hasTargetMarks = targetSemesterMarks.length > 0;
+    const { cgpa } = hasTargetMarks
+      ? calculateStudentCGPA(
+          { bsAdmissionType: student.bsAdmissionType },
+          semestersData
+        )
+      : { cgpa: 0 };
 
     const targetSem = semestersData.find((sd) => sd.semester === semester);
-    const sgpa = targetSem ? targetSem.gpa : 0;
+    const sgpa = targetSem && hasTargetMarks ? targetSem.gpa : 0;
 
     let status = "PROMOTED";
     if (sgpa < 2.0 && sgpa >= 1.0) status = "PROBATION";

@@ -175,19 +175,6 @@ export async function GET(req: NextRequest) {
         total: d.total,
       }));
 
-      // Calculate CGPA up to target semester
-      const relevantSemestersForCGPA = semestersData.filter(
-        (sd) => sd.semester <= targetSemester
-      );
-      const { cgpa } = calculateStudentCGPA(
-        { bsAdmissionType: s.bsAdmissionType },
-        relevantSemestersForCGPA
-      );
-
-      const targetSemData = semestersData.find((sd) => sd.semester === targetSemester);
-      const semGPA = targetSemData ? targetSemData.gpa : 0;
-
-      // 3. Subject-wise marks for target semester
       const targetMarks = (s.marks || [])
         .filter((m) => (m.course?.semester || 1) === targetSemester)
         .map((m, idx) => {
@@ -215,6 +202,24 @@ export async function GET(req: NextRequest) {
           };
         });
 
+      const hasTargetMarks = targetMarks.length > 0;
+
+      // Calculate CGPA up to target semester ONLY IF target semester has marks or student has appeared
+      // If student has no examination records in targetSemester (e.g. Sem 3, 4, 5, 6, 7),
+      // we do not carry forward previous semester's CGPA into un-enrolled / un-announced semesters!
+      const relevantSemestersForCGPA = semestersData.filter(
+        (sd) => sd.semester <= targetSemester
+      );
+      const { cgpa } = (hasTargetMarks && relevantSemestersForCGPA.length > 0)
+        ? calculateStudentCGPA(
+            { bsAdmissionType: s.bsAdmissionType },
+            relevantSemestersForCGPA
+          )
+        : { cgpa: 0 };
+
+      const targetSemData = semestersData.find((sd) => sd.semester === targetSemester);
+      const semGPA = targetSemData && hasTargetMarks ? targetSemData.gpa : 0;
+
       // 4. Failed courses in target semester vs previous backlogs
       const failedCoursesInTargetSem = targetMarks.filter((tm) => !tm.isPass);
       const previousBacklogs = allFailedCourses.filter(
@@ -230,15 +235,13 @@ export async function GET(req: NextRequest) {
       const semPercentage =
         semTotalMax > 0 ? parseFloat(((semTotalObtained / semTotalMax) * 100).toFixed(2)) : 0;
 
-      // Cumulative totals up to target semester
-      const cumTotalObtained = relevantSemestersForCGPA.reduce(
-        (acc, curr) => acc + curr.obtained,
-        0
-      );
-      const cumTotalMax = relevantSemestersForCGPA.reduce(
-        (acc, curr) => acc + curr.total,
-        0
-      );
+      // Cumulative totals up to target semester (only if target semester has marks)
+      const cumTotalObtained = hasTargetMarks
+        ? relevantSemestersForCGPA.reduce((acc, curr) => acc + curr.obtained, 0)
+        : 0;
+      const cumTotalMax = hasTargetMarks
+        ? relevantSemestersForCGPA.reduce((acc, curr) => acc + curr.total, 0)
+        : 0;
 
       // 5. Official Promotion Status Logic:
       // 1st Sem: GPA >= 1.00 => PROMOTED, else DROPOUT
