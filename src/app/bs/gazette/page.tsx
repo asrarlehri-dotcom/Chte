@@ -1534,7 +1534,7 @@ export default function GazetteCompilerPage() {
                 <div className="hidden print:flex mt-8 p-4 justify-between items-end text-[9px] font-bold text-slate-800 uppercase tracking-widest border-t border-slate-300">
                   <div className="text-center">
                     <div className="w-40 border-b border-slate-800 mb-1"></div>
-                    Prepared By (Clerk)
+                    Computer Programmer
                   </div>
                   <div className="text-center">
                     <div className="w-40 border-b border-slate-800 mb-1"></div>

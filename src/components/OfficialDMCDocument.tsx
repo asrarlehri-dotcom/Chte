@@ -409,7 +409,7 @@ export default function OfficialDMCDocument({
         <div className="space-y-2">
           <div className="space-y-2">
             <div className="flex items-center gap-1">
-              <span className="w-24 shrink-0 font-normal">Prepared By:</span>
+              <span className="w-36 shrink-0 font-medium">Computer Programmer:</span>
               <div className="border-b border-black flex-1 h-3"></div>
             </div>
             <div className="flex items-center gap-1">

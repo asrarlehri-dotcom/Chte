@@ -273,101 +273,166 @@ export default function OfficialTranscriptDocument({
     ? `${activeCollegeName}, ${activeCollegeAddress}`
     : activeCollegeName;
 
-  // Render a single semester table
-  const renderSemesterTable = (sem: number) => {
-    const semData = semesterDataMap[sem];
-    if (!semData) return null;
-
+  // Render a column of semesters sharing a single top header and identical column widths
+  const renderSemestersColumn = (semesters: number[]) => {
     return (
-      <div key={sem} className="border border-black overflow-hidden mb-2.5 bg-white">
-        <table className="w-full border-collapse text-black text-[9px] leading-tight">
-          <thead>
-            {/* Semester Heading */}
-            <tr className="border-b border-black">
-              <th
-                colSpan={7}
-                className="py-1 px-1 text-center font-bold tracking-wider uppercase text-[10px] text-black bg-white"
-              >
-                {semData.semName}
-              </th>
-            </tr>
-            {/* Column Headers */}
-            <tr className="border-b border-black text-[8px] font-bold uppercase tracking-tight text-center">
-              <th className="border-r border-black py-1 px-0.5 w-[24px]">S/No</th>
-              <th className="border-r border-black py-1 px-1 text-left w-[120px]">COURSE CODE</th>
-              <th className="border-r border-black py-1 px-0.5 w-[38px] leading-none">
-                CREDIT<br />HOURS
-              </th>
-              <th className="border-r border-black py-1 px-0.5 w-[42px] leading-none">
-                TOTAL<br />MARKS
-              </th>
-              <th className="border-r border-black py-1 px-0.5 w-[42px] leading-none">
-                MARKS<br />OBT.
-              </th>
-              <th className="border-r border-black py-1 px-0.5 w-[34px]">GRADE</th>
-              <th className="py-1 px-0.5 w-[44px] leading-none">
-                GRADE<br />POINT
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {semData.items.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-3 text-gray-400 italic">
-                  No examination papers recorded
-                </td>
-              </tr>
-            ) : (
-              semData.items.map((row) => (
-                <tr key={row.sr} className="border-b border-black text-center font-normal">
-                  <td className="border-r border-black py-0.5 px-0.5">{row.sr}</td>
+      <table className="w-full border-collapse border border-black text-black text-[8px] leading-tight table-fixed bg-white">
+        <colgroup>
+          <col style={{ width: "24px" }} />
+          <col style={{ width: "auto" }} />
+          <col style={{ width: "26px" }} />
+          <col style={{ width: "32px" }} />
+          <col style={{ width: "32px" }} />
+          <col style={{ width: "30px" }} />
+          <col style={{ width: "32px" }} />
+        </colgroup>
+        <thead>
+          <tr className="bg-gray-100 border-b border-black text-[8px] font-black uppercase tracking-tight text-center">
+            <th className="border-r border-black py-0.5 px-0.5">S.No</th>
+            <th className="border-r border-black py-0.5 px-1 text-left">Course Code</th>
+            <th className="border-r border-black py-0.5 px-0.5 leading-none">Cr.</th>
+            <th className="border-r border-black py-0.5 px-0.5 leading-none">Max</th>
+            <th className="border-r border-black py-0.5 px-0.5 leading-none">Obt</th>
+            <th className="border-r border-black py-0.5 px-0.5">Grade</th>
+            <th className="py-0.5 px-0.5 leading-none">GP</th>
+          </tr>
+        </thead>
+        <tbody>
+          {semesters.map((sem) => {
+            const semData = semesterDataMap[sem];
+            if (!semData) return null;
+            return (
+              <React.Fragment key={sem}>
+                {/* Semester Heading Banner */}
+                <tr className="bg-slate-200/90 border-t border-b border-black font-black">
                   <td
-                    className="border-r border-black py-0.5 px-1 text-left font-mono font-medium truncate max-w-[120px]"
-                    title={row.title}
+                    colSpan={7}
+                    className="py-[2px] px-1 text-center uppercase tracking-wider text-[8.5px] text-black"
                   >
-                    {row.code}
+                    {semData.semName}
                   </td>
-                  <td className="border-r border-black py-0.5 px-0.5">{row.creditHours}</td>
-                  <td className="border-r border-black py-0.5 px-0.5">{row.totalMarks}</td>
-                  <td className={`border-r border-black py-0.5 px-0.5 ${row.isAbsent ? "font-bold text-red-600" : ""}`}>
-                    {row.obtainedMarks}
-                  </td>
-                  <td className={`border-r border-black py-0.5 px-0.5 font-bold ${row.grade === "F" ? "text-red-600" : ""}`}>
-                    {row.grade}
-                  </td>
-                  <td className="py-0.5 px-0.5">{row.gradePoint}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-          <tfoot>
-            {/* GPA Row */}
-            <tr className="border-t border-black font-bold">
-              <td colSpan={5} className="border-r border-black py-0.5 px-1 text-right text-[8.5px]"></td>
-              <td className="border-r border-black py-0.5 px-1 text-center font-bold text-[9px]">GPA</td>
-              <td className="py-0.5 px-1 text-center font-black text-[9px]">{semData.sgpa}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+
+                {/* Course Rows */}
+                {semData.items.length === 0 ? (
+                  <tr className="border-b border-black/40">
+                    <td colSpan={7} className="text-center py-1 text-gray-400 italic text-[7.5px]">
+                      No examination papers recorded
+                    </td>
+                  </tr>
+                ) : (
+                  semData.items.map((row) => (
+                    <tr
+                      key={row.sr}
+                      className="border-b border-black/30 text-center hover:bg-gray-50/50"
+                    >
+                      <td className="border-r border-black/30 py-[1.5px] px-0.5">{row.sr}</td>
+                      <td
+                        className="border-r border-black/30 py-[1.5px] px-1 text-left font-mono font-semibold truncate"
+                        title={row.title ? `${row.code} - ${row.title}` : row.code}
+                      >
+                        <div className="truncate leading-tight">
+                          <span>{row.code}</span>
+                          {row.title && row.title !== row.code && (
+                            <span className="text-[6.5px] text-gray-600 block truncate font-sans font-normal leading-none">
+                              {row.title}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="border-r border-black/30 py-[1.5px] px-0.5 font-medium">
+                        {row.creditHours}
+                      </td>
+                      <td className="border-r border-black/30 py-[1.5px] px-0.5">
+                        {row.totalMarks}
+                      </td>
+                      <td
+                        className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${
+                          row.isAbsent ? "text-red-600" : ""
+                        }`}
+                      >
+                        {row.obtainedMarks}
+                      </td>
+                      <td
+                        className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${
+                          row.grade === "F" ? "text-red-600" : ""
+                        }`}
+                      >
+                        {row.grade}
+                      </td>
+                      <td className="py-[1.5px] px-0.5 font-medium">{row.gradePoint}</td>
+                    </tr>
+                  ))
+                )}
+
+                {/* SGPA & Semester Summary Row */}
+                <tr className="border-b-2 border-black font-bold bg-gray-50 text-[7.5px]">
+                  <td colSpan={2} className="border-r border-black/40 py-0.5 px-1 text-left truncate text-gray-800">
+                    Tot: <span className="font-black text-black">{semData.semObt}/{semData.semMax}</span>
+                  </td>
+                  <td className="border-r border-black/40 py-0.5 px-0.5 text-center font-black">
+                    {semData.semCredits}
+                  </td>
+                  <td colSpan={2} className="border-r border-black/40 py-0.5 px-1 text-right text-gray-700">
+                    SGPA:
+                  </td>
+                  <td colSpan={2} className="py-0.5 px-1 text-center font-black text-black text-[8px] bg-slate-100">
+                    {semData.sgpa}
+                  </td>
+                </tr>
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     );
   };
 
   return (
-    <div className="official-transcript-root bg-white text-black p-4 sm:p-6 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none text-[11px] leading-snug">
+    <div className="official-transcript-root bg-white text-black p-3 sm:p-5 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none text-[9.5px] leading-tight">
+      <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 5mm 6mm 4mm 6mm;
+        }
+        @media print {
+          html, body {
+            width: 210mm !important;
+            height: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .official-transcript-root {
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 auto !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+      `}</style>
+
       {/* ─── 1. TOP SERIAL NUMBER ─── */}
-      <div className="flex justify-end text-[11px] font-serif tracking-normal text-black mb-1">
-        <span>No. {serialNoStr}</span>
+      <div className="flex justify-between items-center text-[9.5px] font-serif tracking-normal text-black mb-1">
+        <span className="font-mono text-[8px] text-gray-500">HEC / UOB STANDARDIZED TRANSCRIPT</span>
+        <span className="font-bold">No. {serialNoStr}</span>
       </div>
 
       {/* ─── 2. MAIN HEADER (CONCERNED COLLEGE LOGO & NAME) ─── */}
-      <div className="text-center space-y-1 mb-3">
+      <div className="text-center space-y-0.5 mb-1.5">
         {activeCollegeLogo && (
-          <div className="flex justify-center mb-1">
+          <div className="flex justify-center mb-0.5">
             <img
               src={activeCollegeLogo}
               alt="College Logo"
-              className="w-16 h-16 sm:w-20 sm:h-20 object-contain"
+              className="w-12 h-12 object-contain"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 if (!target.src.includes("/logo.png")) {
@@ -377,155 +442,155 @@ export default function OfficialTranscriptDocument({
             />
           </div>
         )}
-        <h1 className="font-serif text-2xl sm:text-[26px] font-black tracking-tight text-black uppercase">
+        <h1 className="font-serif text-xl sm:text-[22px] font-black tracking-tight text-black uppercase leading-none">
           {activeCollegeName}
         </h1>
         {activeCollegeAddress && (
-          <p className="text-[10px] font-semibold text-gray-700 tracking-wide uppercase">
+          <p className="text-[8.5px] font-semibold text-gray-700 tracking-wide uppercase leading-tight">
             {activeCollegeAddress}
           </p>
         )}
-        <h2 className="text-xs sm:text-sm font-bold tracking-[0.22em] text-black uppercase mt-1">
-          STUDENT TRANSCRIPT
+        <h2 className="text-[11px] font-black tracking-[0.2em] text-black uppercase pt-0.5">
+          OFFICIAL STUDENT TRANSCRIPT
         </h2>
       </div>
 
       {/* ─── 3. STUDENT PROFILE INFORMATION GRID ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[10.5px] mb-2 leading-tight">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 text-[9px] mb-1 leading-tight border-t border-b border-gray-300 py-1">
         {/* Left Column */}
         <div className="space-y-0.5">
           <div className="flex">
-            <span className="w-36 shrink-0 font-medium text-black">Student Name:</span>
-            <span className="font-bold text-black">{studentName}</span>
+            <span className="w-32 shrink-0 font-medium text-gray-700">Student Name:</span>
+            <span className="font-bold text-black uppercase">{studentName}</span>
           </div>
           <div className="flex">
-            <span className="w-36 shrink-0 font-medium text-black">Father's Name:</span>
+            <span className="w-32 shrink-0 font-medium text-gray-700">Father's Name:</span>
             <span className="font-normal text-black">{fatherName}</span>
           </div>
           <div className="flex">
-            <span className="w-36 shrink-0 font-medium text-black">Date of Birth:</span>
+            <span className="w-32 shrink-0 font-medium text-gray-700">Date of Birth:</span>
             <span className="font-normal text-black">{dobStr}</span>
           </div>
           <div className="flex">
-            <span className="w-36 shrink-0 font-medium text-black">CNIC:</span>
+            <span className="w-32 shrink-0 font-medium text-gray-700">CNIC:</span>
             <span className="font-normal text-black font-mono">{cnicStr}</span>
           </div>
           <div className="flex">
-            <span className="w-36 shrink-0 font-medium text-black">Program:</span>
+            <span className="w-32 shrink-0 font-medium text-gray-700">Program:</span>
             <span className="font-bold text-black">{student.program?.name || programName}</span>
           </div>
           <div className="flex items-start">
-            <span className="w-36 shrink-0 font-medium text-black">Department/Institute Name:</span>
-            <span className="font-normal text-black leading-tight">{fullInstituteName}</span>
+            <span className="w-32 shrink-0 font-medium text-gray-700">Institute Name:</span>
+            <span className="font-normal text-black leading-tight truncate">{fullInstituteName}</span>
           </div>
         </div>
 
         {/* Right Column */}
         <div className="space-y-0.5">
           <div className="flex">
-            <span className="w-40 shrink-0 font-medium text-black">Roll No:</span>
+            <span className="w-36 shrink-0 font-medium text-gray-700">Roll No:</span>
             <span className="font-bold font-mono text-black">{rollNo}</span>
           </div>
           <div className="flex">
-            <span className="w-40 shrink-0 font-medium text-black">Registration No:</span>
+            <span className="w-36 shrink-0 font-medium text-gray-700">Registration No:</span>
             <span className="font-bold font-mono text-black">{regNo}</span>
           </div>
           <div className="flex">
-            <span className="w-40 shrink-0 font-medium text-black">Mode of Study:</span>
+            <span className="w-36 shrink-0 font-medium text-gray-700">Mode of Study:</span>
             <span className="font-normal text-black">{modeOfStudy}</span>
           </div>
           <div className="flex">
-            <span className="w-40 shrink-0 font-medium text-black">Session:</span>
+            <span className="w-36 shrink-0 font-medium text-gray-700">Session:</span>
             <span className="font-bold text-black">{sessionStr}</span>
           </div>
           <div className="flex">
-            <span className="w-40 shrink-0 font-medium text-black">Result Declaration Date:</span>
+            <span className="w-36 shrink-0 font-medium text-gray-700">Declaration Date:</span>
             <span className="font-normal text-black">{declDateStr}</span>
           </div>
         </div>
       </div>
 
       {/* ─── 4. PROGRAM TITLE BAR ─── */}
-      <div className="border-t-2 border-b-2 border-black py-1 my-2 text-center text-xs font-bold tracking-wider uppercase text-black">
-        {programName} (4 YEAR'S PROGRAM)
+      <div className="border border-black bg-gray-100/70 py-0.5 my-1 text-center text-[9.5px] font-black tracking-wider uppercase text-black">
+        {programName} (4 YEAR'S DEGREE PROGRAM)
       </div>
 
       {/* ─── 5. TWO-COLUMN SEMESTERS GRID ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 mb-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 mb-1">
         {/* Left Column: Odd Semesters (1, 3, 5, 7) */}
         <div>
-          {oddSemesters.map((sem) => renderSemesterTable(sem))}
+          {renderSemestersColumn(oddSemesters)}
         </div>
 
         {/* Right Column: Even Semesters (2, 4, 6, 8) */}
         <div>
-          {evenSemesters.map((sem) => renderSemesterTable(sem))}
+          {renderSemestersColumn(evenSemesters)}
         </div>
       </div>
 
       {/* ─── 6. CUMULATIVE MARKS SUMMARY ROW ─── */}
-      <div className="border border-black py-1.5 px-3 mb-4 flex items-center justify-between flex-wrap gap-2 text-[11px] text-black">
+      <div className="border border-black bg-gray-50/80 py-1 px-3 mb-1.5 flex items-center justify-between flex-wrap gap-2 text-[9px] text-black font-medium">
         <div>
-          Obtained Marks <strong className="underline ml-1 text-black font-black">{grandTotalObtained}</strong>
+          Obtained Marks: <strong className="underline ml-1 text-black font-black">{grandTotalObtained}</strong>
         </div>
         <div>
-          Total Marks <strong className="underline ml-1 text-black font-black">{grandTotalMax}</strong>
+          Total Marks: <strong className="underline ml-1 text-black font-black">{grandTotalMax}</strong>
         </div>
         <div>
-          Grade <strong className="underline ml-1 text-black font-black">{overallGrade}</strong>
+          Grade: <strong className="underline ml-1 text-black font-black">{overallGrade}</strong>
         </div>
         <div>
-          Percentage <strong className="underline ml-1 text-black font-black">{overallPercentage}%</strong>
+          Percentage: <strong className="underline ml-1 text-black font-black">{overallPercentage}%</strong>
         </div>
         <div>
-          CGPA <strong className="underline ml-1 text-black font-black text-xs">{cgpa.toFixed(2)}</strong>
+          CGPA: <strong className="underline ml-1 text-black font-black text-[10.5px]">{cgpa.toFixed(2)}</strong>
         </div>
       </div>
 
       {/* ─── 7. FOOTER / SIGNATURES ─── */}
-      <div className="grid grid-cols-2 gap-4 items-end pt-2 text-[10.5px]">
+      <div className="grid grid-cols-2 gap-4 items-end pt-1 text-[9px]">
         {/* Left Signature Column */}
-        <div className="space-y-2">
-          <div className="space-y-2">
+        <div className="space-y-1">
+          <div className="space-y-1">
             <div className="flex items-center gap-1">
-              <span className="w-24 shrink-0 font-normal">Prepared By:</span>
-              <div className="border-b border-black flex-1 h-3"></div>
+              <span className="w-36 shrink-0 font-medium">Computer Programmer:</span>
+              <div className="border-b border-black flex-1 h-2.5"></div>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-24 shrink-0 font-normal">Checked By:</span>
-              <div className="border-b border-black flex-1 h-3"></div>
+              <span className="w-36 shrink-0 font-medium">Checked By:</span>
+              <div className="border-b border-black flex-1 h-2.5"></div>
             </div>
           </div>
 
-          <div className="text-[9px] italic text-gray-700 pt-0.5">
+          <div className="text-[7.5px] italic text-gray-600 pt-0.5">
             */** Repeated/Improved Marks
           </div>
 
           {/* Clean Official Stamp Area */}
-          <div className="pt-3">
-            <div className="w-28 h-14 border border-dashed border-gray-400 rounded flex items-center justify-center text-center">
-              <span className="text-[7.5px] font-semibold text-gray-400 uppercase tracking-widest">[ College Stamp ]</span>
+          <div className="pt-0.5">
+            <div className="w-24 h-10 border border-dashed border-gray-400 rounded flex items-center justify-center text-center">
+              <span className="text-[7px] font-semibold text-gray-400 uppercase tracking-widest">[ College Stamp ]</span>
             </div>
           </div>
         </div>
 
         {/* Right Signature Column */}
-        <div className="text-center space-y-1">
+        <div className="text-center space-y-0.5">
           {/* Controller Signature Blank Area */}
-          <div className="h-10"></div>
+          <div className="h-6"></div>
 
           <div className="border-t border-black pt-1">
-            <p className="font-bold text-[10.5px] leading-tight text-black">
+            <p className="font-bold text-[9.5px] leading-tight text-black">
               Controller / Incharge Examinations
             </p>
-            <p className="text-[9.5px] font-medium text-black">
+            <p className="text-[8px] font-medium text-black">
               (Examination Cell)
             </p>
           </div>
 
-          <div className="pt-2 text-[9px] leading-tight text-gray-800">
+          <div className="pt-0.5 text-[7px] leading-tight text-gray-600">
             <p className="font-medium">Issued by Examination Cell</p>
-            <p className="italic text-gray-600">Errors and Omissions are expected</p>
+            <p className="italic text-gray-500">Errors and Omissions are expected</p>
           </div>
         </div>
       </div>
