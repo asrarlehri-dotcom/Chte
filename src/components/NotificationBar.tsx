@@ -26,6 +26,12 @@ export function NotificationBar() {
   if (!session || dismissed || !dutyData) return null;
 
   const role = (session.user as any)?.role || "";
+  const collegeId = (session.user as any)?.collegeId;
+  const isCentral = role === "CHTE_ADMIN" || (!collegeId && role === "SUPER_ADMIN");
+
+  // Hide official notice / duties marquee on CHTE Central Dashboard, but keep it active for colleges
+  if (isCentral) return null;
+
   const isInterFaculty = role === "INTER_FACULTY";
   const isBSFaculty = ["BS_FACULTY", "FACULTY", "TEACHER"].includes(role);
 

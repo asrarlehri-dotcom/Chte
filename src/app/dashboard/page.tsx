@@ -337,25 +337,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Card 4: Scheduled Exams */}
-            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100 flex-shrink-0">
-                  <ClipboardCheck className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Scheduled Exams</div>
-                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                    {centralExamsSchedule.length}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 text-[11px] font-bold text-rose-600 truncate">
-                Mid & Final Term Papers
-              </div>
-            </div>
-
-            {/* Card 5: Academic Programs */}
+            {/* Card 4: Academic Programs */}
             <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 flex-shrink-0">
@@ -369,7 +351,25 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="mt-3 text-[11px] font-medium text-slate-400">
-                All Running Disciplines
+                BS & Intermediate
+              </div>
+            </div>
+
+            {/* Card 5: Running Academic Sessions */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 flex-shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Active Sessions</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {dashboardSessions.length}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-bold text-purple-700">
+                Provincial Batches
               </div>
             </div>
           </>
@@ -470,7 +470,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ── CENTRAL OVERVIEW SECTION: MULTI-CAMPUS COLLEGE ADMISSIONS & STANDING MATRIX ── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {isCentral && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Header & Controls */}
         <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
           <div>
@@ -651,253 +652,13 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
+    )}
 
-      {/* ── SECTION: PROVINCIAL EXAMINATION SCHEDULE & DUTY COMMAND MONITOR ── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
-          <div>
-            <div className="flex items-center gap-2">
-              <ClipboardCheck className="w-5 h-5 text-rose-600" />
-              <h2 className="text-base font-black text-slate-900 tracking-tight">
-                Provincial Examination Schedule & Live Duty Monitor
-              </h2>
-              <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black px-2 py-0.5 rounded-full">
-                {filteredExams.length} Exams Listed
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Multi-campus examination datesheets, paper slots, room halls, and deployed invigilation staff.
-            </p>
-          </div>
-
-          {/* Exam Type Tabs */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-            {["ALL", "FINAL", "MID"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setExamTab(tab)}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                  examTab === tab
-                    ? "bg-white text-indigo-700 shadow-xs"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {tab === "ALL" ? "All Papers" : tab === "FINAL" ? "Final Term" : "Mid Term"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Exams Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-4">Date & Timing</th>
-                <th className="py-3 px-4">College Campus</th>
-                <th className="py-3 px-4">Course Paper</th>
-                <th className="py-3 px-4">Degree Cohort</th>
-                <th className="py-3 px-4">Exam Type & Status</th>
-                <th className="py-3 px-4">Invigilator Staff & Halls</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredExams.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400 font-semibold">
-                    No examination datesheets or papers scheduled under the selected filter.
-                  </td>
-                </tr>
-              ) : (
-                filteredExams.map((ex) => (
-                  <tr key={ex.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 border border-purple-100 flex flex-col items-center justify-center flex-shrink-0">
-                          <Clock className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <strong className="block font-bold text-slate-900 leading-tight">
-                            {ex.dateFormatted}
-                          </strong>
-                          <span className="text-[11px] font-semibold text-purple-700">
-                            {ex.timeSlot || `${ex.startTime} - ${ex.endTime}`}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div>
-                        <strong className="block font-bold text-slate-900 truncate max-w-xs">
-                          {ex.collegeName}
-                        </strong>
-                        <span className="text-[11px] text-slate-500">
-                          {ex.collegeCode} • {ex.district}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div>
-                        <strong className="block font-bold text-slate-900">
-                          {ex.courseTitle}
-                        </strong>
-                        <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
-                          {ex.courseCode}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div>
-                        <strong className="block font-bold text-slate-800">
-                          {ex.programName} ({ex.programCode})
-                        </strong>
-                        <span className="text-[11px] text-slate-500">
-                          Session: {ex.session} • Sem {ex.semester}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="space-y-1">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                          ex.examType?.toLowerCase().includes("final")
-                            ? "bg-rose-50 text-rose-700 border border-rose-200"
-                            : "bg-blue-50 text-blue-700 border border-blue-200"
-                        }`}>
-                          {ex.examType}
-                        </span>
-                        <div>
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${
-                            ex.isFinalized || ex.status === "PUBLISHED"
-                              ? "text-emerald-600"
-                              : "text-amber-600"
-                          }`}>
-                            <CheckCircle2 className="w-3 h-3" />
-                            {ex.isFinalized ? "Finalized" : ex.status || "Scheduled"}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {ex.dutyStaff && ex.dutyStaff.length > 0 ? (
-                        <div className="space-y-1">
-                          {ex.dutyStaff.map((staff: any, sIdx: number) => (
-                            <div key={sIdx} className="flex items-center gap-1.5 text-[11px]">
-                              <UserCheck className="w-3 h-3 text-slate-400" />
-                              <span className="font-semibold text-slate-800">{staff.facultyName}</span>
-                              <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
-                                {staff.room}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] italic">Not assigned yet</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ── SECTION: PROVINCIAL SESSIONS & SEMESTERS PROGRESSION ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Card 1: Active Sessions Enrollment (6 cols) */}
-        <div className="lg:col-span-6 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-purple-600" />
-              <h3 className="text-sm font-black text-slate-900">
-                Provincial Academic Sessions Enrollment
-              </h3>
-            </div>
-            <span className="text-xs font-bold text-slate-400">All Campuses</span>
-          </div>
-
-          <div className="space-y-3">
-            {Object.keys(sessionStats).length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                No session enrollment data recorded
-              </div>
-            ) : (
-              Object.entries(sessionStats)
-                .sort(([, a], [, b]) => b - a)
-                .map(([sess, count], idx) => {
-                  const maxSessCount = Math.max(...Object.values(sessionStats), 1);
-                  const pct = Math.min(100, Math.round((count / maxSessCount) * 100));
-                  const colors = ["bg-indigo-600", "bg-purple-600", "bg-blue-500", "bg-emerald-500", "bg-amber-500"];
-                  return (
-                    <div key={sess} className="space-y-1">
-                      <div className="flex justify-between items-center text-xs font-semibold">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">{sess}</span>
-                          <span className="text-[10px] text-slate-400 font-medium">Session Cohort</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-slate-900">{count}</span>
-                          <span className="text-slate-400 text-[10px]">students</span>
-                        </div>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${colors[idx % colors.length]}`}
-                          style={{ width: `${pct}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })
-            )}
-          </div>
-        </div>
-
-        {/* Card 2: Semester-Wise Cohort Distribution (6 cols) */}
-        <div className="lg:col-span-6 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-sm font-black text-slate-900">
-                Semester Cohort Pipeline (Sem 1 to Sem 8)
-              </h3>
-            </div>
-            <span className="text-xs font-bold text-slate-400">BS Programs</span>
-          </div>
-
-          <div className="grid grid-cols-4 sm:grid-cols-4 gap-2.5 pt-1">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
-              const semCount = semesterStats[sem] || 0;
-              return (
-                <div
-                  key={sem}
-                  className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center hover:bg-indigo-50/40 hover:border-indigo-200 transition-colors"
-                >
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Sem {sem}
-                  </div>
-                  <div className="text-xl font-black text-slate-900 mt-1">
-                    {semCount}
-                  </div>
-                  <div className="text-[10px] font-semibold text-indigo-600 mt-0.5">
-                    Students
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-xs text-slate-500 flex items-center justify-between">
-            <span className="font-medium">Total BS Semester Enrollments</span>
-            <span className="font-black text-slate-900">
-              {Object.values(semesterStats).reduce((acc, curr) => acc + curr, 0)} Active BS Students
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── MIDDLE ROW: ENROLLMENT OVERVIEW + STATUS DONUT + QUICK ACTIONS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      {/* ── COLLEGE LEVEL OPERATIONAL DASHBOARD (Only shown for individual colleges) ── */}
+      {!isCentral && (
+        <>
+          {/* ── MIDDLE ROW: ENROLLMENT OVERVIEW + STATUS DONUT + QUICK ACTIONS ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Line Chart: Enrollment Overview (5 cols) */}
         <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex justify-between items-center">
@@ -1339,6 +1100,8 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+        </>
+      )}
 
       {/* ── FOOTER ── */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs font-medium text-slate-400 pt-4 border-t border-slate-200/60">
