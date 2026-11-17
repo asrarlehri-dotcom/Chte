@@ -638,10 +638,10 @@ export default function DashboardPage() {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <Link
-                        href={`/colleges/${col.code.toLowerCase()}`}
+                        href="/chte/colleges"
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white font-bold text-xs transition-colors"
                       >
-                        <span>Portal</span>
+                        <span>Manage</span>
                         <ExternalLink className="w-3 h-3" />
                       </Link>
                     </td>

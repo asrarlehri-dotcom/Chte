@@ -300,7 +300,7 @@ export default function ChteMasterDashboardPage() {
             </div>
 
             {/* Embedded Homepage Settings Component */}
-            <HomepageSettingsTab onSwitchToColleges={() => setActiveTab("COLLEGES")} />
+            <HomepageSettingsTab />
           </div>
         )}
 

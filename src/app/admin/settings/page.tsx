@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { ShieldAlert, Search, Check, X, ShieldCheck, Filter } from "lucide-react";
 import { MODULES, ACTIONS, ROLES } from "@/lib/permissions";
 import HomepageSettingsTab from "@/components/admin/HomepageSettingsTab";
-import CollegePortalSettingsTab from "@/components/admin/CollegePortalSettingsTab";
 
 // Type definitions
 type Subject = {
@@ -68,14 +67,14 @@ export default function UnifiedSettingsPage() {
   const userRole = (session?.user as any)?.role;
   const isChteAdmin = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
 
-  const [activeTab, setActiveTab] = useState<"HOMEPAGE" | "COLLEGE_PORTAL" | "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA">(
-    userRole && !isChteAdmin ? "COLLEGE_PORTAL" : "HOMEPAGE"
+  const [activeTab, setActiveTab] = useState<"HOMEPAGE" | "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA">(
+    userRole && !isChteAdmin ? "ACADEMIC" : "HOMEPAGE"
   );
   const [msg, setMsg] = useState({ type: "", text: "" });
 
   useEffect(() => {
     if (session && !isChteAdmin && activeTab === "HOMEPAGE") {
-      setActiveTab("COLLEGE_PORTAL");
+      setActiveTab("ACADEMIC");
     }
   }, [session, isChteAdmin, activeTab]);
 
@@ -952,11 +951,11 @@ export default function UnifiedSettingsPage() {
   }, [msg]);
 
   // Tab change handler
-  const handleTabChange = (tab: "HOMEPAGE" | "COLLEGE_PORTAL" | "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA") => {
+  const handleTabChange = (tab: "HOMEPAGE" | "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA") => {
     if (tab === "HOMEPAGE" && !isChteAdmin) {
       setMsg({
         type: "error",
-        text: "Access Denied: CHTE Central Homepage settings and rules can only be modified by CHTE Super Administrators.",
+        text: "Access Denied: Master Homepage settings can only be modified by Central Super Administrators.",
       });
       return;
     }
@@ -979,65 +978,9 @@ export default function UnifiedSettingsPage() {
           </p>
         </div>
 
-        {/* Entity Switcher Pills: CHTE Main vs Affiliated Colleges (CHTE Admins ONLY) */}
-        {isChteAdmin && (
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/5 p-3 rounded-2xl border border-emerald-900/10">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700">Currently Configuring:</span>
-              <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("HOMEPAGE")}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
-                    activeTab === "HOMEPAGE"
-                      ? "bg-[#0c5938] text-white shadow-xs scale-102"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                  }`}
-                >
-                  <span>🏛️</span>
-                  <span>CHTE Main Homepage</span>
-                  <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full">/</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("COLLEGE_PORTAL")}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
-                    activeTab === "COLLEGE_PORTAL"
-                      ? "bg-slate-900 text-white shadow-xs scale-102"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                  }`}
-                >
-                  <span>🎨</span>
-                  <span>Affiliated College Portals</span>
-                  <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full">/colleges/[code]</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-              {activeTab === "HOMEPAGE" ? (
-                <a
-                  href="/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[#0c5938] font-bold hover:underline"
-                >
-                  <span>Open Live CHTE Homepage</span>
-                  <span>↗</span>
-                </a>
-              ) : (
-                <span className="text-slate-500">
-                  Upload photos/videos & customize portals for 50+ Balochistan colleges
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Hover Dropdown Mega Menu Bar */}
         <div className="flex bg-gray-50 p-1.5 rounded-xl border border-gray-200/60 max-w-5xl overflow-visible relative z-30">
-          {/* TAB 0: CHTE MAIN HOMEPAGE & PORTAL (ONLY FOR CHTE SUPER ADMIN) */}
+          {/* TAB 0: MASTER HOMEPAGE (ONLY FOR CHTE SUPER ADMIN) */}
           {isChteAdmin && (
             <div className="group relative flex-1 min-w-[170px]">
               <button
@@ -1048,14 +991,14 @@ export default function UnifiedSettingsPage() {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <span>🏛️ CHTE Main Homepage</span>
+                <span>🏛️ Master Homepage</span>
                 <span className="text-[10px] opacity-75">▼</span>
               </button>
 
               {/* Hover Sub-Menu Dropdown */}
               <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
                 <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  CHTE Central Homepage Settings:
+                  Master Homepage Settings:
                 </div>
                 <button
                   onClick={() => { handleTabChange("HOMEPAGE"); setFocusedHomepageSec("colors"); }}
@@ -1090,20 +1033,6 @@ export default function UnifiedSettingsPage() {
               </div>
             </div>
           )}
-
-          {/* TAB 1: COLLEGE PORTAL & THEME */}
-          <div className="flex-1 min-w-[170px]">
-            <button
-              onClick={() => handleTabChange("COLLEGE_PORTAL")}
-              className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === "COLLEGE_PORTAL"
-                  ? "bg-slate-900 text-white shadow-sm font-black"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <span>🎨 {isChteAdmin ? "Affiliated College Portals" : "Campus Portal & Theme"}</span>
-            </button>
-          </div>
 
           {/* TAB 2: ACADEMIC SETUP */}
           <div className="group relative flex-1 min-w-[140px]">
@@ -1290,20 +1219,12 @@ export default function UnifiedSettingsPage() {
       )}
 
       {/* ----------------------------------------------------
-          TAB 0: CHTE MAIN HOMEPAGE & CENTRAL PORTAL
+          TAB 0: MASTER HOMEPAGE CONTROL PANEL
           ---------------------------------------------------- */}
-      {activeTab === "HOMEPAGE" && (
+      {isChteAdmin && activeTab === "HOMEPAGE" && (
         <HomepageSettingsTab
           focusedSection={focusedHomepageSec}
-          onSwitchToColleges={() => handleTabChange("COLLEGE_PORTAL")}
         />
-      )}
-
-      {/* ----------------------------------------------------
-          TAB 1: COLLEGE PORTAL & THEME CONTROL PANEL
-          ---------------------------------------------------- */}
-      {activeTab === "COLLEGE_PORTAL" && (
-        <CollegePortalSettingsTab onSwitchToChte={() => handleTabChange("HOMEPAGE")} />
       )}
 
       {/* ----------------------------------------------------

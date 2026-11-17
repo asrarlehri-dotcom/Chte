@@ -116,7 +116,7 @@ export function Sidebar() {
         {
           key: "chte-homepage-setup",
           href: "/admin/settings",
-          label: "CHTE Homepage & Portals",
+          label: "Master Homepage",
           badge: "Live",
           icon: Landmark,
         },

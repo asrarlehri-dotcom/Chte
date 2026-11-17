@@ -32,10 +32,8 @@ import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS } from "@/lib/chte-settings"
 
 export default function HomepageSettingsTab({
   focusedSection,
-  onSwitchToColleges,
 }: {
   focusedSection?: string;
-  onSwitchToColleges?: () => void;
 } = {}) {
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role;
@@ -234,33 +232,21 @@ export default function HomepageSettingsTab({
             <Building className="w-6 h-6" />
           </span>
           <div>
-            <h2 className="text-xl font-bold text-slate-900">CHTE Central Homepage & Theme Settings</h2>
+            <h2 className="text-xl font-bold text-slate-900">Master Homepage & Theme Settings</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Customize CHTE central homepage colors, headline, hero scenery photo (with zoom & framing), and featured leadership profiles.
+              Customize master homepage colors, headline, hero scenery photo (with zoom & framing), and featured leadership profiles.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {onSwitchToColleges && (
-            <button
-              type="button"
-              onClick={onSwitchToColleges}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold transition-all shadow-2xs hover:scale-102"
-              title="Configure Affiliated College Portals"
-            >
-              <Palette className="w-3.5 h-3.5 text-slate-600" />
-              <span>Switch to College Portals</span>
-            </button>
-          )}
-
           <a
             href="/"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0c5938] hover:bg-[#09472d] text-white text-xs font-bold transition-all shadow-xs hover:scale-105 self-start md:self-auto"
           >
-            <span>Preview CHTE Live Homepage</span>
+            <span>Preview Master Live Homepage</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
@@ -296,21 +282,9 @@ export default function HomepageSettingsTab({
               Access Restricted: Institute / College Admin
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              The CHTE Central Homepage, provincial governance rules, apex branding, and Balochistan leadership profiles are reserved strictly for <strong>CHTE Super Administrators</strong>. College administrators are only permitted to configure their respective institutional portal.
+              The Master Homepage, provincial governance rules, apex branding, and Balochistan leadership profiles are reserved strictly for <strong>Central Super Administrators</strong>.
             </p>
           </div>
-          {onSwitchToColleges && (
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={onSwitchToColleges}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-md hover:scale-105 active:scale-95"
-              >
-                <Palette className="w-4 h-4 text-white" />
-                <span>Go to College Portal Customization</span>
-              </button>
-            </div>
-          )}
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
