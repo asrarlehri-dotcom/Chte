@@ -371,7 +371,7 @@ export default function OfficialDMCDocument({
               <td className="border-r border-black py-1.5 px-1 text-center text-[10px]">{totalCredits}</td>
               <td className="border-r border-black py-1.5 px-1 text-center text-[10px]">{totalMax}</td>
               <td className="border-r border-black py-1.5 px-1 text-center text-[10px] font-black">{totalObtained}</td>
-              <td className="border-r border-black py-1.5 px-1 text-center text-[9.5px] font-bold">SGPA</td>
+              <td className="border-r border-black py-1.5 px-1 text-center text-[9.5px] font-bold">GPA</td>
               <td className="py-1.5 px-1 text-center font-black text-[10.5px]">{sgpa}</td>
             </tr>
           </tfoot>
