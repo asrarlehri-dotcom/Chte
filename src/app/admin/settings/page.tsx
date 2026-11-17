@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Search, Check, X, ShieldCheck, Filter } from "lucide-react";
 import { MODULES, ACTIONS, ROLES } from "@/lib/permissions";
 import HomepageSettingsTab from "@/components/admin/HomepageSettingsTab";
 import CollegePortalSettingsTab from "@/components/admin/CollegePortalSettingsTab";
@@ -730,11 +730,13 @@ export default function UnifiedSettingsPage() {
   // ----------------------------------------------------
   // TAB 3: PERMISSIONS STATES & FUNCTIONS
   // ----------------------------------------------------
-  const [activeRole, setActiveRole] = useState<string>("BS_CONTROLLER");
+  const [activeRole, setActiveRole] = useState<string>("PRINCIPAL");
   const [permissions, setPermissions] = useState<any[]>([]);
   const [rolePerms, setRolePerms] = useState<any[]>([]);
   const [permissionsLoading, setPermissionsLoading] = useState(true);
   const [savingMatrix, setSavingMatrix] = useState(false);
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [permissionCategory, setPermissionCategory] = useState("ALL");
 
   const fetchPermissions = async () => {
     setPermissionsLoading(true);
@@ -742,31 +744,100 @@ export default function UnifiedSettingsPage() {
       const res = await fetch("/api/admin/permissions");
       if (res.ok) {
         const data = await res.json();
-        setPermissions(data.permissions);
-        setRolePerms(data.rolePerms);
+        setPermissions(data.permissions || []);
+        setRolePerms(data.rolePerms || []);
       }
     } catch { }
     setPermissionsLoading(false);
   };
 
+  const allModulesList = Array.from(
+    new Set([
+      ...Object.values(MODULES),
+      ...permissions.map((p) => p.module).filter(Boolean),
+    ])
+  );
+
+  const formatModuleName = (mod: string) => {
+    const names: Record<string, { title: string; category: string; badge: string }> = {
+      "BS.ADMISSIONS": { title: "BS Student Admissions & Merit Lists", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.ACADEMIC_SETUP": { title: "BS Programs & Subject Groups Setup", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.STUDENTS": { title: "BS Student Records & Profiles", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.COURSES": { title: "BS Courses & Syllabi Catalog", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.ENROLLMENTS": { title: "BS Semester Course Registrations", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.FEES": { title: "BS Fee Structure & Challans", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.ATTENDANCE": { title: "BS Class Attendance Tracking", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.TIMETABLE": { title: "BS Timetable & Schedule", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.EXAMS": { title: "BS Examination Datesheets & Halls", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.MARKS": { title: "BS Marks Entry (Internal / Mid / Final)", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.RESULTS": { title: "BS Semester Results Compilation", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.GPA_CGPA": { title: "BS GPA / CGPA Calculation Ledger", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.PROMOTIONS": { title: "BS Semester Progression & Promotion", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.DMC": { title: "BS Official DMC Generation", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.TRANSCRIPT": { title: "BS Official Transcripts Generation", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.GAZETTE": { title: "BS University Gazette Reports", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.STUDENT_ACTIONS": { title: "BS Freeze / Migrate / Dropout Actions", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+      "BS.GRADUATION": { title: "BS Degree Completion & Clearance", category: "BS", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+
+      "INTERMEDIATE.ADMISSIONS": { title: "Intermediate Admissions & Merit", category: "INTER", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+      "INTERMEDIATE.STUDENTS": { title: "Intermediate Student Records", category: "INTER", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+      "INTERMEDIATE.FEES": { title: "Intermediate Fees & Challans", category: "INTER", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+      "INTERMEDIATE.ATTENDANCE": { title: "Intermediate Attendance Tracking", category: "INTER", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+      "INTERMEDIATE.TIMETABLE": { title: "Intermediate Timetable Schedule", category: "INTER", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+      "INTERMEDIATE.FACULTY": { title: "Intermediate Teaching Staff", category: "INTER", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+      "INTERMEDIATE.REPORTS": { title: "Intermediate BISE Reports", category: "INTER", badge: "bg-amber-100 text-amber-800 border-amber-200" },
+
+      "ADMIN.USERS": { title: "User Accounts & Role Management", category: "ADMIN", badge: "bg-blue-100 text-blue-800 border-blue-200" },
+      "ADMIN.PERMISSIONS": { title: "Role Permissions & Security Matrix", category: "ADMIN", badge: "bg-blue-100 text-blue-800 border-blue-200" },
+      "ADMIN.AUDIT_LOGS": { title: "System Activity & Audit Logs", category: "ADMIN", badge: "bg-blue-100 text-blue-800 border-blue-200" },
+      "ADMIN.SETTINGS": { title: "Institutional Control Center Settings", category: "ADMIN", badge: "bg-blue-100 text-blue-800 border-blue-200" },
+      "ADMIN.EXPENSES": { title: "College Operational Expenses Ledger", category: "ADMIN", badge: "bg-blue-100 text-blue-800 border-blue-200" },
+    };
+    return names[mod] || {
+      title: mod.replace(/_/g, " ").toLowerCase(),
+      category: mod.startsWith("BS.") ? "BS" : mod.startsWith("INTER") ? "INTER" : "ADMIN",
+      badge: "bg-slate-100 text-slate-700 border-slate-200",
+    };
+  };
+
   const getPermissionStatus = (module: string, action: string) => {
     const perm = rolePerms.find(
-      (rp) => rp.role === activeRole && rp.permission?.module === module && rp.permission?.action === action
+      (rp) => rp.role === activeRole && 
+        (rp.permission?.module === module || rp.module === module) && 
+        (rp.permission?.action === action || rp.action === action)
     );
-    return perm ? perm.isGranted : false;
+    if (perm !== undefined) return perm.isGranted;
+
+    // Default grants if not yet configured in DB:
+    if (activeRole === "COLLEGE_ADMIN" || activeRole === "PRINCIPAL") {
+      return true;
+    }
+    if (activeRole === "BS_CONTROLLER" && module.startsWith("BS.")) {
+      return true;
+    }
+    if ((activeRole === "BS_FACULTY" || activeRole === "INTER_FACULTY") && 
+        ["VIEW", "ADD", "EDIT", "PRINT", "DOWNLOAD"].includes(action)) {
+      if (module.includes("MARKS") || module.includes("ATTENDANCE") || module.includes("TIMETABLE") || module.includes("STUDENTS")) {
+        return true;
+      }
+    }
+    return false;
   };
 
   const handlePermissionToggle = (module: string, action: string) => {
+    const currentVal = getPermissionStatus(module, action);
     setRolePerms((prev) => {
       const existingIdx = prev.findIndex(
-        (rp) => rp.role === activeRole && rp.permission?.module === module && rp.permission?.action === action
+        (rp) => rp.role === activeRole && 
+          (rp.permission?.module === module || rp.module === module) && 
+          (rp.permission?.action === action || rp.action === action)
       );
 
       if (existingIdx > -1) {
         const updated = [...prev];
         updated[existingIdx] = {
           ...updated[existingIdx],
-          isGranted: !updated[existingIdx].isGranted,
+          isGranted: !currentVal,
         };
         return updated;
       } else {
@@ -775,12 +846,50 @@ export default function UnifiedSettingsPage() {
           ...prev,
           {
             role: activeRole,
-            permissionId: pRef?.id,
-            permission: pRef,
-            isGranted: true,
+            permissionId: pRef?.id || "",
+            permission: pRef || { module, action },
+            module,
+            action,
+            isGranted: !currentVal,
           },
         ];
       }
+    });
+  };
+
+  const handleBatchToggleModule = (module: string, grant: boolean) => {
+    setRolePerms((prev) => {
+      let updated = [...prev];
+      Object.values(ACTIONS).forEach((action) => {
+        const existingIdx = updated.findIndex(
+          (rp) => rp.role === activeRole && 
+            (rp.permission?.module === module || rp.module === module) && 
+            (rp.permission?.action === action || rp.action === action)
+        );
+        if (existingIdx > -1) {
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            isGranted: grant,
+          };
+        } else {
+          const pRef = permissions.find((p) => p.module === module && p.action === action);
+          updated.push({
+            role: activeRole,
+            permissionId: pRef?.id || "",
+            permission: pRef || { module, action },
+            module,
+            action,
+            isGranted: grant,
+          });
+        }
+      });
+      return updated;
+    });
+  };
+
+  const handleGrantAllForRole = (grant: boolean) => {
+    allModulesList.forEach((mod) => {
+      handleBatchToggleModule(mod, grant);
     });
   };
 
@@ -788,13 +897,13 @@ export default function UnifiedSettingsPage() {
     setSavingMatrix(true);
     setMsg({ type: "", text: "" });
 
-    const activeRoleUpdates = rolePerms
-      .filter((rp) => rp.role === activeRole)
-      .map((rp) => ({
-        module: rp.permission.module,
-        action: rp.permission.action,
-        isGranted: rp.isGranted,
-      }));
+    const activeRoleUpdates = allModulesList.flatMap((module) =>
+      Object.values(ACTIONS).map((action) => ({
+        module,
+        action,
+        isGranted: getPermissionStatus(module, action),
+      }))
+    );
 
     try {
       const res = await fetch("/api/admin/permissions", {
@@ -807,11 +916,14 @@ export default function UnifiedSettingsPage() {
       });
 
       if (res.ok) {
-        setMsg({ type: "success", text: "Permissions matrix updated successfully!" });
+        setMsg({ type: "success", text: `Permissions for role "${activeRole.replace(/_/g, " ")}" saved successfully!` });
         fetchPermissions();
+      } else {
+        const errData = await res.json();
+        alert(errData.error || "Failed to save permissions.");
       }
     } catch {
-      alert("Failed to save changes.");
+      alert("Failed to save changes. Please try again.");
     }
     setSavingMatrix(false);
   };
@@ -857,15 +969,21 @@ export default function UnifiedSettingsPage() {
       {/* Page Title & Tab Navigation */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">⚙️ Control Center & Settings</h1>
-          <p className="text-gray-500 mt-1">Manage global system setup, fees structures, and permissions matrix.</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isChteAdmin ? "⚙️ Control Center & Settings" : "⚙️ College Settings & Administration"}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {isChteAdmin
+              ? "Manage global system setup, fees structures, and permissions matrix."
+              : "Manage campus portal, academic departments, fee structure, and staff role permissions."}
+          </p>
         </div>
 
-        {/* Entity Switcher Pills: CHTE Main vs Affiliated Colleges */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/5 p-3 rounded-2xl border border-emerald-900/10">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700">Currently Configuring:</span>
-            {isChteAdmin ? (
+        {/* Entity Switcher Pills: CHTE Main vs Affiliated Colleges (CHTE Admins ONLY) */}
+        {isChteAdmin && (
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-950/5 p-3 rounded-2xl border border-emerald-900/10">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700">Currently Configuring:</span>
               <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-slate-200 shadow-2xs">
                 <button
                   type="button"
@@ -895,41 +1013,27 @@ export default function UnifiedSettingsPage() {
                   <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full">/colleges/[code]</span>
                 </button>
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="px-3.5 py-1.5 rounded-lg text-xs font-black bg-slate-900 text-white shadow-xs flex items-center gap-1.5">
-                  <span>🎨</span>
-                  <span>College Portal & Campus Theme</span>
-                  <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full">/colleges/[code]</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                  <span>CHTE Main Settings Restricted</span>
-                </span>
-              </div>
-            )}
-          </div>
+            </div>
 
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-            {isChteAdmin && activeTab === "HOMEPAGE" ? (
-              <a
-                href="/"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[#0c5938] font-bold hover:underline"
-              >
-                <span>Open Live CHTE Homepage</span>
-                <span>↗</span>
-              </a>
-            ) : (
-              <span className="text-slate-500">
-                {isChteAdmin
-                  ? "Upload photos/videos & customize portals for 50+ Balochistan colleges"
-                  : "Customize your college theme, logo, red patti ribbon, and faculty profiles"}
-              </span>
-            )}
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              {activeTab === "HOMEPAGE" ? (
+                <a
+                  href="/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[#0c5938] font-bold hover:underline"
+                >
+                  <span>Open Live CHTE Homepage</span>
+                  <span>↗</span>
+                </a>
+              ) : (
+                <span className="text-slate-500">
+                  Upload photos/videos & customize portals for 50+ Balochistan colleges
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Hover Dropdown Mega Menu Bar */}
         <div className="flex bg-gray-50 p-1.5 rounded-xl border border-gray-200/60 max-w-5xl overflow-visible relative z-30">
@@ -997,7 +1101,7 @@ export default function UnifiedSettingsPage() {
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              <span>🎨 College Portals & Themes</span>
+              <span>🎨 {isChteAdmin ? "Affiliated College Portals" : "Campus Portal & Theme"}</span>
             </button>
           </div>
 
@@ -1139,37 +1243,39 @@ export default function UnifiedSettingsPage() {
             </div>
           </div>
 
-          {/* TAB 5: DATA & SEEDING */}
-          <div className="group relative flex-1 min-w-[140px]">
-            <button
-              onClick={() => handleTabChange("DATA")}
-              className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === "DATA"
-                ? "bg-white text-blue-600 shadow-sm border border-gray-100"
-                : "text-gray-500 hover:text-gray-800"
-                }`}
-            >
-              <span>⚡ Data & Seeding</span>
-              <span className="text-[10px] text-gray-400">▼</span>
-            </button>
+          {/* TAB 5: DATA & SEEDING (CHTE Super Admins Only) */}
+          {isChteAdmin && (
+            <div className="group relative flex-1 min-w-[140px]">
+              <button
+                onClick={() => handleTabChange("DATA")}
+                className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === "DATA"
+                  ? "bg-white text-blue-600 shadow-sm border border-gray-100"
+                  : "text-gray-500 hover:text-gray-800"
+                  }`}
+              >
+                <span>⚡ Data & Seeding</span>
+                <span className="text-[10px] text-gray-400">▼</span>
+              </button>
 
-            <div className="absolute top-full right-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-              <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Data Operations:
+              <div className="absolute top-full right-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
+                <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Data Operations:
+                </div>
+                <button
+                  onClick={() => handleTabChange("DATA")}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>⚡</span> Load Realistic Dummy Data
+                </button>
+                <button
+                  onClick={() => handleTabChange("DATA")}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                >
+                  <span>⚠️</span> Clear Operational Data
+                </button>
               </div>
-              <button
-                onClick={() => handleTabChange("DATA")}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>⚡</span> Load Realistic Dummy Data
-              </button>
-              <button
-                onClick={() => handleTabChange("DATA")}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
-              >
-                <span>⚠️</span> Clear Operational Data
-              </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -2548,77 +2654,205 @@ export default function UnifiedSettingsPage() {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Dynamic RBAC Permission Matrix</h2>
-              <p className="text-gray-500 mt-0.5">Configure system-wide module-level and action-level credentials dynamically.</p>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                <h2 className="text-lg font-bold text-gray-900">
+                  {isChteAdmin ? "Dynamic RBAC Permission Matrix" : "College Staff Role Permissions Matrix"}
+                </h2>
+              </div>
+              <p className="text-gray-500 text-xs mt-1">
+                {isChteAdmin
+                  ? "Configure system-wide module-level and action-level credentials dynamically."
+                  : "Configure view, add, edit, delete, export, and approval capabilities for campus users (Principal, BS Coordinator, Faculty, Students)."}
+              </p>
             </div>
-            <button
-              onClick={handleSavePermissions}
-              disabled={savingMatrix || permissionsLoading}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-md shadow-blue-500/20"
-            >
-              {savingMatrix ? "Saving Changes..." : "💾 Save Matrix Changes"}
-            </button>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleGrantAllForRole(true)}
+                disabled={savingMatrix || permissionsLoading}
+                className="px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all"
+              >
+                Grant All for {activeRole.replace(/_/g, " ")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGrantAllForRole(false)}
+                disabled={savingMatrix || permissionsLoading}
+                className="px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all"
+              >
+                Revoke All
+              </button>
+              <button
+                onClick={handleSavePermissions}
+                disabled={savingMatrix || permissionsLoading}
+                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-500/20 text-xs flex items-center gap-1.5"
+              >
+                <span>{savingMatrix ? "Saving Changes..." : "💾 Save Matrix Changes"}</span>
+              </button>
+            </div>
           </div>
 
           {/* Role Selection Tabs */}
-          <div className="flex border-b overflow-x-auto bg-gray-50/50 rounded-t-2xl">
+          <div className="flex border-b overflow-x-auto bg-slate-50/60 rounded-t-2xl px-2 pt-2 gap-1">
             {Object.values(ROLES)
-              .filter((r) => r !== "SUPER_ADMIN") // Super Admin has hardcoded full bypass
-              .map((r) => (
-                <button
-                  key={r}
-                  className={`px-6 py-4 font-bold text-sm whitespace-nowrap transition-all ${activeRole === r
-                    ? "border-b-2 border-blue-600 text-blue-600 bg-white"
-                    : "text-gray-500 hover:text-gray-700"
+              .filter((r) => r !== "SUPER_ADMIN" && (isChteAdmin || r !== "CHTE_ADMIN"))
+              .map((r) => {
+                const roleLabels: Record<string, string> = {
+                  PRINCIPAL: "🎓 College Principal",
+                  BS_CONTROLLER: "📋 BS Coordinator / Controller",
+                  BS_FACULTY: "👨‍🏫 BS Faculty",
+                  INTER_FACULTY: "🧑‍🏫 Intermediate Faculty",
+                  COLLEGE_ADMIN: "🏛️ College Admin",
+                  STUDENT: "🎒 Student",
+                  GUEST: "👥 Guest User",
+                  CHTE_ADMIN: "🏛️ CHTE Directorate Admin",
+                };
+                return (
+                  <button
+                    key={r}
+                    className={`px-5 py-3 font-bold text-xs whitespace-nowrap transition-all rounded-t-xl flex items-center gap-1.5 ${
+                      activeRole === r
+                        ? "bg-white text-indigo-700 shadow-xs border-t border-x border-slate-200 font-black scale-102"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/60"
                     }`}
-                  onClick={() => setActiveRole(r)}
+                    onClick={() => setActiveRole(r)}
+                  >
+                    <span>{roleLabels[r] || r.replace(/_/g, " ")}</span>
+                  </button>
+                );
+              })}
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div className="bg-white border-x border-slate-200/80 p-3.5 flex flex-wrap items-center justify-between gap-3 bg-slate-50/40">
+            <div className="relative w-72">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                value={permissionSearch}
+                onChange={(e) => setPermissionSearch(e.target.value)}
+                placeholder="Search module (e.g. Marks, Exams, Fees)..."
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5">
+              {[
+                { key: "ALL", label: "All Modules" },
+                { key: "BS", label: "BS Degree" },
+                { key: "INTER", label: "Intermediate" },
+                { key: "ADMIN", label: "Administration" },
+              ].map((cat) => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => setPermissionCategory(cat.key)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                    permissionCategory === cat.key
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                  }`}
                 >
-                  👤 {r.replace(/_/g, " ")}
+                  {cat.label}
                 </button>
               ))}
+            </div>
           </div>
 
           {/* Permissions Grid */}
-          <div className="bg-white rounded-b-2xl shadow-sm border border-t-0 border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-b-2xl shadow-sm border border-slate-200/80 overflow-hidden">
             {permissionsLoading ? (
-              <p className="text-center py-16 text-gray-400">Loading permission definitions...</p>
+              <p className="text-center py-16 text-gray-400 text-xs">Loading permission definitions...</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+                <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="bg-gray-50 border-b">
-                      <th className="px-5 py-4 font-bold text-gray-700 w-80">Module / Resource Name</th>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="px-5 py-3.5 w-72">Module / Resource Name</th>
                       {Object.values(ACTIONS).map((action) => (
-                        <th key={action} className="px-3 py-4 text-center font-bold text-gray-600 text-xs">
+                        <th key={action} className="px-2 py-3.5 text-center w-16">
                           {action}
                         </th>
                       ))}
+                      <th className="px-4 py-3.5 text-right w-36">Row Batch</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {Array.from(new Set(permissions.map((p) => p.module))).map((module) => (
-                      <tr key={module} className="border-b hover:bg-gray-50/80 transition-colors">
-                        <td className="px-5 py-3 font-semibold text-gray-800 text-xs tracking-wider">
-                          {module}
-                        </td>
-                        {Object.values(ACTIONS).map((action) => {
-                          const granted = getPermissionStatus(module, action);
-                          return (
-                            <td key={action} className="px-3 py-3 text-center">
-                              <button
-                                onClick={() => handlePermissionToggle(module, action)}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${granted
-                                  ? "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
-                                  : "bg-red-50 text-red-400 hover:bg-red-100 border border-red-200"
-                                  }`}
-                              >
-                                {granted ? "✓" : "✗"}
-                              </button>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {allModulesList
+                      .filter((mod) => {
+                        const meta = formatModuleName(mod);
+                        const q = permissionSearch.toLowerCase();
+                        const matchesSearch =
+                          mod.toLowerCase().includes(q) ||
+                          meta.title.toLowerCase().includes(q);
+                        const matchesCategory =
+                          permissionCategory === "ALL" || meta.category === permissionCategory;
+                        return matchesSearch && matchesCategory;
+                      })
+                      .map((module) => {
+                        const meta = formatModuleName(module);
+                        return (
+                          <tr key={module} className="hover:bg-indigo-50/20 transition-colors">
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black border ${meta.badge}`}>
+                                  {meta.category}
+                                </span>
+                                <div>
+                                  <strong className="block font-bold text-slate-900 leading-tight">
+                                    {meta.title}
+                                  </strong>
+                                  <span className="text-[10px] font-mono text-slate-400">
+                                    {module}
+                                  </span>
+                                </div>
+                              </div>
                             </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                            {Object.values(ACTIONS).map((action) => {
+                              const granted = getPermissionStatus(module, action);
+                              return (
+                                <td key={action} className="px-2 py-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePermissionToggle(module, action)}
+                                    title={`${granted ? "Revoke" : "Grant"} ${action} on ${module}`}
+                                    className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-all font-bold text-xs ${
+                                      granted
+                                        ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-300 shadow-2xs scale-105"
+                                        : "bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 border border-slate-200"
+                                    }`}
+                                  >
+                                    {granted ? "✓" : "✗"}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                            <td className="px-4 py-3 text-right">
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleBatchToggleModule(module, true)}
+                                  className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-[10px] font-bold"
+                                  title="Grant all actions for this module"
+                                >
+                                  Allow All
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleBatchToggleModule(module, false)}
+                                  className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-700 border border-slate-200 text-[10px] font-bold"
+                                  title="Revoke all actions for this module"
+                                >
+                                  Revoke
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>

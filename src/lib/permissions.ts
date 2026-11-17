@@ -84,13 +84,8 @@ export async function checkPermission(
   if (
     role === ROLES.SUPER_ADMIN || 
     role === ROLES.CHTE_ADMIN || 
-    role === ROLES.COLLEGE_ADMIN || 
-    role === ROLES.PRINCIPAL
+    role === ROLES.COLLEGE_ADMIN
   ) {
-    return true;
-  }
-
-  if (role === ROLES.BS_CONTROLLER && module.startsWith("BS.")) {
     return true;
   }
 
@@ -98,11 +93,24 @@ export async function checkPermission(
     const rp = await prisma.rolePermission.findFirst({
       where: {
         role,
-        isGranted: true,
         permission: { module, action },
       },
     });
-    return !!rp;
+
+    if (rp !== null) {
+      return rp.isGranted;
+    }
+
+    // Default fallbacks if no explicit permission record is found in DB
+    if (role === ROLES.PRINCIPAL) {
+      return true;
+    }
+
+    if (role === ROLES.BS_CONTROLLER && module.startsWith("BS.")) {
+      return true;
+    }
+
+    return false;
   } catch {
     return false;
   }
@@ -118,8 +126,7 @@ export async function getPermissionsForRole(
   if (
     role === ROLES.SUPER_ADMIN || 
     role === ROLES.CHTE_ADMIN || 
-    role === ROLES.COLLEGE_ADMIN || 
-    role === ROLES.PRINCIPAL
+    role === ROLES.COLLEGE_ADMIN
   ) {
     const all: Record<string, boolean> = {};
     for (const mod of Object.values(MODULES)) {
@@ -141,11 +148,17 @@ export async function getPermissionsForRole(
       map[`${rp.permission.module}.${rp.permission.action}`] = rp.isGranted;
     }
 
-    if (role === ROLES.BS_CONTROLLER) {
-      for (const mod of Object.values(MODULES)) {
-        if (mod.startsWith("BS.")) {
-          for (const act of Object.values(ACTIONS)) {
-            map[`${mod}.${act}`] = true;
+    // Fill in defaults if not explicitly configured in DB
+    for (const mod of Object.values(MODULES)) {
+      for (const act of Object.values(ACTIONS)) {
+        const key = `${mod}.${act}`;
+        if (map[key] === undefined) {
+          if (role === ROLES.PRINCIPAL) {
+            map[key] = true;
+          } else if (role === ROLES.BS_CONTROLLER && mod.startsWith("BS.")) {
+            map[key] = true;
+          } else {
+            map[key] = false;
           }
         }
       }

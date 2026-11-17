@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   ShieldCheck,
   Check,
@@ -15,6 +16,7 @@ import {
   HelpCircle,
   Filter
 } from "lucide-react";
+import { MODULES, ACTIONS } from "@/lib/permissions";
 
 interface RolePerm {
   id: string;
@@ -37,16 +39,20 @@ interface PermissionItem {
 }
 
 const ROLES_LIST = [
-  { key: "COLLEGE_ADMIN", label: "College Administrator", desc: "Institutional principal and college administration" },
-  { key: "BS_CONTROLLER", label: "BS Controller of Exams", desc: "Manages examinations, marks, gazette, results" },
+  { key: "PRINCIPAL", label: "College Principal", desc: "Executive oversight, financial approvals & reports" },
+  { key: "BS_CONTROLLER", label: "BS Coordinator / Controller", desc: "Manages examinations, marks, gazette, results" },
   { key: "BS_FACULTY", label: "BS Teaching Faculty", desc: "Enters marks, attendance, and views assigned courses" },
   { key: "INTER_FACULTY", label: "Intermediate Faculty", desc: "Intermediate admissions, classes, and attendance" },
-  { key: "PRINCIPAL", label: "College Principal", desc: "Executive oversight, financial approvals & reports" },
+  { key: "COLLEGE_ADMIN", label: "College Administrator", desc: "Institutional administration and setup" },
   { key: "STUDENT", label: "Student Account", desc: "Personal portal, results, dues, and syllabus" },
 ];
 
 export default function RolePermissionsPage() {
-  const [selectedRole, setSelectedRole] = useState("COLLEGE_ADMIN");
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role;
+  const isChte = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
+
+  const [selectedRole, setSelectedRole] = useState("PRINCIPAL");
   const [rolePerms, setRolePerms] = useState<RolePerm[]>([]);
   const [permissions, setPermissions] = useState<PermissionItem[]>([]);
   const [localMatrix, setLocalMatrix] = useState<Record<string, boolean>>({});
@@ -59,6 +65,14 @@ export default function RolePermissionsPage() {
     fetchPermissions();
   }, []);
 
+  // Compute all available modules (from MODULES and DB)
+  const modulesList = Array.from(
+    new Set([
+      ...Object.values(MODULES),
+      ...permissions.map((p) => p.module).filter(Boolean),
+    ])
+  );
+
   useEffect(() => {
     // Populate localMatrix for selectedRole
     const matrix: Record<string, boolean> = {};
@@ -67,8 +81,32 @@ export default function RolePermissionsPage() {
       .forEach((rp) => {
         matrix[`${rp.permission.module}:${rp.permission.action}`] = rp.isGranted;
       });
+
+    // Provide default true grants for Principal / College Admin if not in DB
+    if (selectedRole === "PRINCIPAL" || selectedRole === "COLLEGE_ADMIN") {
+      modulesList.forEach((mod) => {
+        ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"].forEach((act) => {
+          const key = `${mod}:${act}`;
+          if (matrix[key] === undefined) {
+            matrix[key] = true;
+          }
+        });
+      });
+    } else if (selectedRole === "BS_CONTROLLER") {
+      modulesList.forEach((mod) => {
+        if (mod.startsWith("BS.")) {
+          ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"].forEach((act) => {
+            const key = `${mod}:${act}`;
+            if (matrix[key] === undefined) {
+              matrix[key] = true;
+            }
+          });
+        }
+      });
+    }
+
     setLocalMatrix(matrix);
-  }, [selectedRole, rolePerms]);
+  }, [selectedRole, rolePerms, permissions]);
 
   const fetchPermissions = async () => {
     setLoading(true);
@@ -95,11 +133,11 @@ export default function RolePermissionsPage() {
   };
 
   const setAllForModule = (module: string, grant: boolean) => {
-    const modulePerms = permissions.filter((p) => p.module === module);
+    const actions = ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"];
     setLocalMatrix((prev) => {
       const next = { ...prev };
-      modulePerms.forEach((p) => {
-        next[`${p.module}:${p.action}`] = grant;
+      actions.forEach((act) => {
+        next[`${module}:${act}`] = grant;
       });
       return next;
     });
@@ -109,11 +147,14 @@ export default function RolePermissionsPage() {
     setSaving(true);
     setMsg(null);
     try {
-      const updates = permissions.map((p) => ({
-        module: p.module,
-        action: p.action,
-        isGranted: !!localMatrix[`${p.module}:${p.action}`],
-      }));
+      const actions = ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"];
+      const updates = modulesList.flatMap((mod) =>
+        actions.map((act) => ({
+          module: mod,
+          action: act,
+          isGranted: !!localMatrix[`${mod}:${act}`],
+        }))
+      );
 
       const res = await fetch("/api/admin/permissions", {
         method: "POST",
@@ -128,7 +169,8 @@ export default function RolePermissionsPage() {
         setMsg({ type: "success", text: `Permissions for ${selectedRole.replace(/_/g, " ")} saved successfully!` });
         fetchPermissions();
       } else {
-        setMsg({ type: "error", text: "Failed to save permissions. Please try again." });
+        const err = await res.json();
+        setMsg({ type: "error", text: err.error || "Failed to save permissions. Please try again." });
       }
     } catch {
       setMsg({ type: "error", text: "Network error occurred." });
@@ -137,8 +179,6 @@ export default function RolePermissionsPage() {
     }
   };
 
-  // Group permissions by module
-  const modulesList = Array.from(new Set(permissions.map((p) => p.module)));
   const filteredModules = modulesList.filter((mod) =>
     mod.toLowerCase().includes(search.toLowerCase())
   );
@@ -150,11 +190,15 @@ export default function RolePermissionsPage() {
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
             <ShieldCheck className="w-4 h-4" />
-            Central Governance Matrix
+            {isChte ? "Central Governance Matrix" : "College Security & Access Matrix"}
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Role Permissions Control</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">
+            {isChte ? "Role Permissions Control" : "College Staff Role Permissions"}
+          </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Configure access privileges and action capabilities for affiliated college roles.
+            {isChte
+              ? "Configure access privileges and action capabilities for affiliated college roles."
+              : "Configure access privileges (View, Add, Edit, Delete, Approve) for Principal, BS Coordinator, Faculty, and Students."}
           </p>
         </div>
 
@@ -171,8 +215,8 @@ export default function RolePermissionsPage() {
       {msg && (
         <div
           className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold ${msg.type === "success"
-              ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
-              : "bg-red-500/10 border border-red-500/30 text-red-400"
+            ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+            : "bg-red-500/10 border border-red-500/30 text-red-400"
             }`}
         >
           {msg.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
@@ -189,8 +233,8 @@ export default function RolePermissionsPage() {
               key={r.key}
               onClick={() => setSelectedRole(r.key)}
               className={`p-3 rounded-2xl border text-left transition-all ${active
-                  ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/25 scale-[1.02]"
-                  : "bg-slate-900/60 hover:bg-slate-900 text-slate-300 border-slate-800"
+                ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/25 scale-[1.02]"
+                : "bg-slate-900/60 hover:bg-slate-900 text-slate-300 border-slate-800"
                 }`}
             >
               <div className="text-xs font-bold truncate">{r.label}</div>

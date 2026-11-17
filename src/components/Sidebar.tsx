@@ -276,6 +276,13 @@ export function Sidebar() {
           icon: ShieldCheck,
         },
         {
+          key: "permissions",
+          href: "/admin/permissions",
+          label: "Role Permissions",
+          module: MODULES.ADMIN_PERMISSIONS,
+          icon: ShieldCheck,
+        },
+        {
           key: "settings",
           href: "/admin/settings",
           label: "College Settings",
