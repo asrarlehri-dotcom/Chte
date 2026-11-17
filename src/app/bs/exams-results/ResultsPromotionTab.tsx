@@ -16,6 +16,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { sortStudentsByRoll } from "@/lib/domainParsers";
+import { getGPValue, calculateStudentCGPA } from "@/lib/cgpa";
 
 interface ResultsPromotionTabProps {
   sharedFilters: {
@@ -160,8 +161,8 @@ export default function ResultsPromotionTab({
     let totalMax = 0;
     let totalAbsent = 0;
     let failedCount = 0;
-    let totalQualityPoints = 0;
-    let totalCredits = 0;
+    let semQualityPoints = 0;
+    let semCredits = 0;
 
     semMarks.forEach((m) => {
       const cr = m.course?.creditHours || 3;
@@ -173,32 +174,52 @@ export default function ResultsPromotionTab({
         totalAbsent++;
         failedCount++;
       } else {
-        const pct = (obtained / max) * 100;
-        if (pct < 50) failedCount++;
+        const gp = getGPValue(obtained, max);
+        if (gp < 1.0) failedCount++;
         totalObtained += obtained;
-
-        // Approximate QP for standard 4.0 scale
-        let gp = 0;
-        if (pct >= 85) gp = 4.0;
-        else if (pct >= 80) gp = 3.66;
-        else if (pct >= 75) gp = 3.33;
-        else if (pct >= 71) gp = 3.0;
-        else if (pct >= 68) gp = 2.66;
-        else if (pct >= 64) gp = 2.33;
-        else if (pct >= 61) gp = 2.0;
-        else if (pct >= 58) gp = 1.66;
-        else if (pct >= 54) gp = 1.3;
-        else if (pct >= 50) gp = 1.0;
-        else gp = 0.0;
-
-        totalQualityPoints += gp * cr;
+        semQualityPoints += gp * cr;
       }
       totalMax += max;
-      totalCredits += cr;
+      semCredits += cr;
     });
 
-    const gpa = totalCredits > 0 ? totalQualityPoints / totalCredits : 0;
-    const cgpa = gpa; // for Sem 1, CGPA == GPA
+    const gpa = semCredits > 0 ? parseFloat((semQualityPoints / semCredits).toFixed(2)) : 0;
+
+    // Calculate actual progressive Cumulative CGPA up to this semester (sem)
+    const minSem = s.bsAdmissionType === "BRIDGING_5TH" ? 5 : 1;
+    const semestersMap: Record<number, { gpPoints: number; credits: number }> = {};
+    studentMarks.forEach((m) => {
+      const mSem = m.course?.semester ?? m.semester;
+      if (mSem && mSem >= minSem && mSem <= sem) {
+        const cr = m.course?.creditHours || 3;
+        const isAbs = m.status === "ABSENT" || m.status === "A";
+        const obt = isAbs ? 0 : typeof m.obtainedMarks === "number" ? m.obtainedMarks : 0;
+        const max = typeof m.totalMarks === "number" && m.totalMarks > 0 ? m.totalMarks : 100;
+        const gp = isAbs ? 0.0 : getGPValue(obt, max);
+
+        if (!semestersMap[mSem]) {
+          semestersMap[mSem] = { gpPoints: 0, credits: 0 };
+        }
+        semestersMap[mSem].gpPoints += gp * cr;
+        semestersMap[mSem].credits += cr;
+      }
+    });
+
+    const semestersData = Object.entries(semestersMap).map(([sStr, d]) => ({
+      semester: parseInt(sStr),
+      gpa: d.credits > 0 ? parseFloat((d.gpPoints / d.credits).toFixed(2)) : 0,
+      creditHours: d.credits,
+      qualityPoints: d.gpPoints,
+    }));
+
+    const hasSemMarks = semMarks.length > 0 && totalMax > 0;
+    const { cgpa } = (hasSemMarks && semestersData.length > 0)
+      ? calculateStudentCGPA(
+          { bsAdmissionType: s.bsAdmissionType },
+          semestersData
+        )
+      : { cgpa: gpa };
+
     const semPaperCount = courses.length > 0 ? courses.length : semMarks.length;
 
     let status = "PROMOTED";
@@ -661,6 +682,7 @@ export default function ResultsPromotionTab({
                   <th className="py-3 px-4">Student Name</th>
                   <th className="py-3 px-3 text-center">Semester Marks</th>
                   <th className="py-3 px-3 text-center">GPA</th>
+                  <th className="py-3 px-3 text-center">CGPA</th>
                   <th className="py-3 px-3 text-center">Standing</th>
                   <th className="py-3 px-3 text-center">Target</th>
                   <th className="py-3 px-3 text-right">Action</th>
@@ -724,6 +746,10 @@ export default function ResultsPromotionTab({
 
                       <td className="py-3 px-3 text-center font-black text-gray-900">
                         {standing.totalMax > 0 ? standing.gpa.toFixed(2) : "—"}
+                      </td>
+
+                      <td className="py-3 px-3 text-center font-extrabold text-blue-800 bg-blue-50/40">
+                        {standing.totalMax > 0 ? standing.cgpa.toFixed(2) : "—"}
                       </td>
 
                       <td className="py-3 px-3 text-center whitespace-nowrap">

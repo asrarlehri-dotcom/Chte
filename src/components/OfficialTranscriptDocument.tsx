@@ -217,11 +217,18 @@ export default function OfficialTranscriptDocument({
   });
 
   // Calculate Cumulative CGPA
-  const semestersDataForCgpa = targetSemesters.map((s) => ({
-    semester: s,
-    gpa: parseFloat(semesterDataMap[s]?.sgpa || "0"),
-    creditHours: semesterDataMap[s]?.semCredits || 0,
-  }));
+  const semestersDataForCgpa = targetSemesters.map((s) => {
+    const sData = semesterDataMap[s];
+    const qualityPoints = sData
+      ? sData.items.reduce((acc, it) => acc + (it.isAbsent ? 0 : parseFloat(it.gradePoint) * it.creditHours), 0)
+      : 0;
+    return {
+      semester: s,
+      gpa: parseFloat(sData?.sgpa || "0"),
+      creditHours: sData?.semCredits || 0,
+      qualityPoints,
+    };
+  });
 
   const { cgpa } = calculateStudentCGPA(
     { bsAdmissionType: student.bsAdmissionType || null },
@@ -368,16 +375,14 @@ export default function OfficialTranscriptDocument({
                           {row.totalMarks}
                         </td>
                         <td
-                          className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${
-                            row.isAbsent ? "text-red-600" : ""
-                          }`}
+                          className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${row.isAbsent ? "text-red-600" : ""
+                            }`}
                         >
                           {row.obtainedMarks}
                         </td>
                         <td
-                          className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${
-                            row.grade === "F" ? "text-red-600" : ""
-                          }`}
+                          className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${row.grade === "F" ? "text-red-600" : ""
+                            }`}
                         >
                           {row.grade}
                         </td>

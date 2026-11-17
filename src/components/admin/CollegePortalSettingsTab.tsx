@@ -195,20 +195,20 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           featuredProfiles: Array.isArray(data.featuredProfiles) && data.featuredProfiles.length > 0
             ? data.featuredProfiles
             : [
-                {
-                  id: "prof-1",
-                  name: data.principalName || "Prof. Dr. Zahid Mengal",
-                  designation: "Principal & Head of Institution",
-                  department: "Office of the Principal",
-                  category: "PRINCIPAL",
-                  photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80",
-                  quote: "Committed to fostering academic distinction, critical inquiry, and character development for Balochistan's brightest minds.",
-                  message: `Welcome to our campus portal. We provide an inclusive learning sanctuary where academic rigor meets modern technological advancement.`,
-                  email: data.contactEmail || "principal@college.edu.pk",
-                  phone: data.contactPhone || "+92 81 9211000",
-                  order: 1
-                }
-              ]
+              {
+                id: "prof-1",
+                name: data.principalName || "Prof. Dr. Zahid Mengal",
+                designation: "Principal & Head of Institution",
+                department: "Office of the Principal",
+                category: "PRINCIPAL",
+                photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80",
+                quote: "Committed to fostering academic distinction, critical inquiry, and character development for Balochistan's brightest minds.",
+                message: `Welcome to our campus portal. We provide an inclusive learning sanctuary where academic rigor meets modern technological advancement.`,
+                email: data.contactEmail || "principal@college.edu.pk",
+                phone: data.contactPhone || "+92 81 9211000",
+                order: 1
+              }
+            ]
         });
       })
       .catch((err) => console.error("Error loading portal settings:", err))
@@ -273,7 +273,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           try {
             if (selectedCollege.code) localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, formData.ribbonColor);
             if (selectedCollege.id) localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, formData.ribbonColor);
-          } catch {}
+          } catch { }
         }
       } else {
         setMsg({ type: "error", text: resData.error || "Failed to save settings." });
@@ -409,11 +409,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
       {msg.text && (
         <div
-          className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 animate-fadeIn ${
-            msg.type === "success"
+          className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 animate-fadeIn ${msg.type === "success"
               ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
               : "bg-rose-50 text-rose-800 border border-rose-200"
-          }`}
+            }`}
         >
           {msg.type === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
           <span>{msg.text}</span>
@@ -622,11 +621,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, heroBgType: "IMAGE" })}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    formData.heroBgType === "IMAGE"
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${formData.heroBgType === "IMAGE"
                       ? "bg-white text-slate-900 shadow-xs"
                       : "text-slate-600 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
                   <span>Picture / Image</span>
@@ -635,11 +633,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, heroBgType: "VIDEO" })}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    formData.heroBgType === "VIDEO"
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${formData.heroBgType === "VIDEO"
                       ? "bg-white text-slate-900 shadow-xs"
                       : "text-slate-600 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   <Video className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Background Video</span>
@@ -674,8 +671,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     {uploadingHero
                       ? "Uploading File..."
                       : formData.heroBgType === "VIDEO"
-                      ? "Direct Upload Video (MP4 / WebM)"
-                      : "Direct Upload Picture (JPG / PNG)"}
+                        ? "Direct Upload Video (MP4 / WebM)"
+                        : "Direct Upload Picture (JPG / PNG)"}
                   </span>
                   <input
                     type="file"

@@ -123,10 +123,11 @@ export default function OfficialDMCDocument({
   const isAllAbsent = absentCount > 0 && absentCount === semMarks.length;
 
   // Derive CGPA up to this semester
+  const minSem = student.bsAdmissionType === "BRIDGING_5TH" ? 5 : 1;
   const semestersMap: Record<number, { gpPoints: number; credits: number }> = {};
   (student.marks || []).forEach((m) => {
     const sem = m.course?.semester ?? m.semester ?? 1;
-    if (sem <= semester) {
+    if (sem >= minSem && sem <= semester) {
       const isAbs = (m as any).status === "ABSENT" || (m as any).status === "A";
       const cr = m.course?.creditHours || 3;
       const gp = isAbs ? 0.0 : getGPValue(m.obtainedMarks, m.totalMarks);
@@ -140,6 +141,7 @@ export default function OfficialDMCDocument({
     semester: parseInt(sStr),
     gpa: d.credits > 0 ? parseFloat((d.gpPoints / d.credits).toFixed(2)) : 0,
     creditHours: d.credits,
+    qualityPoints: d.gpPoints,
   }));
 
   const hasCurrentSemesterMarks = coursesDetails.length > 0 && totalMax > 0;

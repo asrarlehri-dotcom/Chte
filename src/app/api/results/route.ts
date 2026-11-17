@@ -2,21 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-// Exact Percentage-to-GP lookup based on provided grading policy
-// Percentage-to-GP lookup based on new linear grading policy:
-// 50% = 1.0, 51% = 1.1, ..., 79% = 3.9, 80%+ = 4.0
-function calcGPA(obtained: number, total: number): number {
-  if (total <= 0) return 0.00;
-  const pct = (obtained / total) * 100;
-  const rounded = Math.round(pct);
-
-  if (rounded < 50) return 0.00; // Fail
-  if (rounded >= 80) return 4.00; // Max GP is 4.0 (starts at 80%)
-
-  // Formula: 1.00 + (rounded - 50) * 0.10
-  return parseFloat((1.00 + (rounded - 50) * 0.10).toFixed(2));
-}
+import { getGPValue } from "@/lib/cgpa";
 
 export async function GET(req: NextRequest) {
   try {
@@ -70,7 +56,8 @@ export async function POST(req: NextRequest) {
     let semesterQualityPoints = 0;
 
     marksRecords.forEach(m => {
-      const gp = calcGPA(m.obtainedMarks, m.totalMarks);
+      const isAbsent = m.status === "ABSENT" || m.status === "A";
+      const gp = isAbsent ? 0.0 : getGPValue(m.obtainedMarks, m.totalMarks);
       const credits = m.course?.creditHours ?? 3;
       semesterCreditHours += credits;
       semesterQualityPoints += (gp * credits);
@@ -80,17 +67,32 @@ export async function POST(req: NextRequest) {
       ? parseFloat((semesterQualityPoints / semesterCreditHours).toFixed(2))
       : 0.00;
 
-    // 4. CGPA Calculation: Sum(Course Credit Hours * GP of all Semesters) / Total Credit Hours of all Semesters
-    const allMarks = await prisma.marks.findMany({
-      where: { studentId },
+    // 4. Cumulative CGPA Calculation: Only up to this specific semester (semesterInt)
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      select: { bsAdmissionType: true },
+    });
+    const minSem = student?.bsAdmissionType === "BRIDGING_5TH" ? 5 : 1;
+
+    const cumulativeMarks = await prisma.marks.findMany({
+      where: {
+        studentId,
+        course: {
+          semester: {
+            gte: minSem,
+            lte: semesterInt,
+          },
+        },
+      },
       include: { course: true },
     });
 
     let cumulativeCreditHours = 0;
     let cumulativeQualityPoints = 0;
 
-    allMarks.forEach(m => {
-      const gp = calcGPA(m.obtainedMarks, m.totalMarks);
+    cumulativeMarks.forEach(m => {
+      const isAbsent = m.status === "ABSENT" || m.status === "A";
+      const gp = isAbsent ? 0.0 : getGPValue(m.obtainedMarks, m.totalMarks);
       const credits = m.course?.creditHours ?? 3;
       cumulativeCreditHours += credits;
       cumulativeQualityPoints += (gp * credits);
@@ -98,10 +100,19 @@ export async function POST(req: NextRequest) {
 
     const cgpa = cumulativeCreditHours > 0
       ? parseFloat((cumulativeQualityPoints / cumulativeCreditHours).toFixed(2))
-      : 0.00;
+      : gpa;
 
-    // Determine academic status based on semester GP
-    const status = gpa >= 1.7 ? "PROMOTED" : gpa > 0 ? "PROBATION" : "DROPOUT";
+    // Determine academic status based on official university/HEC rules
+    let status = "PROMOTED";
+    if (semesterInt === 1) {
+      status = gpa >= 1.0 ? "PROMOTED" : "DROPOUT";
+    } else if (semesterInt === 2) {
+      status = cgpa >= 1.5 ? "PROMOTED" : cgpa >= 1.0 ? "PROBATION" : "DROPOUT";
+    } else if (semesterInt === 3) {
+      status = cgpa >= 1.75 ? "PROMOTED" : cgpa >= 1.0 ? "PROBATION" : "DROPOUT";
+    } else {
+      status = cgpa >= 2.0 ? "PROMOTED" : cgpa >= 1.0 ? "PROBATION" : "DROPOUT";
+    }
 
     // 5. Upsert result record
     const existing = await prisma.result.findFirst({

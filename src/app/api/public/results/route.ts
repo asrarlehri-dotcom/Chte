@@ -171,6 +171,7 @@ export async function GET(req: NextRequest) {
         semester: parseInt(semStr),
         gpa: d.credits > 0 ? parseFloat((d.gpPoints / d.credits).toFixed(2)) : 0,
         creditHours: d.credits,
+        qualityPoints: d.gpPoints,
         obtained: d.obtained,
         total: d.total,
       }));

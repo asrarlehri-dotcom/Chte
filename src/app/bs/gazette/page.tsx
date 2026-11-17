@@ -254,6 +254,7 @@ function buildStudentResults(
     semester: parseInt(semStr),
     gpa: d.credits > 0 ? parseFloat((d.gpPoints / d.credits).toFixed(2)) : 0,
     creditHours: d.credits,
+    qualityPoints: d.gpPoints,
   }));
 
   const targetSemesterMarks = (s.marks || []).filter(
@@ -276,12 +277,10 @@ function buildStudentResults(
   let totalObtained = 0;
   let totalMax = 0;
   let totalAbsentCount = 0;
-  let semPaperCount = 0;
 
   (s.marks || [])
     .filter((m) => (m.course?.semester ?? m.semester ?? 1) === selectedSemester)
     .forEach((m) => {
-      semPaperCount++;
       const isAbsent = (m as any).status === "ABSENT" || (m as any).status === "A";
       if (isAbsent) {
         totalAbsentCount++;
@@ -940,11 +939,10 @@ export default function GazetteCompilerPage() {
           <button
             type="button"
             onClick={() => setShowPaperNamesInPrint((prev) => !prev)}
-            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 shadow-2xs ${
-              showPaperNamesInPrint
+            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 shadow-2xs ${showPaperNamesInPrint
                 ? "bg-amber-100 text-amber-950 border-amber-300 font-black"
                 : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
-            }`}
+              }`}
             title="Zaroorat ke waqt print me failed subjects ki detail print karein ya sirf tadaad (count)"
           >
             <span>{showPaperNamesInPrint ? "📋 Print: Subject Names (ON)" : "🔢 Print: Papers Count Only"}</span>
@@ -1315,15 +1313,14 @@ export default function GazetteCompilerPage() {
                                 <Fragment key={`${s.id}-${course.title}`}>
                                   {/* Marks Cell */}
                                   <td
-                                    className={`px-1 py-2 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 w-[45px] min-w-[45px] max-w-[45px] print:w-[32px] print:min-w-[32px] print:max-w-[32px] ${
-                                      isAbsentPaper
+                                    className={`px-1 py-2 text-center font-bold text-xs border-l border-slate-100 print:border-slate-300 w-[45px] min-w-[45px] max-w-[45px] print:w-[32px] print:min-w-[32px] print:max-w-[32px] ${isAbsentPaper
                                         ? "text-rose-700 bg-rose-50/70 font-black print:text-rose-900"
                                         : isFail
                                           ? "text-rose-600 bg-rose-50/40 font-black print:bg-transparent"
                                           : obtained !== undefined
                                             ? "text-slate-900 print:text-black font-extrabold"
                                             : "text-slate-300"
-                                    }`}
+                                      }`}
                                   >
                                     {isAbsentPaper ? (
                                       <span className="px-1.5 py-0.5 bg-rose-100 border border-rose-300 text-rose-700 rounded font-black text-[10px]">
@@ -1338,15 +1335,14 @@ export default function GazetteCompilerPage() {
 
                                   {/* GP Cell */}
                                   <td
-                                    className={`px-1 py-2 text-center font-mono font-bold text-[10.5px] border-l border-slate-100 print:border-slate-300 w-[38px] min-w-[38px] max-w-[38px] print:w-[26px] print:min-w-[26px] print:max-w-[26px] ${
-                                      isAbsentPaper
+                                    className={`px-1 py-2 text-center font-mono font-bold text-[10.5px] border-l border-slate-100 print:border-slate-300 w-[38px] min-w-[38px] max-w-[38px] print:w-[26px] print:min-w-[26px] print:max-w-[26px] ${isAbsentPaper
                                         ? "text-rose-600 bg-rose-50/70 font-black print:text-rose-900"
                                         : isFail
                                           ? "text-rose-500 bg-rose-50/40 font-bold print:bg-transparent"
                                           : obtained !== undefined
                                             ? "text-slate-700 print:text-slate-900 font-bold"
                                             : "text-slate-300"
-                                    }`}
+                                      }`}
                                   >
                                     {isAbsentPaper ? "0.0" : obtained !== undefined ? paperGP.toFixed(1) : "—"}
                                   </td>

@@ -54,18 +54,30 @@ export default function GPACGPATrackerPage() {
       semestersMap[sem].credits += credit;
     });
 
-    const semestersData = Object.entries(semestersMap).map(([semStr, d]) => ({
-      semester: parseInt(semStr),
-      gpa: d.credits > 0 ? parseFloat((d.gpPoints / d.credits).toFixed(2)) : 0,
-      creditHours: d.credits,
-    }));
+    const semestersData = Object.entries(semestersMap)
+      .map(([semStr, d]) => ({
+        semester: parseInt(semStr),
+        gpa: d.credits > 0 ? parseFloat((d.gpPoints / d.credits).toFixed(2)) : 0,
+        creditHours: d.credits,
+        qualityPoints: d.gpPoints,
+      }))
+      .sort((a, b) => a.semester - b.semester);
+
+    const semestersWithProgCGPA = semestersData.map((sd) => {
+      const upToHere = semestersData.filter((x) => x.semester <= sd.semester);
+      const prog = calculateStudentCGPA({ bsAdmissionType: s.bsAdmissionType }, upToHere);
+      return {
+        ...sd,
+        progressiveCGPA: prog.cgpa,
+      };
+    });
 
     const cgpaResult = calculateStudentCGPA(
       { bsAdmissionType: s.bsAdmissionType },
       semestersData
     );
 
-    return { semestersData, ...cgpaResult };
+    return { semestersData: semestersWithProgCGPA, ...cgpaResult };
   };
 
   const filtered = students.filter(
@@ -131,8 +143,12 @@ export default function GPACGPATrackerPage() {
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-2">
                           {semestersData.map((sd) => (
-                            <span key={sd.semester} className="px-2 py-1 bg-gray-100 rounded text-xs">
-                              Sem {sd.semester}: <strong>{sd.gpa.toFixed(2)}</strong>
+                            <span key={sd.semester} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+                              <span className="font-semibold text-gray-600">Sem {sd.semester}:</span>
+                              <span className="font-black text-gray-900">GPA {sd.gpa.toFixed(2)}</span>
+                              <span className="text-[10px] text-blue-700 font-bold bg-blue-100/60 px-1 py-0.5 rounded">
+                                CGPA {sd.progressiveCGPA.toFixed(2)}
+                              </span>
                             </span>
                           ))}
                           {semestersData.length === 0 && (

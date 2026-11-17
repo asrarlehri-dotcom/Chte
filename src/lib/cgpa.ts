@@ -68,7 +68,7 @@ export function calculateSemesterGPA(
  */
 export function calculateStudentCGPA(
   student: { bsAdmissionType: string | null },
-  semestersData: Array<{ semester: number; gpa: number; creditHours: number }>
+  semestersData: Array<{ semester: number; gpa: number; creditHours: number; qualityPoints?: number }>
 ): { cgpa: number; totalCredits: number } {
   let totalGP = 0;
   let totalCredits = 0;
@@ -83,7 +83,8 @@ export function calculateStudentCGPA(
   });
 
   for (const item of relevantSemesters) {
-    totalGP += item.gpa * item.creditHours;
+    const qp = item.qualityPoints !== undefined ? item.qualityPoints : (item.gpa * item.creditHours);
+    totalGP += qp;
     totalCredits += item.creditHours;
   }
 
