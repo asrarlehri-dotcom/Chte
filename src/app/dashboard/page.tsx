@@ -25,7 +25,18 @@ import {
   Clock,
   CheckCircle2,
   DollarSign,
-  PieChart
+  PieChart,
+  Building2,
+  GraduationCap,
+  ShieldCheck,
+  Award,
+  ExternalLink,
+  MapPin,
+  Layers,
+  CheckCircle,
+  AlertCircle,
+  School,
+  Filter
 } from "lucide-react";
 
 type EducationLevel = "ALL" | "INTERMEDIATE" | "BS";
@@ -41,10 +52,16 @@ export default function DashboardPage() {
   const [dashData, setDashData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  // Central Overview specific state
+  const [collegeSearch, setCollegeSearch] = useState("");
+  const [districtFilter, setDistrictFilter] = useState("ALL");
+  const [examTab, setExamTab] = useState("ALL");
+
   const userName = session?.user?.name || "Admin";
   const userCollegeId = (session?.user as any)?.collegeId || null;
   const userCollegeName = (session?.user as any)?.collegeName || null;
   const userRole = (session?.user as any)?.role || "User";
+  const isCentral = userRole === "CHTE_ADMIN" || (!userCollegeId && userRole === "SUPER_ADMIN");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -149,18 +166,67 @@ export default function DashboardPage() {
     return `${points} L 480 140 L 30 140 Z`;
   };
 
+  // Central data extractions
+  const collegesBreakdown: any[] = dashData?.collegesBreakdown || [];
+  const centralExamsSchedule: any[] = dashData?.centralExamsSchedule || [];
+  const sessionStats: Record<string, number> = dashData?.sessionStats || {};
+  const semesterStats: Record<number, number> = dashData?.semesterStats || {};
+  const totalAffiliatedColleges = dashData?.totalAffiliatedColleges || 0;
+
+  const districts = Array.from(
+    new Set(collegesBreakdown.map((c) => c.district).filter(Boolean))
+  ).sort() as string[];
+
+  const filteredColleges = collegesBreakdown.filter((col) => {
+    const q = collegeSearch.toLowerCase();
+    const matchesSearch =
+      col.name.toLowerCase().includes(q) ||
+      col.code.toLowerCase().includes(q) ||
+      (col.district && col.district.toLowerCase().includes(q)) ||
+      (col.principalName && col.principalName.toLowerCase().includes(q));
+    const matchesDistrict = districtFilter === "ALL" || col.district === districtFilter;
+    return matchesSearch && matchesDistrict;
+  });
+
+  const filteredExams = centralExamsSchedule.filter((ex) => {
+    if (examTab === "ALL") return true;
+    return ex.examType?.toLowerCase().includes(examTab.toLowerCase());
+  });
+
+  const totalBsStudents = collegesBreakdown.reduce((acc, c) => acc + (c.bsStudents || 0), 0);
+  const totalInterStudents = collegesBreakdown.reduce((acc, c) => acc + (c.interStudents || 0), 0);
+
   return (
     <div className="space-y-6 pb-12 font-sans text-slate-800 animate-fadeIn">
       {/* ── TOP NAV / HEADER ── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            {userCollegeName || "Institutional Dashboard"}
-          </h1>
-          <p className="text-slate-500 text-xs font-semibold mt-0.5">
-            Welcome back, <span className="font-bold text-slate-700">{userName}</span>
-            {userCollegeName ? <span className="text-indigo-600 font-bold"> • {userCollegeName}</span> : ""}
-          </p>
+          {isCentral ? (
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  CHTE Central Directorate HQ
+                </span>
+                <span className="text-[11px] font-bold text-slate-500">Government of Balochistan</span>
+              </div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                Central Directorate Academic Overview
+              </h1>
+              <p className="text-slate-500 text-xs font-semibold mt-0.5">
+                Provincial Higher Education Command Dashboard • Multi-Campus Admissions, Faculty, Sessions & Examination Monitor
+              </p>
+            </div>
+          ) : (
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                {userCollegeName || "Institutional Dashboard"}
+              </h1>
+              <p className="text-slate-500 text-xs font-semibold mt-0.5">
+                Welcome back, <span className="font-bold text-slate-700">{userName}</span>
+                {userCollegeName ? <span className="text-indigo-600 font-bold"> • {userCollegeName}</span> : ""}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -193,19 +259,6 @@ export default function DashboardPage() {
             </select>
           </div>
 
-          {/* Search Box */}
-          <div className="relative hidden md:block w-56">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              placeholder="Search anything..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-12 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <span className="absolute right-2.5 top-2 text-[10px] font-bold text-slate-400 bg-slate-200/60 px-1.5 py-0.5 rounded-md">
-              Ctrl + K
-            </span>
-          </div>
-
           {/* Notification Icon */}
           <button className="p-2 text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl border border-slate-200 transition-colors relative">
             <Bell className="w-4 h-4" />
@@ -227,94 +280,618 @@ export default function DashboardPage() {
 
       {/* ── TOP 5 KPI METRIC CARDS ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Card 1: Total Students */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 flex-shrink-0">
-              <Users className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Students</div>
-              <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.totalStudents?.toLocaleString() ?? 0}
+        {isCentral ? (
+          <>
+            {/* Card 1: Affiliated Campuses */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 flex-shrink-0">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Affiliated Campuses</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {totalAffiliatedColleges}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-bold text-indigo-600 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />
+                <span>{districts.length} Districts Connected</span>
               </div>
             </div>
+
+            {/* Card 2: Total Admissions */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 flex-shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Admissions</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.totalStudents?.toLocaleString() ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-bold text-purple-700 truncate">
+                {totalBsStudents.toLocaleString()} BS • {totalInterStudents.toLocaleString()} Inter
+              </div>
+            </div>
+
+            {/* Card 3: Provincial Faculty */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 flex-shrink-0">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Provincial Faculty</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.totalFaculty ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-medium text-slate-400">
+                Active Teaching Staff
+              </div>
+            </div>
+
+            {/* Card 4: Scheduled Exams */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100 flex-shrink-0">
+                  <ClipboardCheck className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Scheduled Exams</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {centralExamsSchedule.length}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-bold text-rose-600 truncate">
+                Mid & Final Term Papers
+              </div>
+            </div>
+
+            {/* Card 5: Academic Programs */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 flex-shrink-0">
+                  <LayoutGrid className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Active Programs</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.activePrograms ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-medium text-slate-400">
+                All Running Disciplines
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Card 1: Total Students */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 flex-shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Students</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.totalStudents?.toLocaleString() ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                <span>{topMetrics.studentGrowth ?? "0%"} this session</span>
+              </div>
+            </div>
+
+            {/* Card 2: Active Programs */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 flex-shrink-0">
+                  <LayoutGrid className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Active Programs</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.activePrograms ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-medium text-slate-400">
+                All running programs
+              </div>
+            </div>
+
+            {/* Card 3: Faculty Members */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 flex-shrink-0">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Faculty Members</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.totalFaculty ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-medium text-slate-400">
+                Active faculty
+              </div>
+            </div>
+
+            {/* Card 4: Total Courses */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 flex-shrink-0">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Courses</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.totalCourses ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-medium text-slate-400">
+                Across all programs
+              </div>
+            </div>
+
+            {/* Card 5: Today's Classes */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 flex-shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Today's Classes</div>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
+                    {topMetrics.todaysClasses ?? 0}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-[11px] font-medium text-slate-400">
+                Scheduled today
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── CENTRAL OVERVIEW SECTION: MULTI-CAMPUS COLLEGE ADMISSIONS & STANDING MATRIX ── */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        {/* Header & Controls */}
+        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
+          <div>
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-base font-black text-slate-900 tracking-tight">
+                Multi-Campus College Admissions & Academic Standing
+              </h2>
+              <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-black px-2 py-0.5 rounded-full">
+                {filteredColleges.length} Campuses
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Live admissions distribution, running academic sessions, BS semester progression cohorts, and faculty strength per college.
+            </p>
           </div>
-          <div className="mt-3 text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>{topMetrics.studentGrowth ?? "0%"} this session</span>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Live Search */}
+            <div className="relative w-60">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                value={collegeSearch}
+                onChange={(e) => setCollegeSearch(e.target.value)}
+                placeholder="Search college, district, principal..."
+                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
+
+            {/* District Filter */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={districtFilter}
+                onChange={(e) => setDistrictFilter(e.target.value)}
+                className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">All Districts ({districts.length})</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Card 2: Active Programs */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 flex-shrink-0">
-              <LayoutGrid className="w-5 h-5" />
+        {/* Colleges Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-4">#</th>
+                <th className="py-3 px-4">College & Campus</th>
+                <th className="py-3 px-4">District</th>
+                <th className="py-3 px-4 text-center">Total Admissions</th>
+                <th className="py-3 px-4">Running Sessions</th>
+                <th className="py-3 px-4">Active Semesters Cohort</th>
+                <th className="py-3 px-4 text-center">Faculty</th>
+                <th className="py-3 px-4 text-center">Programs</th>
+                <th className="py-3 px-4 text-center">Exams</th>
+                <th className="py-3 px-4 text-right">Campus Portal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              {filteredColleges.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-8 text-center text-slate-400 font-semibold">
+                    No affiliated colleges match the specified search or district filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredColleges.map((col, idx) => (
+                  <tr key={col.id} className="hover:bg-indigo-50/30 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-slate-400 text-[11px]">{idx + 1}</td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center flex-shrink-0">
+                          {col.code ? col.code.slice(0, 3) : "COL"}
+                        </div>
+                        <div className="min-w-0">
+                          <strong className="block font-bold text-slate-900 leading-tight truncate">
+                            {col.name}
+                          </strong>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
+                            <span className="font-semibold text-indigo-600">{col.code}</span>
+                            {col.principalName && (
+                              <span className="text-slate-400 truncate">• Principal: {col.principalName}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        <MapPin className="w-3 h-3 text-slate-400" />
+                        {col.district}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="inline-block text-left">
+                        <div className="text-sm font-black text-slate-900 leading-none">
+                          {col.totalStudents.toLocaleString()}
+                        </div>
+                        <div className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                          <span className="text-indigo-600 font-bold">{col.bsStudents} BS</span>
+                          {" • "}
+                          <span className="text-amber-600 font-bold">{col.interStudents} Inter</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {col.sessions && col.sessions.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {col.sessions.map((sess: string) => (
+                            <span
+                              key={sess}
+                              className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold"
+                            >
+                              {sess}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 text-[11px] italic">None active</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {col.semesterMap && Object.keys(col.semesterMap).length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {Object.entries(col.semesterMap)
+                            .sort(([a], [b]) => Number(a) - Number(b))
+                            .map(([sem, count]) => (
+                              <span
+                                key={sem}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200"
+                                title={`Semester ${sem}: ${count} Students`}
+                              >
+                                S{sem}: <strong className="text-indigo-700">{count as number}</strong>
+                              </span>
+                            ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 text-[11px] italic">No BS cohort</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 font-bold text-slate-800 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md text-[11px] border border-blue-100">
+                        <UserCheck className="w-3 h-3" />
+                        {col.facultyCount}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <span className="font-bold text-slate-800 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md text-[11px] border border-emerald-100">
+                        {col.programsCount}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <span className="font-bold text-slate-800 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md text-[11px] border border-amber-100">
+                        {col.examsCount}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <Link
+                        href={`/colleges/${col.code.toLowerCase()}`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white font-bold text-xs transition-colors"
+                      >
+                        <span>Portal</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── SECTION: PROVINCIAL EXAMINATION SCHEDULE & DUTY COMMAND MONITOR ── */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
+          <div>
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5 text-rose-600" />
+              <h2 className="text-base font-black text-slate-900 tracking-tight">
+                Provincial Examination Schedule & Live Duty Monitor
+              </h2>
+              <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black px-2 py-0.5 rounded-full">
+                {filteredExams.length} Exams Listed
+              </span>
             </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Active Programs</div>
-              <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.activePrograms ?? 0}
-              </div>
-            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Multi-campus examination datesheets, paper slots, room halls, and deployed invigilation staff.
+            </p>
           </div>
-          <div className="mt-3 text-[11px] font-medium text-slate-400">
-            All running programs
+
+          {/* Exam Type Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            {["ALL", "FINAL", "MID"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setExamTab(tab)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                  examTab === tab
+                    ? "bg-white text-indigo-700 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {tab === "ALL" ? "All Papers" : tab === "FINAL" ? "Final Term" : "Mid Term"}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Card 3: Faculty Members */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 flex-shrink-0">
-              <UserCheck className="w-5 h-5" />
+        {/* Exams Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-4">Date & Timing</th>
+                <th className="py-3 px-4">College Campus</th>
+                <th className="py-3 px-4">Course Paper</th>
+                <th className="py-3 px-4">Degree Cohort</th>
+                <th className="py-3 px-4">Exam Type & Status</th>
+                <th className="py-3 px-4">Invigilator Staff & Halls</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              {filteredExams.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400 font-semibold">
+                    No examination datesheets or papers scheduled under the selected filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredExams.map((ex) => (
+                  <tr key={ex.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 border border-purple-100 flex flex-col items-center justify-center flex-shrink-0">
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <strong className="block font-bold text-slate-900 leading-tight">
+                            {ex.dateFormatted}
+                          </strong>
+                          <span className="text-[11px] font-semibold text-purple-700">
+                            {ex.timeSlot || `${ex.startTime} - ${ex.endTime}`}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div>
+                        <strong className="block font-bold text-slate-900 truncate max-w-xs">
+                          {ex.collegeName}
+                        </strong>
+                        <span className="text-[11px] text-slate-500">
+                          {ex.collegeCode} • {ex.district}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div>
+                        <strong className="block font-bold text-slate-900">
+                          {ex.courseTitle}
+                        </strong>
+                        <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                          {ex.courseCode}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div>
+                        <strong className="block font-bold text-slate-800">
+                          {ex.programName} ({ex.programCode})
+                        </strong>
+                        <span className="text-[11px] text-slate-500">
+                          Session: {ex.session} • Sem {ex.semester}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="space-y-1">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          ex.examType?.toLowerCase().includes("final")
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-blue-50 text-blue-700 border border-blue-200"
+                        }`}>
+                          {ex.examType}
+                        </span>
+                        <div>
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${
+                            ex.isFinalized || ex.status === "PUBLISHED"
+                              ? "text-emerald-600"
+                              : "text-amber-600"
+                          }`}>
+                            <CheckCircle2 className="w-3 h-3" />
+                            {ex.isFinalized ? "Finalized" : ex.status || "Scheduled"}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {ex.dutyStaff && ex.dutyStaff.length > 0 ? (
+                        <div className="space-y-1">
+                          {ex.dutyStaff.map((staff: any, sIdx: number) => (
+                            <div key={sIdx} className="flex items-center gap-1.5 text-[11px]">
+                              <UserCheck className="w-3 h-3 text-slate-400" />
+                              <span className="font-semibold text-slate-800">{staff.facultyName}</span>
+                              <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                                {staff.room}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px] italic">Not assigned yet</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── SECTION: PROVINCIAL SESSIONS & SEMESTERS PROGRESSION ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Card 1: Active Sessions Enrollment (6 cols) */}
+        <div className="lg:col-span-6 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-purple-600" />
+              <h3 className="text-sm font-black text-slate-900">
+                Provincial Academic Sessions Enrollment
+              </h3>
             </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Faculty Members</div>
-              <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.totalFaculty ?? 0}
-              </div>
-            </div>
+            <span className="text-xs font-bold text-slate-400">All Campuses</span>
           </div>
-          <div className="mt-3 text-[11px] font-medium text-slate-400">
-            Active faculty
+
+          <div className="space-y-3">
+            {Object.keys(sessionStats).length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                No session enrollment data recorded
+              </div>
+            ) : (
+              Object.entries(sessionStats)
+                .sort(([, a], [, b]) => b - a)
+                .map(([sess, count], idx) => {
+                  const maxSessCount = Math.max(...Object.values(sessionStats), 1);
+                  const pct = Math.min(100, Math.round((count / maxSessCount) * 100));
+                  const colors = ["bg-indigo-600", "bg-purple-600", "bg-blue-500", "bg-emerald-500", "bg-amber-500"];
+                  return (
+                    <div key={sess} className="space-y-1">
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">{sess}</span>
+                          <span className="text-[10px] text-slate-400 font-medium">Session Cohort</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-slate-900">{count}</span>
+                          <span className="text-slate-400 text-[10px]">students</span>
+                        </div>
+                      </div>
+                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${colors[idx % colors.length]}`}
+                          style={{ width: `${pct}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
           </div>
         </div>
 
-        {/* Card 4: Total Courses */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 flex-shrink-0">
-              <BookOpen className="w-5 h-5" />
+        {/* Card 2: Semester-Wise Cohort Distribution (6 cols) */}
+        <div className="lg:col-span-6 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-emerald-600" />
+              <h3 className="text-sm font-black text-slate-900">
+                Semester Cohort Pipeline (Sem 1 to Sem 8)
+              </h3>
             </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Total Courses</div>
-              <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.totalCourses ?? 0}
-              </div>
-            </div>
+            <span className="text-xs font-bold text-slate-400">BS Programs</span>
           </div>
-          <div className="mt-3 text-[11px] font-medium text-slate-400">
-            Across all programs
-          </div>
-        </div>
 
-        {/* Card 5: Today's Classes */}
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 flex-shrink-0">
-              <Calendar className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">Today's Classes</div>
-              <div className="text-2xl font-black text-slate-900 tracking-tight leading-none mt-1">
-                {topMetrics.todaysClasses ?? 0}
-              </div>
-            </div>
+          <div className="grid grid-cols-4 sm:grid-cols-4 gap-2.5 pt-1">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
+              const semCount = semesterStats[sem] || 0;
+              return (
+                <div
+                  key={sem}
+                  className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center hover:bg-indigo-50/40 hover:border-indigo-200 transition-colors"
+                >
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Sem {sem}
+                  </div>
+                  <div className="text-xl font-black text-slate-900 mt-1">
+                    {semCount}
+                  </div>
+                  <div className="text-[10px] font-semibold text-indigo-600 mt-0.5">
+                    Students
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="mt-3 text-[11px] font-medium text-slate-400">
-            Scheduled today
+
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-xs text-slate-500 flex items-center justify-between">
+            <span className="font-medium">Total BS Semester Enrollments</span>
+            <span className="font-black text-slate-900">
+              {Object.values(semesterStats).reduce((acc, curr) => acc + curr, 0)} Active BS Students
+            </span>
           </div>
         </div>
       </div>

@@ -235,6 +235,176 @@ export async function getCompleteDashboardData(
     { month: "Jun", current: totalStudents, previous: Math.round(totalStudents * 0.94) },
   ];
 
+  // 9. Multi-Campus Colleges Breakdown (for Central Directorate / HQ Overview)
+  const collegesList = await prisma.college.findMany({
+    where: {
+      isActive: true,
+      ...(collegeId ? { id: collegeId } : {})
+    },
+    include: {
+      _count: {
+        select: {
+          students: true,
+          faculty: true,
+          programs: true,
+          datesheets: true,
+        },
+      },
+      students: {
+        where: {
+          ...(educationLevel !== "ALL" ? { educationLevel } : {}),
+          ...(sessionFilter !== "ALL" ? { session: sessionFilter } : {}),
+        },
+        select: {
+          id: true,
+          educationLevel: true,
+          session: true,
+          currentSemester: true,
+          isActive: true,
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const collegesBreakdown = collegesList.map((col) => {
+    const totalStudentsInCol = col.students.length;
+    const bsStudents = col.students.filter((s) => s.educationLevel === "BS").length;
+    const interStudents = col.students.filter((s) => s.educationLevel === "INTERMEDIATE").length;
+    const activeStudents = col.students.filter((s) => s.isActive).length;
+
+    // Distinct active sessions in this college
+    const sessions = Array.from(new Set(col.students.map((s) => s.session).filter(Boolean))).sort();
+
+    // Semester counts for BS programs
+    const semesterMap: Record<number, number> = {};
+    col.students.forEach((s) => {
+      if (s.educationLevel === "BS" && s.currentSemester) {
+        semesterMap[s.currentSemester] = (semesterMap[s.currentSemester] || 0) + 1;
+      }
+    });
+
+    return {
+      id: col.id,
+      name: col.name,
+      code: col.code,
+      district: col.district || "Balochistan",
+      logoUrl: col.logoUrl,
+      principalName: col.principalName,
+      totalStudents: totalStudentsInCol,
+      bsStudents,
+      interStudents,
+      activeStudents,
+      facultyCount: col._count.faculty,
+      programsCount: col._count.programs,
+      examsCount: col._count.datesheets,
+      sessions,
+      semesterMap,
+    };
+  });
+
+  // 10. Central Examination Schedule & Live Duty Monitor
+  const datesheetsList = await prisma.datesheet.findMany({
+    where: {
+      ...collegeFilter,
+      ...(sessionFilter !== "ALL" ? { session: sessionFilter } : {}),
+    },
+    include: {
+      college: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          district: true,
+        },
+      },
+      course: {
+        select: {
+          id: true,
+          title: true,
+          code: true,
+          semester: true,
+          creditHours: true,
+        },
+      },
+      program: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          educationLevel: true,
+        },
+      },
+      duties: {
+        include: {
+          faculty: {
+            include: {
+              user: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: [
+      { date: "desc" },
+      { startTime: "asc" },
+    ],
+    take: 25,
+  });
+
+  const centralExamsSchedule = datesheetsList.map((ds) => {
+    const d = new Date(ds.date);
+    const dutyStaff = ds.duties.map((ed) => ({
+      facultyName: ed.faculty?.user?.name || "Faculty Member",
+      dutyType: ed.dutyType || "INVIGILATOR",
+      room: ed.room || "Exam Hall",
+    }));
+
+    return {
+      id: ds.id,
+      collegeId: ds.college?.id || "",
+      collegeName: ds.college?.name || "Campus Institution",
+      collegeCode: ds.college?.code || "CAMPUS",
+      district: ds.college?.district || "Balochistan",
+      examType: ds.examType ? ds.examType.replace(/_/g, " ") : "Final Term Exam",
+      courseTitle: ds.course?.title || "Examination Paper",
+      courseCode: ds.course?.code || "SUBJ",
+      semester: ds.course?.semester ?? ds.semester ?? 1,
+      programName: ds.program?.name || "Degree Program",
+      programCode: ds.program?.code || "BS",
+      educationLevel: ds.program?.educationLevel || "BS",
+      session: ds.session || "2024-2028",
+      dateFormatted: d.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      rawDate: ds.date.toISOString(),
+      startTime: ds.startTime,
+      endTime: ds.endTime,
+      timeSlot: `${ds.startTime} - ${ds.endTime}`,
+      isFinalized: ds.isFinalized,
+      status: ds.status,
+      dutyStaff,
+    };
+  });
+
+  // 11. Central Sessions & Semesters Totals
+  const sessionStats: Record<string, number> = {};
+  const semesterStats: Record<number, number> = {};
+
+  collegesList.forEach((col) => {
+    col.students.forEach((st) => {
+      if (st.session) {
+        sessionStats[st.session] = (sessionStats[st.session] || 0) + 1;
+      }
+      if (st.currentSemester) {
+        semesterStats[st.currentSemester] = (semesterStats[st.currentSemester] || 0) + 1;
+      }
+    });
+  });
+
   return {
     topMetrics: {
       totalStudents,
@@ -262,7 +432,12 @@ export async function getCompleteDashboardData(
     recentNotices,
     academicActivities,
     upcomingSchedule,
-    monthlyEnrollment
+    monthlyEnrollment,
+    collegesBreakdown,
+    centralExamsSchedule,
+    sessionStats,
+    semesterStats,
+    totalAffiliatedColleges: collegesList.length,
   };
 }
 
