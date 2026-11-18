@@ -80,6 +80,7 @@ export type FeaturedProfile = {
 type PortalSettings = {
   heroBgType: "IMAGE" | "VIDEO";
   heroBgUrl: string;
+  heroImages?: string[];
   heroImgZoom?: number;
   heroImgPosX?: number;
   heroImgPosY?: number;
@@ -182,6 +183,25 @@ export default function CollegePortalHomePage() {
   const [activeTab, setActiveTab] = useState<"ALL" | "BS" | "INTERMEDIATE">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [topSearch, setTopSearch] = useState("");
+  const [heroSlideIdx, setHeroSlideIdx] = useState(0);
+
+  // Compute multiple slide images for College hero slider
+  const collegeSlides: string[] =
+    college?.portalSettings?.heroImages && college.portalSettings.heroImages.length > 0
+      ? college.portalSettings.heroImages
+      : [
+          college?.portalSettings?.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+          "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+          "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+        ];
+
+  useEffect(() => {
+    if (collegeSlides.length <= 1) return;
+    const timer = setInterval(() => {
+      setHeroSlideIdx((prev) => (prev + 1) % collegeSlides.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [collegeSlides.length]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && codeParam) {
@@ -503,7 +523,7 @@ export default function CollegePortalHomePage() {
 
       {/* ── 5. HERO SECTION WITH VIDEO OR IMAGE BACKGROUND + CAROUSEL CONTROLS ── */}
       <section className="relative min-h-[480px] sm:min-h-[560px] flex items-center justify-center text-center px-4 sm:px-8 overflow-hidden">
-        {/* Background Layer: VIDEO or IMAGE with Custom Zoom & Position */}
+        {/* Background Layer: VIDEO or Slide View IMAGES with Custom Zoom & Position */}
         {s.heroBgType === "VIDEO" && s.heroBgUrl ? (
           <div className="absolute inset-0 overflow-hidden">
             <video
@@ -524,40 +544,73 @@ export default function CollegePortalHomePage() {
           </div>
         ) : (
           <div className="absolute inset-0 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={s.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"}
-              alt="Hero Backdrop"
-              className="w-full h-full object-cover transition-all duration-300"
-              style={{
-                objectPosition: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
-                transform: `scale(${(s.heroImgZoom ?? 100) / 100})`,
-                transformOrigin: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
-              }}
-            />
+            {collegeSlides.map((imgUrl, idx) => (
+              <div
+                key={idx}
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                  idx === heroSlideIdx ? "opacity-100 z-1" : "opacity-0 z-0 pointer-events-none"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imgUrl}
+                  alt={`Hero Backdrop Slide ${idx + 1}`}
+                  className="w-full h-full object-cover transition-all duration-700"
+                  style={{
+                    objectPosition: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
+                    transform: `scale(${(s.heroImgZoom ?? 100) / 100})`,
+                    transformOrigin: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
+                  }}
+                />
+              </div>
+            ))}
           </div>
         )}
 
         {/* Dynamic Dark Gradient & Starfield Overlays */}
-        <div className="absolute inset-0 bg-radial from-black/20 via-black/60 to-black/90 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#070d19] via-transparent to-black/60 pointer-events-none" />
+        <div className="absolute inset-0 bg-radial from-black/20 via-black/60 to-black/90 pointer-events-none z-10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070d19] via-transparent to-black/60 pointer-events-none z-10" />
 
-        {/* Carousel Arrow Controls (Visual Left & Right) */}
-        <button
-          onClick={() => setActiveTab(activeTab === "ALL" ? "BS" : activeTab === "BS" ? "INTERMEDIATE" : "ALL")}
-          className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center border border-white/20 backdrop-blur-md transition-all hover:scale-110 z-20"
-          title="Previous View"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
+        {/* Slide View Controls (Previous / Next Arrows & Dots) */}
+        {collegeSlides.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setHeroSlideIdx((prev) => (prev - 1 + collegeSlides.length) % collegeSlides.length)}
+              className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/45 hover:bg-black/75 text-white flex items-center justify-center border border-white/20 backdrop-blur-md transition-all hover:scale-110 z-20 cursor-pointer shadow-xl"
+              title="Previous Slide"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
 
-        <button
-          onClick={() => setActiveTab(activeTab === "ALL" ? "BS" : activeTab === "BS" ? "INTERMEDIATE" : "ALL")}
-          className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center border border-white/20 backdrop-blur-md transition-all hover:scale-110 z-20"
-          title="Next View"
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
+            <button
+              type="button"
+              onClick={() => setHeroSlideIdx((prev) => (prev + 1) % collegeSlides.length)}
+              className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/45 hover:bg-black/75 text-white flex items-center justify-center border border-white/20 backdrop-blur-md transition-all hover:scale-110 z-20 cursor-pointer shadow-xl"
+              title="Next Slide"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+
+            {/* Slide Indicator Dots at Bottom */}
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/55 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-lg">
+              {collegeSlides.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setHeroSlideIdx(i)}
+                  className={`h-2 rounded-full transition-all cursor-pointer ${
+                    i === heroSlideIdx ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/70"
+                  }`}
+                  title={`Slide ${i + 1}`}
+                />
+              ))}
+              <span className="text-[10px] font-mono text-slate-300 pl-1 border-l border-white/20">
+                {heroSlideIdx + 1}/{collegeSlides.length}
+              </span>
+            </div>
+          </>
+        )}
 
         {/* Center Hero Content */}
         <div className="max-w-4xl mx-auto relative z-10 py-16 flex flex-col items-center">

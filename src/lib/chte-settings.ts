@@ -24,6 +24,7 @@ export type ChteHomepageSettings = {
   heroHeadline: string;
   heroSubtitle: string;
   heroSceneryImage: string;
+  heroSceneryImages?: string[];
   heroSceneryZoom: number;
   heroSceneryPosX: number;
   heroSceneryPosY: number;
@@ -49,8 +50,14 @@ export const DEFAULT_CHTE_SETTINGS: ChteHomepageSettings = {
   heroSubtitle:
     "The apex central server empowering colleges across Balochistan. Access institutional portals, automated timetable scheduling, official examination gazettes, transcripts, and student management under one centralized governance umbrella.",
 
-  // Scenery Photo with Framing
+  // Scenery Photo with Framing & Slide View
   heroSceneryImage: "/hero-scenery.png",
+  heroSceneryImages: [
+    "/hero-scenery.png",
+    "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+    "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+  ],
   heroSceneryZoom: 100, // 50% to 250%
   heroSceneryPosX: 50,  // 0% to 100%
   heroSceneryPosY: 50,  // 0% to 100%

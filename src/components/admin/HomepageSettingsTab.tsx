@@ -65,8 +65,9 @@ export default function HomepageSettingsTab({
     heroHeadline: DEFAULT_CHTE_SETTINGS.heroHeadline,
     heroSubtitle: DEFAULT_CHTE_SETTINGS.heroSubtitle,
 
-    // Scenery Photo with Framing
+    // Scenery Photo with Framing & Multiple Slides
     heroSceneryImage: DEFAULT_CHTE_SETTINGS.heroSceneryImage,
+    heroSceneryImages: DEFAULT_CHTE_SETTINGS.heroSceneryImages || ["/hero-scenery.png"],
     heroSceneryZoom: DEFAULT_CHTE_SETTINGS.heroSceneryZoom,
     heroSceneryPosX: DEFAULT_CHTE_SETTINGS.heroSceneryPosX,
     heroSceneryPosY: DEFAULT_CHTE_SETTINGS.heroSceneryPosY,
@@ -128,6 +129,9 @@ export default function HomepageSettingsTab({
           heroSubtitle: data.heroSubtitle || DEFAULT_CHTE_SETTINGS.heroSubtitle,
 
           heroSceneryImage: data.heroSceneryImage || DEFAULT_CHTE_SETTINGS.heroSceneryImage,
+          heroSceneryImages: Array.isArray(data.heroSceneryImages) && data.heroSceneryImages.length > 0
+            ? data.heroSceneryImages
+            : [data.heroSceneryImage || "/hero-scenery.png"],
           heroSceneryZoom: typeof data.heroSceneryZoom === "number" ? data.heroSceneryZoom : 100,
           heroSceneryPosX: typeof data.heroSceneryPosX === "number" ? data.heroSceneryPosX : 50,
           heroSceneryPosY: typeof data.heroSceneryPosY === "number" ? data.heroSceneryPosY : 50,
@@ -602,8 +606,15 @@ export default function HomepageSettingsTab({
                     try {
                       setUploadingScenery(true);
                       const url = await uploadFile(file);
-                      setFormData((prev) => ({ ...prev, heroSceneryImage: url }));
-                      setMsg({ type: "success", text: `Successfully uploaded ${file.name} for CHTE hero backdrop!` });
+                      setFormData((prev) => {
+                        const existing = prev.heroSceneryImages || [prev.heroSceneryImage || "/hero-scenery.png"];
+                        return {
+                          ...prev,
+                          heroSceneryImage: url,
+                          heroSceneryImages: [url, ...existing.filter((img) => img !== url)],
+                        };
+                      });
+                      setMsg({ type: "success", text: `Successfully uploaded ${file.name} to slide view gallery!` });
                     } catch (err: any) {
                       setMsg({ type: "error", text: err.message || "Failed to upload photo." });
                     } finally {
@@ -614,25 +625,114 @@ export default function HomepageSettingsTab({
               </label>
             </div>
 
-            {/* Photo URL & Quick Presets */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Scenery Photo URL / File Path</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={formData.heroSceneryImage}
-                    onChange={(e) => setFormData({ ...formData, heroSceneryImage: e.target.value })}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-800 focus:outline-none"
-                    placeholder="/hero-scenery.png or https://..."
-                  />
+            {/* Photo URL & Quick Presets & Slide Images List */}
+            <div className="space-y-4">
+              {/* Multiple Slide Photos Grid */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                    <span>Slide View Photos Gallery (ایک سے زائد تصاویر شامل کریں)</span>
+                    <span className="text-[10px] bg-emerald-100 text-[#0c5938] px-2 py-0.5 rounded-full font-black">
+                      {(formData.heroSceneryImages || []).length} Slide(s)
+                    </span>
+                  </label>
+
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, heroSceneryImage: "/hero-scenery.png" })}
-                    className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                    onClick={() => {
+                      const newImages = [
+                        ...(formData.heroSceneryImages || [formData.heroSceneryImage || "/hero-scenery.png"]),
+                        "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"
+                      ];
+                      setFormData({
+                        ...formData,
+                        heroSceneryImages: newImages,
+                        heroSceneryImage: newImages[0] || "/hero-scenery.png",
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0c5938] text-xs font-bold transition-all border border-emerald-200"
                   >
-                    Reset Default
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Another Slide Photo</span>
                   </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(formData.heroSceneryImages && formData.heroSceneryImages.length > 0
+                    ? formData.heroSceneryImages
+                    : [formData.heroSceneryImage || "/hero-scenery.png"]
+                  ).map((imgUrl, sIdx) => (
+                    <div
+                      key={sIdx}
+                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative group"
+                    >
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px]">
+                            {sIdx + 1}
+                          </span>
+                          <span>Slide {sIdx + 1}</span>
+                          {sIdx === 0 && (
+                            <span className="text-[9px] bg-emerald-50 text-[#0c5938] px-1.5 py-0.2 rounded font-black border border-emerald-200">
+                              Primary
+                            </span>
+                          )}
+                        </span>
+
+                        <div className="flex items-center gap-1">
+                          {(formData.heroSceneryImages || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = (formData.heroSceneryImages || []).filter((_, i) => i !== sIdx);
+                                setFormData({
+                                  ...formData,
+                                  heroSceneryImages: updated,
+                                  heroSceneryImage: updated[0] || "/hero-scenery.png",
+                                });
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                              title="Delete Slide"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="h-28 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imgUrl}
+                          alt={`Slide ${sIdx + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = "/hero-scenery.png";
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <input
+                          type="text"
+                          value={imgUrl}
+                          onChange={(e) => {
+                            const newArr = [
+                              ...(formData.heroSceneryImages || [formData.heroSceneryImage || "/hero-scenery.png"])
+                            ];
+                            newArr[sIdx] = e.target.value;
+                            setFormData({
+                              ...formData,
+                              heroSceneryImages: newArr,
+                              heroSceneryImage: newArr[0] || "/hero-scenery.png",
+                            });
+                          }}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-800 focus:outline-none"
+                          placeholder="/image.png or https://..."
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

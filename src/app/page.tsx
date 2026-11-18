@@ -25,6 +25,8 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Layers,
   Landmark,
   Sparkles,
@@ -64,6 +66,20 @@ export default function ChteHomePage() {
   const [urduMode, setUrduMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [chteSettings, setChteSettings] = useState<ChteHomepageSettings>(DEFAULT_CHTE_SETTINGS);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  // Compute multiple slide images for CHTE hero slider
+  const slideImages = (chteSettings.heroSceneryImages && chteSettings.heroSceneryImages.length > 0)
+    ? chteSettings.heroSceneryImages
+    : [chteSettings.heroSceneryImage || "/hero-scenery.png"];
+
+  useEffect(() => {
+    if (slideImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlideIndex((prev) => (prev + 1) % slideImages.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [slideImages.length]);
 
   useEffect(() => {
     // Set formatted client date after mount asynchronously
@@ -346,23 +362,73 @@ export default function ChteHomePage() {
           background: `linear-gradient(to right, ${chteSettings.heroBgGradientStart || "#eef8f3"}, #ffffff, ${chteSettings.heroBgGradientEnd || "#eff8f3"})`,
         }}
       >
-        {/* Right Scenery Backdrop (Balochistan Mountains, Fort & Calligraphy) */}
-        <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[56%] pointer-events-none select-none z-0 overflow-hidden">
-          {chteSettings.heroSceneryImage && (
-            <img
-              src={chteSettings.heroSceneryImage}
-              alt="Balochistan Landscape"
-              className="w-full h-full object-cover transition-transform duration-300"
-              style={{
-                objectPosition: `${chteSettings.heroSceneryPosX ?? 50}% ${chteSettings.heroSceneryPosY ?? 50}%`,
-                transform: `scale(${(chteSettings.heroSceneryZoom ?? 100) / 100})`,
-                transformOrigin: `${chteSettings.heroSceneryPosX ?? 50}% ${chteSettings.heroSceneryPosY ?? 50}%`,
-              }}
-            />
-          )}
+        {/* Right Scenery Backdrop with Interactive Slide View / Carousel */}
+        <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[56%] select-none z-0 overflow-hidden group/slider">
+          {slideImages.map((imgUrl, idx) => (
+            <div
+              key={idx}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                idx === currentSlideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+              }`}
+            >
+              <img
+                src={imgUrl}
+                alt={`Balochistan Landscape Slide ${idx + 1}`}
+                className="w-full h-full object-cover transition-transform duration-700"
+                style={{
+                  objectPosition: `${chteSettings.heroSceneryPosX ?? 50}% ${chteSettings.heroSceneryPosY ?? 50}%`,
+                  transform: `scale(${(chteSettings.heroSceneryZoom ?? 100) / 100})`,
+                  transformOrigin: `${chteSettings.heroSceneryPosX ?? 50}% ${chteSettings.heroSceneryPosY ?? 50}%`,
+                }}
+              />
+            </div>
+          ))}
+
           {/* Subtle gradient to blend scenic image seamlessly into the left white background */}
-          <div className="absolute inset-y-0 left-0 w-36 bg-gradient-to-r from-[#ffffff] via-[#ffffff]/60 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#f8faf9] to-transparent" />
+          <div className="absolute inset-y-0 left-0 w-36 bg-gradient-to-r from-[#ffffff] via-[#ffffff]/60 to-transparent z-20 pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#f8faf9] to-transparent z-20 pointer-events-none" />
+
+          {/* Slide Navigation Controls & Indicators */}
+          {slideImages.length > 1 && (
+            <div className="absolute bottom-5 right-6 z-30 flex items-center gap-2.5 bg-slate-900/65 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-lg text-white">
+              <button
+                type="button"
+                onClick={() => setCurrentSlideIndex((prev) => (prev - 1 + slideImages.length) % slideImages.length)}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+                title="Previous Slide"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Dots */}
+              <div className="flex items-center gap-1.5 px-1">
+                {slideImages.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrentSlideIndex(i)}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      i === currentSlideIndex ? "w-5 bg-emerald-400" : "w-1.5 bg-white/40 hover:bg-white/70"
+                    }`}
+                    title={`Slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentSlideIndex((prev) => (prev + 1) % slideImages.length)}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+                title="Next Slide"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              <span className="text-[10px] font-mono text-slate-300 pl-1 border-l border-white/20">
+                {currentSlideIndex + 1}/{slideImages.length}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Left Decorative Curve & Geometric Tile Motif */}

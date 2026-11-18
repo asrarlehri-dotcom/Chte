@@ -408,6 +408,12 @@ export default function UnifiedSettingsPage() {
   const [collegeName, setCollegeName] = useState("Government Post Graduate College Quetta");
   const [collegeLogo, setCollegeLogo] = useState("");
   const [collegeBackground, setCollegeBackground] = useState("");
+  const [collegeHeroImages, setCollegeHeroImages] = useState<string[]>([
+    "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+    "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+  ]);
+  const [uploadingSlidePhoto, setUploadingSlidePhoto] = useState(false);
   const [collegeTagline, setCollegeTagline] = useState("College of Higher Education & Research");
   const [collegeAddress, setCollegeAddress] = useState("Quetta, Balochistan, Pakistan");
 
@@ -430,6 +436,20 @@ export default function UnifiedSettingsPage() {
       setCollegeName(data.COLLEGE_NAME || (session?.user as any)?.collegeName || "Govt. Degree College");
       setCollegeLogo(data.COLLEGE_LOGO || (session?.user as any)?.collegeLogo || "");
       setCollegeBackground(data.COLLEGE_BACKGROUND || data.COLLEGE_WATERMARK || "");
+      if (data.COLLEGE_HERO_IMAGES) {
+        try {
+          const parsed = JSON.parse(data.COLLEGE_HERO_IMAGES);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCollegeHeroImages(parsed);
+          }
+        } catch {
+          if (data.COLLEGE_HERO_IMAGES.includes(",")) {
+            setCollegeHeroImages(data.COLLEGE_HERO_IMAGES.split(",").map((s: string) => s.trim()));
+          } else if (data.COLLEGE_HERO_IMAGES) {
+            setCollegeHeroImages([data.COLLEGE_HERO_IMAGES.trim()]);
+          }
+        }
+      }
       setCollegeTagline(data.COLLEGE_TAGLINE || "College of Higher Education & Research");
       setCollegeAddress(data.COLLEGE_ADDRESS || "Balochistan, Pakistan");
       if (data.ACADEMIC_SESSIONS) {
@@ -491,6 +511,7 @@ export default function UnifiedSettingsPage() {
         COLLEGE_LOGO: collegeLogo,
         COLLEGE_BACKGROUND: collegeBackground,
         COLLEGE_WATERMARK: collegeBackground,
+        COLLEGE_HERO_IMAGES: JSON.stringify(collegeHeroImages),
         COLLEGE_TAGLINE: collegeTagline,
         COLLEGE_ADDRESS: collegeAddress,
         ACADEMIC_SESSIONS: academicSessions.join(","),
@@ -1609,6 +1630,136 @@ export default function UnifiedSettingsPage() {
                       <p className="text-[11px] text-gray-400 mt-1">
                         Subtle background watermark for Timetables, Datesheets, Transcripts, Gazettes &amp; Challans.
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Campus Hero Slide Photos Gallery (Slide View / Slideshow) */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <label className="text-xs font-bold text-gray-800 flex items-center gap-2">
+                          <span>📸 Campus Hero Slide Photos Gallery (ایک سے زائد کیمپس تصاویر برائے سلائیڈ شو)</span>
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-black">
+                            {collegeHeroImages.length} Slide(s)
+                          </span>
+                        </label>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Upload multiple campus pictures. These pictures will automatically rotate in an interactive Slide View on the college homepage (/colleges/[code]).
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Direct Upload Slide Photo */}
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all">
+                          {uploadingSlidePhoto ? "Uploading..." : "📁 Upload Slide Photo"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingSlidePhoto}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setUploadingSlidePhoto(true);
+                              try {
+                                const fd = new FormData();
+                                fd.append("file", file);
+                                const res = await fetch("/api/upload", { method: "POST", body: fd });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  if (data.url) {
+                                    setCollegeHeroImages((prev) => [...prev, data.url]);
+                                    setUploadingSlidePhoto(false);
+                                    return;
+                                  }
+                                }
+                              } catch (err) {
+                                console.warn("Upload api failed, falling back to base64", err);
+                              }
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                if (reader.result) {
+                                  setCollegeHeroImages((prev) => [...prev, reader.result as string]);
+                                }
+                                setUploadingSlidePhoto(false);
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+
+                        {/* Add Slide URL Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCollegeHeroImages((prev) => [
+                              ...prev,
+                              "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"
+                            ]);
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-gray-100 text-gray-700 text-xs font-bold transition-all border border-gray-300"
+                        >
+                          <span>+ Add Slide</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Slides Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                      {collegeHeroImages.map((imgUrl, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className="p-3 bg-white border border-gray-200 rounded-xl space-y-2 relative shadow-xs"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                              <span>Slide #{sIdx + 1}</span>
+                              {sIdx === 0 && (
+                                <span className="bg-blue-50 text-blue-600 px-1.5 py-0.2 rounded text-[9px] font-bold">
+                                  Primary Hero
+                                </span>
+                              )}
+                            </span>
+
+                            {collegeHeroImages.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCollegeHeroImages((prev) => prev.filter((_, i) => i !== sIdx));
+                                }}
+                                className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded text-xs font-bold"
+                                title="Delete Slide Photo"
+                              >
+                                🗑️
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="h-28 rounded-lg overflow-hidden bg-slate-900 border border-gray-200 relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={imgUrl}
+                              alt={`Slide ${sIdx + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&q=80";
+                              }}
+                            />
+                          </div>
+
+                          <input
+                            type="text"
+                            value={imgUrl}
+                            onChange={(e) => {
+                              const updated = [...collegeHeroImages];
+                              updated[sIdx] = e.target.value;
+                              setCollegeHeroImages(updated);
+                            }}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-gray-800 focus:outline-none"
+                            placeholder="https://... or /image.png"
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
 

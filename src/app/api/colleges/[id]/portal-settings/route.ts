@@ -6,6 +6,11 @@ import { authOptions } from "@/lib/auth";
 const DEFAULT_PORTAL_SETTINGS = {
   heroBgType: "IMAGE", // "IMAGE" | "VIDEO"
   heroBgUrl: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+  heroImages: [
+    "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+    "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+    "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+  ],
   heroImgZoom: 100, // Zoom percentage (50% to 250%)
   heroImgPosX: 50,  // Horizontal focal position (0% left to 100% right)
   heroImgPosY: 50,  // Vertical focal position (0% top to 100% bottom)
@@ -113,7 +118,7 @@ export async function GET(
       }
     });
 
-    let customSettings = {};
+    let customSettings: any = {};
     if (settingRecord?.value) {
       try {
         customSettings = JSON.parse(settingRecord.value);
@@ -121,6 +126,35 @@ export async function GET(
         console.error("Failed to parse portal settings JSON:", e);
       }
     }
+
+    // Check if college has custom hero images configured in SystemSetting
+    const heroRecord = await prisma.systemSetting.findFirst({
+      where: {
+        collegeId: college.id,
+        key: "COLLEGE_HERO_IMAGES"
+      }
+    });
+
+    let extraHeroImages: string[] = [];
+    if (heroRecord?.value) {
+      try {
+        const parsed = JSON.parse(heroRecord.value);
+        if (Array.isArray(parsed)) extraHeroImages = parsed;
+      } catch {
+        if (heroRecord.value.includes(",")) {
+          extraHeroImages = heroRecord.value.split(",").map((s) => s.trim());
+        } else if (heroRecord.value) {
+          extraHeroImages = [heroRecord.value.trim()];
+        }
+      }
+    }
+
+    const effectiveHeroImages =
+      Array.isArray(customSettings.heroImages) && customSettings.heroImages.length > 0
+        ? customSettings.heroImages
+        : extraHeroImages.length > 0
+        ? extraHeroImages
+        : DEFAULT_PORTAL_SETTINGS.heroImages;
 
     const merged = {
       ...DEFAULT_PORTAL_SETTINGS,
@@ -136,7 +170,8 @@ export async function GET(
       contactPhone: college.contactPhone || "",
       collegeId: college.id,
       collegeCode: college.code,
-      ...customSettings
+      ...customSettings,
+      heroImages: effectiveHeroImages,
     };
 
     return NextResponse.json(merged);

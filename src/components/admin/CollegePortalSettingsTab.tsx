@@ -86,6 +86,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     // Hero Media
     heroBgType: "IMAGE" as "IMAGE" | "VIDEO",
     heroBgUrl: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+    heroImages: [
+      "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+      "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+    ] as string[],
     heroImgZoom: 100, // 50% - 250%
     heroImgPosX: 50,  // 0% - 100% (Left to Right)
     heroImgPosY: 50,  // 0% - 100% (Top to Bottom)
@@ -175,6 +180,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
           heroBgType: data.heroBgType || "IMAGE",
           heroBgUrl: data.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+          heroImages: Array.isArray(data.heroImages) && data.heroImages.length > 0
+            ? data.heroImages
+            : (data.heroBgUrl ? [data.heroBgUrl] : [
+                "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+                "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+                "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+              ]),
           heroImgZoom: typeof data.heroImgZoom === "number" ? data.heroImgZoom : 100,
           heroImgPosX: typeof data.heroImgPosX === "number" ? data.heroImgPosX : 50,
           heroImgPosY: typeof data.heroImgPosY === "number" ? data.heroImgPosY : 50,
@@ -236,7 +248,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       bodyBgColor: formData.bodyBgColor,
 
       heroBgType: formData.heroBgType,
-      heroBgUrl: formData.heroBgUrl,
+      heroBgUrl: formData.heroImages?.[0] || formData.heroBgUrl,
+      heroImages: formData.heroImages && formData.heroImages.length > 0 ? formData.heroImages : (formData.heroBgUrl ? [formData.heroBgUrl] : []),
       heroImgZoom: formData.heroImgZoom,
       heroImgPosX: formData.heroImgPosX,
       heroImgPosY: formData.heroImgPosY,
@@ -726,6 +739,160 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   )}
                 </div>
               </div>
+
+              {/* Slide View Multiple Photos Gallery (Only for IMAGE type) */}
+              {formData.heroBgType === "IMAGE" && (
+                <div className="pt-3 border-t border-slate-200/80 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                        <span>📸 Multi-Photo Slideshow Gallery (ایک سے زائد سلائیڈ تصاویر)</span>
+                        <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-black">
+                          {(formData.heroImages || []).length} Slide(s)
+                        </span>
+                      </label>
+                      <p className="text-[11px] text-slate-500">
+                        Add multiple pictures to rotate automatically every 4.5 seconds on the college homepage banner.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Direct Upload Slide Button */}
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-all hover:scale-105">
+                        {uploadingHero ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                        <span>Direct Upload Slide</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingHero}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setUploadingHero(true);
+                              const url = await uploadFile(file);
+                              const existing = formData.heroImages && formData.heroImages.length > 0 ? formData.heroImages : [formData.heroBgUrl];
+                              const updated = [...existing, url];
+                              setFormData({
+                                ...formData,
+                                heroImages: updated,
+                                heroBgUrl: updated[0] || url,
+                              });
+                              setMsg({ type: "success", text: `Uploaded ${file.name} to college slideshow!` });
+                            } catch (err: any) {
+                              setMsg({ type: "error", text: err.message || "Failed to upload photo." });
+                            } finally {
+                              setUploadingHero(false);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {/* Add Another Slide URL Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newImages = [
+                            ...(formData.heroImages && formData.heroImages.length > 0
+                              ? formData.heroImages
+                              : [formData.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"]),
+                            "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+                          ];
+                          setFormData({
+                            ...formData,
+                            heroImages: newImages,
+                            heroBgUrl: newImages[0],
+                          });
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-300"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ Add Slide</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Slides Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {(formData.heroImages && formData.heroImages.length > 0
+                      ? formData.heroImages
+                      : [formData.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"]
+                    ).map((imgUrl, sIdx) => (
+                      <div
+                        key={sIdx}
+                        className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 relative group shadow-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                            <span>Slide #{sIdx + 1}</span>
+                            {sIdx === 0 && (
+                              <span className="bg-red-50 text-red-600 px-1.5 py-0.2 rounded text-[9px] font-bold">
+                                Hero Active
+                              </span>
+                            )}
+                          </span>
+
+                          <div className="flex items-center gap-1">
+                            {(formData.heroImages || []).length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = (formData.heroImages || []).filter((_, i) => i !== sIdx);
+                                  setFormData({
+                                    ...formData,
+                                    heroImages: updated,
+                                    heroBgUrl: updated[0] || "",
+                                  });
+                                }}
+                                className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                                title="Delete Slide"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Thumbnail */}
+                        <div className="h-28 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={imgUrl}
+                            alt={`Slide ${sIdx + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src =
+                                "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&q=80";
+                            }}
+                          />
+                        </div>
+
+                        {/* URL input */}
+                        <input
+                          type="text"
+                          value={imgUrl}
+                          onChange={(e) => {
+                            const newArr = [
+                              ...(formData.heroImages && formData.heroImages.length > 0
+                                ? formData.heroImages
+                                : [formData.heroBgUrl || ""])
+                            ];
+                            newArr[sIdx] = e.target.value;
+                            setFormData({
+                              ...formData,
+                              heroImages: newArr,
+                              heroBgUrl: newArr[0] || "",
+                            });
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-800 focus:outline-none"
+                          placeholder="/image.png or https://..."
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Live Preview Player / Thumbnail */}
               {formData.heroBgUrl && (

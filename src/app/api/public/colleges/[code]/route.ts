@@ -77,7 +77,7 @@ export async function GET(
       }
     });
 
-    let customPortal = {};
+    let customPortal: any = {};
     if (settingRecord?.value) {
       try {
         customPortal = JSON.parse(settingRecord.value);
@@ -86,9 +86,36 @@ export async function GET(
       }
     }
 
+    // Also check for slide photos saved specifically under COLLEGE_HERO_IMAGES
+    const heroRecord = await prisma.systemSetting.findFirst({
+      where: {
+        collegeId: college.id,
+        key: "COLLEGE_HERO_IMAGES"
+      }
+    });
+
+    let extraHeroImages: string[] = [];
+    if (heroRecord?.value) {
+      try {
+        const parsed = JSON.parse(heroRecord.value);
+        if (Array.isArray(parsed)) extraHeroImages = parsed;
+      } catch {
+        if (heroRecord.value.includes(",")) {
+          extraHeroImages = heroRecord.value.split(",").map((s) => s.trim());
+        } else if (heroRecord.value) {
+          extraHeroImages = [heroRecord.value.trim()];
+        }
+      }
+    }
+
     const defaultPortalSettings = {
       heroBgType: "IMAGE",
       heroBgUrl: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+      heroImages: [
+        "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+        "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+        "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+      ],
       heroImgZoom: 100,
       heroImgPosX: 50,
       heroImgPosY: 50,
@@ -166,9 +193,17 @@ export async function GET(
       ]
     };
 
+    const effectiveHeroImages =
+      Array.isArray(customPortal.heroImages) && customPortal.heroImages.length > 0
+        ? customPortal.heroImages
+        : extraHeroImages.length > 0
+        ? extraHeroImages
+        : defaultPortalSettings.heroImages;
+
     const portalSettings = {
       ...defaultPortalSettings,
       ...customPortal,
+      heroImages: effectiveHeroImages,
       heroTitle: (customPortal as any)?.heroTitle || college.name,
       heroSubtitle: (customPortal as any)?.heroSubtitle || college.tagline || defaultPortalSettings.heroSubtitle,
     };
