@@ -210,7 +210,7 @@ export default function CollegePortalHomePage() {
         setThemeColor(current);
       }
     }
-  }, [codeParam]);
+  }, [codeParam, themeColor]);
 
   useEffect(() => {
     if (!codeParam) return;
@@ -805,7 +805,7 @@ export default function CollegePortalHomePage() {
                         <div className="flex items-start gap-3">
                           <Quote className="w-8 h-8 text-amber-400/40 flex-shrink-0 hidden sm:block" />
                           <blockquote className="text-base sm:text-lg font-medium italic text-slate-100 leading-relaxed">
-                            "{principalProfile.quote}"
+                            &ldquo;{principalProfile.quote}&rdquo;
                           </blockquote>
                         </div>
                       )}
@@ -888,7 +888,7 @@ export default function CollegePortalHomePage() {
 
                         {prof.quote && (
                           <p className="text-xs text-slate-300 italic mb-2 line-clamp-2">
-                            "{prof.quote}"
+                            &ldquo;{prof.quote}&rdquo;
                           </p>
                         )}
 
