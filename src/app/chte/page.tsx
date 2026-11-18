@@ -118,8 +118,8 @@ export default function ChteMasterDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Header Banner */}
-      <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 py-5 sticky top-0 z-20">
+      {/* Top Header Banner (Scrolls naturally with page) */}
+      <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 py-5 relative z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
