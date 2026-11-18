@@ -1,22 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import {
   ShieldCheck,
-  Check,
-  X,
   Save,
   RefreshCw,
   Search,
-  Lock,
-  Sliders,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  Filter
 } from "lucide-react";
-import { MODULES, ACTIONS } from "@/lib/permissions";
+import { MODULES } from "@/lib/permissions";
 
 interface RolePerm {
   id: string;
@@ -39,13 +33,23 @@ interface PermissionItem {
 }
 
 const ROLES_LIST = [
-  { key: "CHTE_ADMIN", label: "🏛️ CHTE Directorate Admin", desc: "Central Apex Governance & Provincial Oversight" },
-  { key: "COLLEGE_ADMIN", label: "🏛️ College Admin", desc: "Campus Administration & Local Institutional Setup" },
+  {
+    key: "CHTE_ADMIN",
+    label: "🏛️ CHTE Directorate Admin",
+    desc: "Central Apex Governance & Provincial Oversight",
+  },
+  {
+    key: "COLLEGE_ADMIN",
+    label: "🏛️ College Admin",
+    desc: "Campus Administration & Local Institutional Setup",
+  },
 ];
+
+const ACTIONS_LIST = ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"] as const;
 
 export default function RolePermissionsPage() {
   const { data: session } = useSession();
-  const userRole = (session?.user as any)?.role;
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
   const isChte = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
 
   const [selectedRole, setSelectedRole] = useState("CHTE_ADMIN");
@@ -55,56 +59,20 @@ export default function RolePermissionsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<"ALL" | "BS" | "INTER" | "ADMIN">("ALL");
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    fetchPermissions();
-  }, []);
-
   // Compute all available modules (from MODULES and DB)
-  const modulesList = Array.from(
-    new Set([
-      ...Object.values(MODULES),
-      ...permissions.map((p) => p.module).filter(Boolean),
-    ])
-  );
+  const modulesList = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...Object.values(MODULES),
+        ...permissions.map((p) => p.module).filter(Boolean),
+      ])
+    );
+  }, [permissions]);
 
-  useEffect(() => {
-    // Populate localMatrix for selectedRole
-    const matrix: Record<string, boolean> = {};
-    rolePerms
-      .filter((rp) => rp.role === selectedRole)
-      .forEach((rp) => {
-        matrix[`${rp.permission.module}:${rp.permission.action}`] = rp.isGranted;
-      });
-
-    // Provide default true grants for Principal / College Admin if not in DB
-    if (selectedRole === "PRINCIPAL" || selectedRole === "COLLEGE_ADMIN") {
-      modulesList.forEach((mod) => {
-        ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"].forEach((act) => {
-          const key = `${mod}:${act}`;
-          if (matrix[key] === undefined) {
-            matrix[key] = true;
-          }
-        });
-      });
-    } else if (selectedRole === "BS_CONTROLLER") {
-      modulesList.forEach((mod) => {
-        if (mod.startsWith("BS.")) {
-          ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"].forEach((act) => {
-            const key = `${mod}:${act}`;
-            if (matrix[key] === undefined) {
-              matrix[key] = true;
-            }
-          });
-        }
-      });
-    }
-
-    setLocalMatrix(matrix);
-  }, [selectedRole, rolePerms, permissions]);
-
-  const fetchPermissions = async () => {
+  const fetchPermissions = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/permissions");
@@ -114,11 +82,40 @@ export default function RolePermissionsPage() {
         setPermissions(data.permissions || []);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load permissions:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPermissions();
+  }, [fetchPermissions]);
+
+  // Synchronize localMatrix when selectedRole, rolePerms, or modulesList change
+  useEffect(() => {
+    const matrix: Record<string, boolean> = {};
+
+    rolePerms
+      .filter((rp) => rp.role === selectedRole)
+      .forEach((rp) => {
+        matrix[`${rp.permission.module}:${rp.permission.action}`] = rp.isGranted;
+      });
+
+    // Provide default true grants for CHTE Admin / College Admin if not yet in DB
+    if (selectedRole === "CHTE_ADMIN" || selectedRole === "COLLEGE_ADMIN") {
+      modulesList.forEach((mod) => {
+        ACTIONS_LIST.forEach((act) => {
+          const key = `${mod}:${act}`;
+          if (matrix[key] === undefined) {
+            matrix[key] = true;
+          }
+        });
+      });
+    }
+
+    setLocalMatrix(matrix);
+  }, [selectedRole, rolePerms, modulesList]);
 
   const togglePermission = (module: string, action: string) => {
     const key = `${module}:${action}`;
@@ -129,11 +126,22 @@ export default function RolePermissionsPage() {
   };
 
   const setAllForModule = (module: string, grant: boolean) => {
-    const actions = ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"];
     setLocalMatrix((prev) => {
       const next = { ...prev };
-      actions.forEach((act) => {
+      ACTIONS_LIST.forEach((act) => {
         next[`${module}:${act}`] = grant;
+      });
+      return next;
+    });
+  };
+
+  const setAllForRole = (grant: boolean) => {
+    setLocalMatrix((prev) => {
+      const next = { ...prev };
+      modulesList.forEach((mod) => {
+        ACTIONS_LIST.forEach((act) => {
+          next[`${mod}:${act}`] = grant;
+        });
       });
       return next;
     });
@@ -143,9 +151,8 @@ export default function RolePermissionsPage() {
     setSaving(true);
     setMsg(null);
     try {
-      const actions = ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"];
       const updates = modulesList.flatMap((mod) =>
-        actions.map((act) => ({
+        ACTIONS_LIST.map((act) => ({
           module: mod,
           action: act,
           isGranted: !!localMatrix[`${mod}:${act}`],
@@ -162,11 +169,17 @@ export default function RolePermissionsPage() {
       });
 
       if (res.ok) {
-        setMsg({ type: "success", text: `Permissions for ${selectedRole.replace(/_/g, " ")} saved successfully!` });
+        setMsg({
+          type: "success",
+          text: `Permissions for ${selectedRole.replace(/_/g, " ")} saved successfully!`,
+        });
         fetchPermissions();
       } else {
         const err = await res.json();
-        setMsg({ type: "error", text: err.error || "Failed to save permissions. Please try again." });
+        setMsg({
+          type: "error",
+          text: err.error || "Failed to save permissions. Please try again.",
+        });
       }
     } catch {
       setMsg({ type: "error", text: "Network error occurred." });
@@ -175,9 +188,20 @@ export default function RolePermissionsPage() {
     }
   };
 
-  const filteredModules = modulesList.filter((mod) =>
-    mod.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredModules = useMemo(() => {
+    return modulesList.filter((mod) => {
+      const matchesSearch = mod.toLowerCase().includes(search.toLowerCase());
+      const matchesCat =
+        category === "ALL"
+          ? true
+          : category === "BS"
+          ? mod.startsWith("BS.")
+          : category === "INTER"
+          ? mod.startsWith("INTERMEDIATE.")
+          : mod.startsWith("ADMIN.");
+      return matchesSearch && matchesCat;
+    });
+  }, [modulesList, search, category]);
 
   return (
     <div className="space-y-6">
@@ -192,28 +216,45 @@ export default function RolePermissionsPage() {
             {isChte ? "Role Permissions Control" : "College Staff Role Permissions"}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            {isChte
-              ? "Configure access privileges and action capabilities for affiliated college roles."
-              : "Configure access privileges (View, Add, Edit, Delete, Approve) for Principal, BS Coordinator, Faculty, and Students."}
+            Configure system-wide module-level and action-level credentials for CHTE Directorate and College Admin.
           </p>
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saving || loading}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all hover:scale-105 disabled:opacity-50"
-        >
-          {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          <span>{saving ? "Saving Changes..." : "Save Role Permissions"}</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setAllForRole(true)}
+            disabled={saving || loading}
+            className="px-3.5 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl transition-all disabled:opacity-50"
+          >
+            Grant All for {selectedRole === "CHTE_ADMIN" ? "CHTE Admin" : "College Admin"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setAllForRole(false)}
+            disabled={saving || loading}
+            className="px-3.5 py-2 text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
+          >
+            Revoke All
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || loading}
+            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all hover:scale-105 disabled:opacity-50"
+          >
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>{saving ? "Saving Changes..." : "Save Role Permissions"}</span>
+          </button>
+        </div>
       </div>
 
       {msg && (
         <div
-          className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold ${msg.type === "success"
-            ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
-            : "bg-red-500/10 border border-red-500/30 text-red-400"
-            }`}
+          className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-semibold ${
+            msg.type === "success"
+              ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+              : "bg-red-500/10 border border-red-500/30 text-red-400"
+          }`}
         >
           {msg.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           <span>{msg.text}</span>
@@ -228,22 +269,27 @@ export default function RolePermissionsPage() {
             <button
               key={r.key}
               onClick={() => setSelectedRole(r.key)}
-              className={`p-3 rounded-2xl border text-left transition-all ${active
-                ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/25 scale-[1.02]"
-                : "bg-slate-900/60 hover:bg-slate-900 text-slate-300 border-slate-800"
-                }`}
+              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                active
+                  ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/25 scale-[1.02]"
+                  : "bg-slate-900/60 hover:bg-slate-900 text-slate-300 border-slate-800"
+              }`}
             >
               <div className="text-xs font-bold truncate">{r.label}</div>
-              <div className={`text-[10px] mt-0.5 font-mono truncate ${active ? "text-blue-200" : "text-slate-500"}`}>
-                {r.key}
+              <div
+                className={`text-[10px] mt-0.5 font-mono truncate ${
+                  active ? "text-blue-200" : "text-slate-500"
+                }`}
+              >
+                {r.desc}
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex items-center justify-between gap-4 bg-slate-900/50 p-3 rounded-2xl border border-slate-800">
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-900/50 p-3.5 rounded-2xl border border-slate-800">
         <div className="relative w-full max-w-sm">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
@@ -255,9 +301,27 @@ export default function RolePermissionsPage() {
           />
         </div>
 
-        <div className="text-xs text-slate-400 font-medium">
-          Showing <strong>{filteredModules.length}</strong> modules for role{" "}
-          <span className="text-blue-400 font-bold">{selectedRole}</span>
+        {/* Category Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          {[
+            { key: "ALL", label: "All Modules" },
+            { key: "BS", label: "BS Degree" },
+            { key: "INTER", label: "Intermediate" },
+            { key: "ADMIN", label: "Administration" },
+          ].map((cat) => (
+            <button
+              key={cat.key}
+              type="button"
+              onClick={() => setCategory(cat.key as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                category === cat.key
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -355,14 +419,14 @@ export default function RolePermissionsPage() {
                           <button
                             type="button"
                             onClick={() => setAllForModule(mod, true)}
-                            className="px-2 py-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-[10px] font-bold"
+                            className="px-2 py-1 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-[10px] font-bold cursor-pointer"
                           >
                             Allow All
                           </button>
                           <button
                             type="button"
                             onClick={() => setAllForModule(mod, false)}
-                            className="px-2 py-1 rounded-md bg-slate-800 text-slate-400 hover:bg-slate-700 text-[10px] font-bold"
+                            className="px-2 py-1 rounded-md bg-slate-800 text-slate-400 hover:bg-slate-700 text-[10px] font-bold cursor-pointer"
                           >
                             Revoke
                           </button>

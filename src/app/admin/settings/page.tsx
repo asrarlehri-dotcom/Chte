@@ -771,8 +771,8 @@ export default function UnifiedSettingsPage() {
 
   const getPermissionStatus = (module: string, action: string) => {
     const perm = rolePerms.find(
-      (rp) => rp.role === activeRole && 
-        (rp.permission?.module === module || rp.module === module) && 
+      (rp) => rp.role === activeRole &&
+        (rp.permission?.module === module || rp.module === module) &&
         (rp.permission?.action === action || rp.action === action)
     );
     if (perm !== undefined) return perm.isGranted;
@@ -784,8 +784,8 @@ export default function UnifiedSettingsPage() {
     if (activeRole === "BS_CONTROLLER" && module.startsWith("BS.")) {
       return true;
     }
-    if ((activeRole === "BS_FACULTY" || activeRole === "INTER_FACULTY") && 
-        ["VIEW", "ADD", "EDIT", "PRINT", "DOWNLOAD"].includes(action)) {
+    if ((activeRole === "BS_FACULTY" || activeRole === "INTER_FACULTY") &&
+      ["VIEW", "ADD", "EDIT", "PRINT", "DOWNLOAD"].includes(action)) {
       if (module.includes("MARKS") || module.includes("ATTENDANCE") || module.includes("TIMETABLE") || module.includes("STUDENTS")) {
         return true;
       }
@@ -797,8 +797,8 @@ export default function UnifiedSettingsPage() {
     const currentVal = getPermissionStatus(module, action);
     setRolePerms((prev) => {
       const existingIdx = prev.findIndex(
-        (rp) => rp.role === activeRole && 
-          (rp.permission?.module === module || rp.module === module) && 
+        (rp) => rp.role === activeRole &&
+          (rp.permission?.module === module || rp.module === module) &&
           (rp.permission?.action === action || rp.action === action)
       );
 
@@ -831,8 +831,8 @@ export default function UnifiedSettingsPage() {
       let updated = [...prev];
       Object.values(ACTIONS).forEach((action) => {
         const existingIdx = updated.findIndex(
-          (rp) => rp.role === activeRole && 
-            (rp.permission?.module === module || rp.module === module) && 
+          (rp) => rp.role === activeRole &&
+            (rp.permission?.module === module || rp.module === module) &&
             (rp.permission?.action === action || rp.action === action)
         );
         if (existingIdx > -1) {
@@ -961,11 +961,10 @@ export default function UnifiedSettingsPage() {
           {isChteAdmin && (
             <button
               onClick={() => handleTabChange("CHTE_SETTINGS")}
-              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                activeTab === "CHTE_SETTINGS"
+              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeTab === "CHTE_SETTINGS"
                   ? "bg-[#0c5938] text-white shadow-sm font-black"
                   : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-              }`}
+                }`}
             >
               <span>🏛️ CHTE Main Settings</span>
               <span className="text-[10px] bg-emerald-400/20 px-1.5 py-0.5 rounded text-emerald-300">Apex</span>
@@ -975,11 +974,10 @@ export default function UnifiedSettingsPage() {
           {/* TAB 1: COLLEGE PORTAL & THEME SETTINGS (Logo, Theme Colors, Campus Slides, Leadership) */}
           <button
             onClick={() => handleTabChange("COLLEGE_PORTAL")}
-            className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-              activeTab === "COLLEGE_PORTAL"
+            className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeTab === "COLLEGE_PORTAL"
                 ? "bg-slate-900 text-white shadow-sm font-black"
                 : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-            }`}
+              }`}
           >
             <span>🏫 College Portals & Themes</span>
             <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-black">Colleges</span>
@@ -989,11 +987,10 @@ export default function UnifiedSettingsPage() {
           <div className="group relative">
             <button
               onClick={() => handleTabChange("ACADEMIC")}
-              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${
-                activeTab === "ACADEMIC"
+              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === "ACADEMIC"
                   ? "bg-white text-blue-600 shadow-sm border border-gray-100 font-black"
                   : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-              }`}
+                }`}
             >
               <span>🏬 Academic Setup</span>
               <span className="text-[10px] text-gray-400">▼</span>
@@ -1055,11 +1052,10 @@ export default function UnifiedSettingsPage() {
           <div className="group relative">
             <button
               onClick={() => handleTabChange("FEES")}
-              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${
-                activeTab === "FEES"
+              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === "FEES"
                   ? "bg-white text-blue-600 shadow-sm border border-gray-100 font-black"
                   : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-              }`}
+                }`}
             >
               <span>💰 Fee & Challan Settings</span>
               <span className="text-[10px] text-gray-400">▼</span>
@@ -1103,11 +1099,10 @@ export default function UnifiedSettingsPage() {
           <div className="group relative">
             <button
               onClick={() => handleTabChange("PERMISSIONS")}
-              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${
-                activeTab === "PERMISSIONS"
+              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === "PERMISSIONS"
                   ? "bg-white text-blue-600 shadow-sm border border-gray-100 font-black"
                   : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-              }`}
+                }`}
             >
               <span>🔐 Permissions Matrix</span>
               <span className="text-[10px] text-gray-400">▼</span>
@@ -2680,11 +2675,10 @@ export default function UnifiedSettingsPage() {
                 <button
                   key={r}
                   type="button"
-                  className={`px-6 py-3 font-bold text-xs whitespace-nowrap transition-all rounded-t-xl flex items-center gap-2 ${
-                    activeRole === r
+                  className={`px-6 py-3 font-bold text-xs whitespace-nowrap transition-all rounded-t-xl flex items-center gap-2 ${activeRole === r
                       ? "bg-white text-indigo-700 shadow-xs border-t border-x border-slate-200 font-black scale-102"
                       : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/60"
-                  }`}
+                    }`}
                   onClick={() => setActiveRole(r)}
                 >
                   <span>{label}</span>
@@ -2718,11 +2712,10 @@ export default function UnifiedSettingsPage() {
                   key={cat.key}
                   type="button"
                   onClick={() => setPermissionCategory(cat.key)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    permissionCategory === cat.key
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${permissionCategory === cat.key
                       ? "bg-indigo-600 text-white shadow-xs"
                       : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
-                  }`}
+                    }`}
                 >
                   {cat.label}
                 </button>
@@ -2787,11 +2780,10 @@ export default function UnifiedSettingsPage() {
                                     type="button"
                                     onClick={() => handlePermissionToggle(module, action)}
                                     title={`${granted ? "Revoke" : "Grant"} ${action} on ${module}`}
-                                    className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-all font-bold text-xs ${
-                                      granted
+                                    className={`w-7 h-7 rounded-lg inline-flex items-center justify-center transition-all font-bold text-xs ${granted
                                         ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-300 shadow-2xs scale-105"
                                         : "bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 border border-slate-200"
-                                    }`}
+                                      }`}
                                   >
                                     {granted ? "✓" : "✗"}
                                   </button>
