@@ -66,60 +66,16 @@ export default function UnifiedSettingsPage() {
   const userRole = (session?.user as any)?.role;
   const isChteAdmin = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
 
-  const [activeTab, setActiveTab] = useState<"ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA">("ACADEMIC");
+  const [activeTab, setActiveTab] = useState<"ACADEMIC" | "FEES" | "PERMISSIONS">(
+    userRole && isChteAdmin ? "PERMISSIONS" : "ACADEMIC"
+  );
   const [msg, setMsg] = useState({ type: "", text: "" });
 
-  // Dummy Data Management States
-  const [seedingLoading, setSeedingLoading] = useState(false);
-  const [clearingLoading, setClearingLoading] = useState(false);
-
-  const handleLoadDummyData = async () => {
-    if (!confirm("⚡ Load comprehensive realistic dummy data across all departments, programs, courses, faculty, students, admissions, and fees?")) return;
-    setSeedingLoading(true);
-    try {
-      const res = await fetch("/api/admin/seed", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ type: "success", text: data.message || "Realistic dummy data loaded successfully!" });
-        fetchPrograms();
-        fetchDepartments();
-        fetchSettings();
-        fetchFees();
-        fetchPermissions();
-      } else {
-        setMsg({ type: "error", text: data.error || "Failed to load dummy data." });
-      }
-    } catch (err) {
-      console.error(err);
-      setMsg({ type: "error", text: "Server error occurred while loading dummy data." });
-    } finally {
-      setSeedingLoading(false);
+  useEffect(() => {
+    if (isChteAdmin && activeTab !== "PERMISSIONS") {
+      setActiveTab("PERMISSIONS");
     }
-  };
-
-  const handleClearDummyData = async () => {
-    if (!confirm("⚠️ CAUTION: Are you sure you want to clear ALL dummy & operational data? This will remove all students, admissions, courses, marks, and fees while preserving the SuperAdmin login account.")) return;
-    setClearingLoading(true);
-    try {
-      const res = await fetch("/api/admin/seed", { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok) {
-        setMsg({ type: "success", text: data.message || "All dummy data cleared successfully!" });
-        fetchPrograms();
-        fetchDepartments();
-        fetchSettings();
-        fetchFees();
-        fetchPermissions();
-      } else {
-        setMsg({ type: "error", text: data.error || "Failed to clear dummy data." });
-      }
-    } catch (err) {
-      console.error(err);
-      setMsg({ type: "error", text: "Server error occurred while clearing data." });
-    } finally {
-      setClearingLoading(false);
-    }
-  };
+  }, [isChteAdmin]);
 
   // ----------------------------------------------------
   // TAB 1: ACADEMIC SETUP STATES & FUNCTIONS
@@ -922,12 +878,14 @@ export default function UnifiedSettingsPage() {
   // INITIAL DATA LIFECYCLE
   // ----------------------------------------------------
   useEffect(() => {
-    fetchPrograms();
-    fetchDepartments();
-    fetchSettings();
-    fetchFees();
+    if (!isChteAdmin) {
+      fetchPrograms();
+      fetchDepartments();
+      fetchSettings();
+      fetchFees();
+    }
     fetchPermissions();
-  }, [(session?.user as any)?.collegeId]);
+  }, [(session?.user as any)?.collegeId, isChteAdmin]);
 
   const [activeAcademicSub, setActiveAcademicSub] = useState<string>("depts-list");
   const [activeFeeSub, setActiveFeeSub] = useState<string>("base-fees");
@@ -941,7 +899,14 @@ export default function UnifiedSettingsPage() {
   }, [msg]);
 
   // Tab change handler
-  const handleTabChange = (tab: "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA") => {
+  const handleTabChange = (tab: "ACADEMIC" | "FEES" | "PERMISSIONS") => {
+    if (isChteAdmin && tab !== "PERMISSIONS") {
+      setMsg({
+        type: "error",
+        text: "Access Denied: Academic and fee configurations belong to individual colleges.",
+      });
+      return;
+    }
     setActiveTab(tab);
     setMsg({ type: "", text: "" });
   };
@@ -952,130 +917,134 @@ export default function UnifiedSettingsPage() {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {isChteAdmin ? "⚙️ Control Center & Settings" : "⚙️ College Settings & Administration"}
+            {isChteAdmin ? "⚙️ Control Center & Permissions Matrix" : "⚙️ College Settings & Administration"}
           </h1>
           <p className="text-gray-500 mt-1">
             {isChteAdmin
-              ? "Manage global system setup, fees structures, and permissions matrix."
+              ? "Manage system-wide role permissions, module access levels, and security credentials."
               : "Manage campus portal, academic departments, fee structure, and staff role permissions."}
           </p>
         </div>
 
         {/* Hover Dropdown Mega Menu Bar */}
         <div className="flex bg-gray-50 p-1.5 rounded-xl border border-gray-200/60 max-w-5xl overflow-visible relative z-30">
-          {/* TAB 1: ACADEMIC SETUP */}
-          <div className="group relative flex-1 min-w-[140px]">
-            <button
-              onClick={() => handleTabChange("ACADEMIC")}
-              className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === "ACADEMIC"
-                ? "bg-white text-blue-600 shadow-sm border border-gray-100"
-                : "text-gray-500 hover:text-gray-800"
-                }`}
-            >
-              <span>🏫 Academic Setup</span>
-              <span className="text-[10px] text-gray-400">▼</span>
-            </button>
+          {/* TAB 1: ACADEMIC SETUP (Colleges ONLY) */}
+          {!isChteAdmin && (
+            <div className="group relative flex-1 min-w-[140px]">
+              <button
+                onClick={() => handleTabChange("ACADEMIC")}
+                className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === "ACADEMIC"
+                  ? "bg-white text-blue-600 shadow-sm border border-gray-100"
+                  : "text-gray-500 hover:text-gray-800"
+                  }`}
+              >
+                <span>🏫 Academic Setup</span>
+                <span className="text-[10px] text-gray-400">▼</span>
+              </button>
 
-            <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-              <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Academic Sub-Settings:
+              <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
+                <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Academic Sub-Settings:
+                </div>
+                <button
+                  onClick={() => {
+                    handleTabChange("ACADEMIC");
+                    setActiveAcademicSub("depts-list");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>🏬</span> Departments List & HODs
+                </button>
+                <button
+                  onClick={() => {
+                    handleTabChange("ACADEMIC");
+                    setActiveAcademicSub("programs-list");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>📚</span> Programs & Groups Setup
+                </button>
+                <button
+                  onClick={() => {
+                    handleTabChange("ACADEMIC");
+                    setActiveAcademicSub("add-dept");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>➕</span> Add New Department
+                </button>
+                <button
+                  onClick={() => {
+                    handleTabChange("ACADEMIC");
+                    setActiveAcademicSub("add-program");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>🎓</span> Add New Program
+                </button>
+                <button
+                  onClick={() => {
+                    handleTabChange("ACADEMIC");
+                    setActiveAcademicSub("college-identity");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>🏫</span> College Name & Identity
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  handleTabChange("ACADEMIC");
-                  setActiveAcademicSub("depts-list");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>🏬</span> Departments List & HODs
-              </button>
-              <button
-                onClick={() => {
-                  handleTabChange("ACADEMIC");
-                  setActiveAcademicSub("programs-list");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>📚</span> Programs & Groups Setup
-              </button>
-              <button
-                onClick={() => {
-                  handleTabChange("ACADEMIC");
-                  setActiveAcademicSub("add-dept");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>➕</span> Add New Department
-              </button>
-              <button
-                onClick={() => {
-                  handleTabChange("ACADEMIC");
-                  setActiveAcademicSub("add-program");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>🎓</span> Add New Program
-              </button>
-              <button
-                onClick={() => {
-                  handleTabChange("ACADEMIC");
-                  setActiveAcademicSub("college-identity");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>🏫</span> College Name & Identity
-              </button>
             </div>
-          </div>
+          )}
 
-          {/* TAB 3: FEE & CHALLAN SETTINGS */}
-          <div className="group relative flex-1 min-w-[160px]">
-            <button
-              onClick={() => handleTabChange("FEES")}
-              className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === "FEES"
-                ? "bg-white text-blue-600 shadow-sm border border-gray-100"
-                : "text-gray-500 hover:text-gray-800"
-                }`}
-            >
-              <span>💰 Fee & Challan Settings</span>
-              <span className="text-[10px] text-gray-400">▼</span>
-            </button>
+          {/* TAB 2: FEE & CHALLAN SETTINGS (Colleges ONLY) */}
+          {!isChteAdmin && (
+            <div className="group relative flex-1 min-w-[160px]">
+              <button
+                onClick={() => handleTabChange("FEES")}
+                className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === "FEES"
+                  ? "bg-white text-blue-600 shadow-sm border border-gray-100"
+                  : "text-gray-500 hover:text-gray-800"
+                  }`}
+              >
+                <span>💰 Fee & Challan Settings</span>
+                <span className="text-[10px] text-gray-400">▼</span>
+              </button>
 
-            <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-              <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Fee Sub-Settings:
+              <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
+                <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Fee Sub-Settings:
+                </div>
+                <button
+                  onClick={() => {
+                    handleTabChange("FEES");
+                    setActiveFeeSub("base-fees");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>💵</span> Base Fee Rates Setup
+                </button>
+                <button
+                  onClick={() => {
+                    handleTabChange("FEES");
+                    setActiveFeeSub("session-overrides");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>📅</span> Session Fee Overrides
+                </button>
+                <button
+                  onClick={() => {
+                    handleTabChange("FEES");
+                    setActiveFeeSub("bank-details");
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
+                >
+                  <span>🏛️</span> Bank Details & Challan Templates
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  handleTabChange("FEES");
-                  setActiveFeeSub("base-fees");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>💵</span> Base Fee Rates Setup
-              </button>
-              <button
-                onClick={() => {
-                  handleTabChange("FEES");
-                  setActiveFeeSub("session-overrides");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>📅</span> Session Fee Overrides
-              </button>
-              <button
-                onClick={() => {
-                  handleTabChange("FEES");
-                  setActiveFeeSub("bank-details");
-                }}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>🏛️</span> Bank Details & Challan Templates
-              </button>
             </div>
-          </div>
+          )}
 
-          {/* TAB 4: PERMISSIONS MATRIX */}
+          {/* TAB 3: PERMISSIONS MATRIX (Both CHTE and Colleges) */}
           <div className="group relative flex-1 min-w-[150px]">
             <button
               onClick={() => handleTabChange("PERMISSIONS")}
@@ -1100,40 +1069,6 @@ export default function UnifiedSettingsPage() {
               </button>
             </div>
           </div>
-
-          {/* TAB 5: DATA & SEEDING (CHTE Super Admins Only) */}
-          {isChteAdmin && (
-            <div className="group relative flex-1 min-w-[140px]">
-              <button
-                onClick={() => handleTabChange("DATA")}
-                className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === "DATA"
-                  ? "bg-white text-blue-600 shadow-sm border border-gray-100"
-                  : "text-gray-500 hover:text-gray-800"
-                  }`}
-              >
-                <span>⚡ Data & Seeding</span>
-                <span className="text-[10px] text-gray-400">▼</span>
-              </button>
-
-              <div className="absolute top-full right-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-                <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Data Operations:
-                </div>
-                <button
-                  onClick={() => handleTabChange("DATA")}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>⚡</span> Load Realistic Dummy Data
-                </button>
-                <button
-                  onClick={() => handleTabChange("DATA")}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
-                >
-                  <span>⚠️</span> Clear Operational Data
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1148,9 +1083,9 @@ export default function UnifiedSettingsPage() {
       )}
 
       {/* ----------------------------------------------------
-          TAB 1: ACADEMIC SETUP PANEL
+          TAB 1: ACADEMIC SETUP PANEL (Colleges ONLY)
           ---------------------------------------------------- */}
-      {activeTab === "ACADEMIC" && (
+      {!isChteAdmin && activeTab === "ACADEMIC" && (
         <div className="space-y-6 animate-fadeIn">
           {/* Sub-Section Category Pills Bar */}
           <div className="bg-white p-2 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-2 overflow-x-auto">
@@ -1863,9 +1798,9 @@ export default function UnifiedSettingsPage() {
       )}
 
       {/* ----------------------------------------------------
-          TAB 2: FEE & CHALLAN SETTINGS PANEL
+          TAB 2: FEE & CHALLAN SETTINGS PANEL (Colleges ONLY)
           ---------------------------------------------------- */}
-      {activeTab === "FEES" && (
+      {!isChteAdmin && activeTab === "FEES" && (
         <div className="space-y-6 animate-fadeIn">
           {/* Sub-Section Category Pills Bar */}
           <div className="bg-white p-2 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-2 overflow-x-auto">
@@ -2698,96 +2633,6 @@ export default function UnifiedSettingsPage() {
                 </table>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ----------------------------------------------------
-          TAB 4: DATA & SEEDING MANAGEMENT PANEL
-          ---------------------------------------------------- */}
-      {activeTab === "DATA" && (
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-2">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              ⚡ Dummy Data & Database Management
-            </h2>
-            <p className="text-gray-500 text-sm">
-              Load realistic dummy data across all system models (Departments, Programs, Courses, Faculty, Students, Admissions, Fees & Challans) or clear system operational data while preserving SuperAdmin credentials.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Load Dummy Data Card */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 flex flex-col justify-between space-y-6">
-              <div className="space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl font-bold border border-emerald-200">
-                  🌱
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">Load Realistic Sample Data</h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Populates the database with real Pakistan/Balochistan context names, CNICs, roll numbers, departments, programs, courses, faculty members, student enrollments, marks, fees & paid/pending challans.
-                  </p>
-                </div>
-                <div className="bg-emerald-50/60 p-3 rounded-xl text-xs text-emerald-900 border border-emerald-100 space-y-1">
-                  <p className="font-bold">Includes Sample Credentials:</p>
-                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-emerald-800">
-                    <li>Super Admin: <code className="bg-white px-1 py-0.5 rounded font-mono font-bold text-emerald-900">admin@college.edu / admin123</code></li>
-                    <li>Faculty Members: <code className="bg-white px-1 py-0.5 rounded font-mono font-bold text-emerald-900">gpgcq123</code></li>
-                    <li>Students: <code className="bg-white px-1 py-0.5 rounded font-mono font-bold text-emerald-900">student123</code></li>
-                  </ul>
-                </div>
-              </div>
-
-              <button
-                onClick={handleLoadDummyData}
-                disabled={seedingLoading || clearingLoading}
-                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2"
-              >
-                {seedingLoading ? (
-                  <>
-                    <span className="animate-spin text-lg">⏳</span> Loading Dummy Data...
-                  </>
-                ) : (
-                  <>⚡ Populate Sample Dummy Data</>
-                )}
-              </button>
-            </div>
-
-            {/* Clear All Dummy Data Card */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 flex flex-col justify-between space-y-6">
-              <div className="space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-2xl font-bold border border-red-200">
-                  🗑️
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">Clear All Operational Data</h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Wipes out all operational records including students, faculty profiles, admissions, courses, marks, attendance, and fee challans.
-                  </p>
-                </div>
-                <div className="bg-red-50/60 p-3 rounded-xl text-xs text-red-900 border border-red-100">
-                  <p className="font-bold text-red-900">🔒 Safe Reset Guaranteed:</p>
-                  <p className="text-[11px] text-red-800 mt-0.5">
-                    Your SuperAdmin login (<code className="bg-white px-1 py-0.5 rounded font-mono font-bold text-red-900">admin@college.edu</code>) and default system permissions will NOT be deleted.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleClearDummyData}
-                disabled={seedingLoading || clearingLoading}
-                className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-red-500/20 flex items-center justify-center gap-2"
-              >
-                {clearingLoading ? (
-                  <>
-                    <span className="animate-spin text-lg">⏳</span> Clearing Data...
-                  </>
-                ) : (
-                  <>🗑️ Clear All Operational Data</>
-                )}
-              </button>
-            </div>
           </div>
         </div>
       )}
