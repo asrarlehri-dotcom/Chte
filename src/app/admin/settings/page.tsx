@@ -699,7 +699,7 @@ export default function UnifiedSettingsPage() {
   // ----------------------------------------------------
   // TAB 3: PERMISSIONS STATES & FUNCTIONS
   // ----------------------------------------------------
-  const [activeRole, setActiveRole] = useState<string>("PRINCIPAL");
+  const [activeRole, setActiveRole] = useState<string>("CHTE_ADMIN");
   const [permissions, setPermissions] = useState<any[]>([]);
   const [rolePerms, setRolePerms] = useState<any[]>([]);
   const [permissionsLoading, setPermissionsLoading] = useState(true);
@@ -778,7 +778,7 @@ export default function UnifiedSettingsPage() {
     if (perm !== undefined) return perm.isGranted;
 
     // Default grants if not yet configured in DB:
-    if (activeRole === "COLLEGE_ADMIN" || activeRole === "PRINCIPAL") {
+    if (activeRole === "CHTE_ADMIN" || activeRole === "COLLEGE_ADMIN" || activeRole === "PRINCIPAL") {
       return true;
     }
     if (activeRole === "BS_CONTROLLER" && module.startsWith("BS.")) {
@@ -2650,7 +2650,7 @@ export default function UnifiedSettingsPage() {
                 disabled={savingMatrix || permissionsLoading}
                 className="px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all"
               >
-                Grant All for {activeRole.replace(/_/g, " ")}
+                Grant All for {activeRole === "CHTE_ADMIN" ? "CHTE Directorate Admin" : "College Admin"}
               </button>
               <button
                 type="button"
@@ -2670,35 +2670,27 @@ export default function UnifiedSettingsPage() {
             </div>
           </div>
 
-          {/* Role Selection Tabs */}
-          <div className="flex border-b overflow-x-auto bg-slate-50/60 rounded-t-2xl px-2 pt-2 gap-1">
-            {Object.values(ROLES)
-              .filter((r) => r !== "SUPER_ADMIN" && (isChteAdmin || r !== "CHTE_ADMIN"))
-              .map((r) => {
-                const roleLabels: Record<string, string> = {
-                  PRINCIPAL: "🎓 College Principal",
-                  BS_CONTROLLER: "📋 BS Coordinator / Controller",
-                  BS_FACULTY: "👨‍🏫 BS Faculty",
-                  INTER_FACULTY: "🧑‍🏫 Intermediate Faculty",
-                  COLLEGE_ADMIN: "🏛️ College Admin",
-                  STUDENT: "🎒 Student",
-                  GUEST: "👥 Guest User",
-                  CHTE_ADMIN: "🏛️ CHTE Directorate Admin",
-                };
-                return (
-                  <button
-                    key={r}
-                    className={`px-5 py-3 font-bold text-xs whitespace-nowrap transition-all rounded-t-xl flex items-center gap-1.5 ${
-                      activeRole === r
-                        ? "bg-white text-indigo-700 shadow-xs border-t border-x border-slate-200 font-black scale-102"
-                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/60"
-                    }`}
-                    onClick={() => setActiveRole(r)}
-                  >
-                    <span>{roleLabels[r] || r.replace(/_/g, " ")}</span>
-                  </button>
-                );
-              })}
+          {/* Role Selection Tabs (Only CHTE Directorate Admin & College Admin) */}
+          <div className="flex border-b overflow-x-auto bg-slate-50/60 rounded-t-2xl px-2 pt-2 gap-2">
+            {[
+              { key: "CHTE_ADMIN", label: "🏛️ CHTE Directorate Admin", desc: "Central Apex Governance & Provincial Oversight" },
+              { key: "COLLEGE_ADMIN", label: "🏛️ College Admin", desc: "Campus Administration & Local Institutional Setup" },
+            ].map(({ key: r, label }) => {
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  className={`px-6 py-3 font-bold text-xs whitespace-nowrap transition-all rounded-t-xl flex items-center gap-2 ${
+                    activeRole === r
+                      ? "bg-white text-indigo-700 shadow-xs border-t border-x border-slate-200 font-black scale-102"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/60"
+                  }`}
+                  onClick={() => setActiveRole(r)}
+                >
+                  <span>{label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Search & Filter Toolbar */}

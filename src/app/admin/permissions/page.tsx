@@ -39,12 +39,8 @@ interface PermissionItem {
 }
 
 const ROLES_LIST = [
-  { key: "PRINCIPAL", label: "College Principal", desc: "Executive oversight, financial approvals & reports" },
-  { key: "BS_CONTROLLER", label: "BS Coordinator / Controller", desc: "Manages examinations, marks, gazette, results" },
-  { key: "BS_FACULTY", label: "BS Teaching Faculty", desc: "Enters marks, attendance, and views assigned courses" },
-  { key: "INTER_FACULTY", label: "Intermediate Faculty", desc: "Intermediate admissions, classes, and attendance" },
-  { key: "COLLEGE_ADMIN", label: "College Administrator", desc: "Institutional administration and setup" },
-  { key: "STUDENT", label: "Student Account", desc: "Personal portal, results, dues, and syllabus" },
+  { key: "CHTE_ADMIN", label: "🏛️ CHTE Directorate Admin", desc: "Central Apex Governance & Provincial Oversight" },
+  { key: "COLLEGE_ADMIN", label: "🏛️ College Admin", desc: "Campus Administration & Local Institutional Setup" },
 ];
 
 export default function RolePermissionsPage() {
@@ -52,7 +48,7 @@ export default function RolePermissionsPage() {
   const userRole = (session?.user as any)?.role;
   const isChte = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
 
-  const [selectedRole, setSelectedRole] = useState("PRINCIPAL");
+  const [selectedRole, setSelectedRole] = useState("CHTE_ADMIN");
   const [rolePerms, setRolePerms] = useState<RolePerm[]>([]);
   const [permissions, setPermissions] = useState<PermissionItem[]>([]);
   const [localMatrix, setLocalMatrix] = useState<Record<string, boolean>>({});
@@ -224,8 +220,8 @@ export default function RolePermissionsPage() {
         </div>
       )}
 
-      {/* Role Selector Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      {/* Role Selector Tabs (Only CHTE Directorate Admin & College Admin) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
         {ROLES_LIST.map((r) => {
           const active = selectedRole === r.key;
           return (
