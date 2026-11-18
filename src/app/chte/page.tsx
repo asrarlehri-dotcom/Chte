@@ -65,7 +65,7 @@ export default function ChteMasterDashboardPage() {
   const userRole = (session?.user as any)?.role;
   const isChteAdmin = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
 
-  const [activeTab, setActiveTab] = useState<"SETTINGS" | "COLLEGES" | "OVERVIEW">("SETTINGS");
+  const [activeTab, setActiveTab] = useState<"SETTINGS" | "COLLEGES" | "OVERVIEW">("COLLEGES");
   const [colleges, setColleges] = useState<CollegeItem[]>([]);
   const [loadingColleges, setLoadingColleges] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

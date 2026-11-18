@@ -114,13 +114,6 @@ export function Sidebar() {
           icon: LayoutDashboard,
         },
         {
-          key: "chte-homepage-setup",
-          href: "/admin/settings",
-          label: "Master Homepage",
-          badge: "Live",
-          icon: Landmark,
-        },
-        {
           key: "chte-colleges",
           href: "/chte/colleges",
           label: "Colleges Management",

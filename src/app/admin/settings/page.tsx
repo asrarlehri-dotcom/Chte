@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { ShieldAlert, Search, Check, X, ShieldCheck, Filter } from "lucide-react";
 import { MODULES, ACTIONS, ROLES } from "@/lib/permissions";
-import HomepageSettingsTab from "@/components/admin/HomepageSettingsTab";
 
 // Type definitions
 type Subject = {
@@ -67,16 +66,8 @@ export default function UnifiedSettingsPage() {
   const userRole = (session?.user as any)?.role;
   const isChteAdmin = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
 
-  const [activeTab, setActiveTab] = useState<"HOMEPAGE" | "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA">(
-    userRole && !isChteAdmin ? "ACADEMIC" : "HOMEPAGE"
-  );
+  const [activeTab, setActiveTab] = useState<"ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA">("ACADEMIC");
   const [msg, setMsg] = useState({ type: "", text: "" });
-
-  useEffect(() => {
-    if (session && !isChteAdmin && activeTab === "HOMEPAGE") {
-      setActiveTab("ACADEMIC");
-    }
-  }, [session, isChteAdmin, activeTab]);
 
   // Dummy Data Management States
   const [seedingLoading, setSeedingLoading] = useState(false);
@@ -938,7 +929,6 @@ export default function UnifiedSettingsPage() {
     fetchPermissions();
   }, [(session?.user as any)?.collegeId]);
 
-  const [focusedHomepageSec, setFocusedHomepageSec] = useState<string | undefined>();
   const [activeAcademicSub, setActiveAcademicSub] = useState<string>("depts-list");
   const [activeFeeSub, setActiveFeeSub] = useState<string>("base-fees");
 
@@ -951,14 +941,7 @@ export default function UnifiedSettingsPage() {
   }, [msg]);
 
   // Tab change handler
-  const handleTabChange = (tab: "HOMEPAGE" | "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA") => {
-    if (tab === "HOMEPAGE" && !isChteAdmin) {
-      setMsg({
-        type: "error",
-        text: "Access Denied: Master Homepage settings can only be modified by Central Super Administrators.",
-      });
-      return;
-    }
+  const handleTabChange = (tab: "ACADEMIC" | "FEES" | "PERMISSIONS" | "DATA") => {
     setActiveTab(tab);
     setMsg({ type: "", text: "" });
   };
@@ -980,61 +963,7 @@ export default function UnifiedSettingsPage() {
 
         {/* Hover Dropdown Mega Menu Bar */}
         <div className="flex bg-gray-50 p-1.5 rounded-xl border border-gray-200/60 max-w-5xl overflow-visible relative z-30">
-          {/* TAB 0: MASTER HOMEPAGE (ONLY FOR CHTE SUPER ADMIN) */}
-          {isChteAdmin && (
-            <div className="group relative flex-1 min-w-[170px]">
-              <button
-                onClick={() => handleTabChange("HOMEPAGE")}
-                className={`w-full py-2.5 px-3 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === "HOMEPAGE"
-                    ? "bg-[#0c5938] text-white shadow-sm font-black"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <span>🏛️ Master Homepage</span>
-                <span className="text-[10px] opacity-75">▼</span>
-              </button>
-
-              {/* Hover Sub-Menu Dropdown */}
-              <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-                <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Master Homepage Settings:
-                </div>
-                <button
-                  onClick={() => { handleTabChange("HOMEPAGE"); setFocusedHomepageSec("colors"); }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-emerald-50 hover:text-[#0c5938] flex items-center gap-2 transition-colors"
-                >
-                  <span>🎨</span> Background Colors & Emerald Theme
-                </button>
-                <button
-                  onClick={() => { handleTabChange("HOMEPAGE"); setFocusedHomepageSec("scenery"); }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-emerald-50 hover:text-[#0c5938] flex items-center gap-2 transition-colors"
-                >
-                  <span>🌄</span> Hero Scenery Photo & Zoom Framing
-                </button>
-                <button
-                  onClick={() => { handleTabChange("HOMEPAGE"); setFocusedHomepageSec("titles"); }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-emerald-50 hover:text-[#0c5938] flex items-center gap-2 transition-colors"
-                >
-                  <span>📝</span> Main Headline, Motto & Subtitles
-                </button>
-                <button
-                  onClick={() => { handleTabChange("HOMEPAGE"); setFocusedHomepageSec("ticker"); }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-emerald-50 hover:text-[#0c5938] flex items-center gap-2 transition-colors"
-                >
-                  <span>📣</span> Animated Marquee News Ticker
-                </button>
-                <button
-                  onClick={() => { handleTabChange("HOMEPAGE"); setFocusedHomepageSec("leadership"); }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-emerald-50 hover:text-[#0c5938] flex items-center gap-2 transition-colors"
-                >
-                  <span>🌟</span> Provincial Leadership & Profiles (Zoom/Pan)
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: ACADEMIC SETUP */}
+          {/* TAB 1: ACADEMIC SETUP */}
           <div className="group relative flex-1 min-w-[140px]">
             <button
               onClick={() => handleTabChange("ACADEMIC")}
@@ -1216,15 +1145,6 @@ export default function UnifiedSettingsPage() {
           }`}>
           {msg.text}
         </div>
-      )}
-
-      {/* ----------------------------------------------------
-          TAB 0: MASTER HOMEPAGE CONTROL PANEL
-          ---------------------------------------------------- */}
-      {isChteAdmin && activeTab === "HOMEPAGE" && (
-        <HomepageSettingsTab
-          focusedSection={focusedHomepageSec}
-        />
       )}
 
       {/* ----------------------------------------------------
