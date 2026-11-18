@@ -38,11 +38,6 @@ const ROLES_LIST = [
     label: "🏛️ CHTE Directorate Admin",
     desc: "Central Apex Governance & Provincial Oversight",
   },
-  {
-    key: "COLLEGE_ADMIN",
-    label: "🏛️ College Admin",
-    desc: "Campus Administration & Local Institutional Setup",
-  },
 ];
 
 const ACTIONS_LIST = ["VIEW", "ADD", "EDIT", "DELETE", "APPROVE"] as const;
@@ -216,7 +211,7 @@ export default function RolePermissionsPage() {
             {isChte ? "Role Permissions Control" : "College Staff Role Permissions"}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Configure system-wide module-level and action-level credentials for CHTE Directorate and College Admin.
+            Configure system-wide module-level and action-level credentials for CHTE Directorate Admin.
           </p>
         </div>
 
@@ -227,7 +222,7 @@ export default function RolePermissionsPage() {
             disabled={saving || loading}
             className="px-3.5 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl transition-all disabled:opacity-50"
           >
-            Grant All for {selectedRole === "CHTE_ADMIN" ? "CHTE Admin" : "College Admin"}
+            Grant All for CHTE Directorate Admin
           </button>
           <button
             type="button"
@@ -261,31 +256,22 @@ export default function RolePermissionsPage() {
         </div>
       )}
 
-      {/* Role Selector Tabs (Only CHTE Directorate Admin & College Admin) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
-        {ROLES_LIST.map((r) => {
-          const active = selectedRole === r.key;
-          return (
-            <button
-              key={r.key}
-              onClick={() => setSelectedRole(r.key)}
-              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
-                active
-                  ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/25 scale-[1.02]"
-                  : "bg-slate-900/60 hover:bg-slate-900 text-slate-300 border-slate-800"
-              }`}
-            >
-              <div className="text-xs font-bold truncate">{r.label}</div>
-              <div
-                className={`text-[10px] mt-0.5 font-mono truncate ${
-                  active ? "text-blue-200" : "text-slate-500"
-                }`}
-              >
-                {r.desc}
-              </div>
-            </button>
-          );
-        })}
+      {/* Role Selection Badge (CHTE Directorate Admin) */}
+      <div className="max-w-md">
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/40 via-slate-900 to-slate-900 border border-blue-500/30 text-white shadow-lg flex items-center justify-between gap-4">
+          <div>
+            <div className="text-xs font-black text-white flex items-center gap-2">
+              <span className="text-base">🏛️</span>
+              <span>CHTE Directorate Admin</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                Apex Role
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Central Directorate Governance. (College Admins operate with autonomous full access within their campus).
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Search & Filter Toolbar */}
