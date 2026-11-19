@@ -290,6 +290,7 @@ export default function CollegePortalHomePage() {
   }
 
   const s = college.portalSettings;
+  const collegeHomeUrl = `/colleges/${college.code.toLowerCase()}`;
   const loginUrl = `/login?collegeId=${college.id}&institute=${college.code}`;
   const admissionUrl = `/admission?collegeId=${college.id}&institute=${college.code}`;
 
@@ -315,7 +316,15 @@ export default function CollegePortalHomePage() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
           {/* Top Left Nav Links */}
           <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-[11px] tracking-wider uppercase">
-            <Link href="/" className="text-slate-300 hover:text-white transition-colors">
+            <Link
+              href={collegeHomeUrl}
+              onClick={() => {
+                if (typeof window !== "undefined" && window.location.pathname.toLowerCase().startsWith(`/colleges/${college.code.toLowerCase()}`)) {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+              className="text-slate-300 hover:text-white transition-colors"
+            >
               HOME
             </Link>
             <Link href={loginUrl} className="text-amber-400 hover:text-amber-300 transition-colors font-black">
@@ -426,13 +435,21 @@ export default function CollegePortalHomePage() {
       >
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           {/* Logo & College Details */}
-          <div className="flex items-center gap-3.5">
+          <Link
+            href={collegeHomeUrl}
+            onClick={() => {
+              if (typeof window !== "undefined" && window.location.pathname.toLowerCase().startsWith(`/colleges/${college.code.toLowerCase()}`)) {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            className="flex items-center gap-3.5 group hover:opacity-95 transition-opacity"
+          >
             {college.logoUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={college.logoUrl}
                 alt={college.name}
-                className="w-16 h-16 object-contain rounded-2xl bg-white/10 p-1 border border-white/20 flex-shrink-0 shadow-lg"
+                className="w-16 h-16 object-contain rounded-2xl bg-white/10 p-1 border border-white/20 flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                   const fallback = e.currentTarget.parentElement?.querySelector(".header-portal-badge") as HTMLElement;
@@ -441,14 +458,14 @@ export default function CollegePortalHomePage() {
               />
             ) : null}
             <div
-              className="header-portal-badge w-16 h-16 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-500 text-white font-black text-xl flex items-center justify-center shadow-lg border border-white/20 flex-shrink-0"
+              className="header-portal-badge w-16 h-16 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-500 text-white font-black text-xl flex items-center justify-center shadow-lg border border-white/20 flex-shrink-0 group-hover:scale-105 transition-transform"
               style={{ display: college.logoUrl ? "none" : "flex" }}
             >
               {college.code.substring(0, 3)}
             </div>
 
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide uppercase leading-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide uppercase leading-tight group-hover:text-amber-200 transition-colors">
                 {college.name}
               </h1>
               <p className="text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-widest mt-0.5">
@@ -457,7 +474,7 @@ export default function CollegePortalHomePage() {
                   : `${college.district?.toUpperCase() || "QUETTA, BALOCHISTAN"} • AFFILIATED INSTITUTION & CMS PORTAL`}
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Right Navigation Dropdowns & CTA */}
           <div className="flex items-center gap-2 sm:gap-4 text-xs font-bold">
@@ -1215,8 +1232,12 @@ export default function CollegePortalHomePage() {
             © {new Date().getFullYear()} {college.name} • Government of Balochistan. All rights reserved.
           </div>
           <div className="flex items-center gap-4">
+            <Link href={collegeHomeUrl} className="hover:text-white transition-colors">
+              Campus Home
+            </Link>
+            <span>•</span>
             <Link href="/" className="hover:text-white transition-colors">
-              CHTE Balochistan
+              CHTE Central Portal
             </Link>
             <span>•</span>
             <Link href={loginUrl} className="hover:text-amber-400 font-bold transition-colors">
