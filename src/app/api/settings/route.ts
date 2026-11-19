@@ -28,6 +28,7 @@ export async function GET(request: Request) {
       COLLEGE_TAGLINE: college?.tagline || "College of Higher Education & Research",
       COLLEGE_ADDRESS: college?.address || "Quetta, Balochistan, Pakistan",
       COLLEGE_CODE: college?.code || "GPGCQ",
+      COLLEGE_SIDEBAR_BG: "#090E24",
       CHALLAN_BANK_ACCOUNT: college?.bankAccount || "08730001324203",
       CHALLAN_BANK_NAME: college?.bankName || "Habib Bank Limited (HBL)",
       CHALLAN_BRANCH_CODE: college?.branchCode || "0873",
@@ -73,6 +74,19 @@ export async function GET(request: Request) {
       }
       // Guarantee institutional identity fields always match the College record if present
       if (college.name) config.COLLEGE_NAME = college.name;
+
+      // Extract custom sidebar color from portal-settings if set
+      const portalRec = collegeSettings.find((s) => s.key === `${college.id}:PORTAL_SETTINGS`);
+      if (portalRec) {
+        try {
+          const parsed = JSON.parse(portalRec.value);
+          if (parsed.sidebarColor) config.COLLEGE_SIDEBAR_BG = parsed.sidebarColor;
+        } catch {}
+      }
+      const customSidebarRec = collegeSettings.find((s) => s.key === `COLLEGE_SIDEBAR_BG_${college.id}` || s.key === "COLLEGE_SIDEBAR_BG");
+      if (customSidebarRec?.value) {
+        config.COLLEGE_SIDEBAR_BG = customSidebarRec.value;
+      }
       if (college.logoUrl) config.COLLEGE_LOGO = college.logoUrl;
       if (college.tagline) config.COLLEGE_TAGLINE = college.tagline;
       if (college.address) config.COLLEGE_ADDRESS = college.address;

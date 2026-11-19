@@ -11,6 +11,7 @@ export type SystemConfig = {
   COLLEGE_TAGLINE?: string;
   COLLEGE_ADDRESS?: string;
   COLLEGE_CODE?: string;
+  COLLEGE_SIDEBAR_BG?: string;
   CHALLAN_BANK_ACCOUNT?: string;
   CHALLAN_BANK_NAME?: string;
   CHALLAN_BRANCH_CODE?: string;
@@ -64,5 +65,6 @@ export function useSettings() {
     collegeAddress: settings.COLLEGE_ADDRESS || (userCollegeId ? "Balochistan, Pakistan" : "Quetta, Balochistan, Pakistan"),
     collegeCode: sessionUser?.collegeCode || settings.COLLEGE_CODE || "",
     collegeId: userCollegeId || null,
+    collegeSidebarBg: settings.COLLEGE_SIDEBAR_BG || settings.sidebarColor || "#090E24",
   };
 }

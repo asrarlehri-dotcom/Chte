@@ -82,6 +82,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     primaryColor: "#040d1a",
     ribbonColor: "#dc2626", // Red patii
     bodyBgColor: "#070d19",
+    sidebarColor: "#090E24", // Sidebar ERP background color
 
     // Hero Media
     heroBgType: "IMAGE" as "IMAGE" | "VIDEO",
@@ -177,6 +178,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           primaryColor: data.primaryColor || "#040d1a",
           ribbonColor: data.ribbonColor || "#dc2626",
           bodyBgColor: data.bodyBgColor || "#070d19",
+          sidebarColor: data.sidebarColor || "#090E24",
 
           heroBgType: data.heroBgType || "IMAGE",
           heroBgUrl: data.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
@@ -246,6 +248,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       primaryColor: formData.primaryColor,
       ribbonColor: formData.ribbonColor,
       bodyBgColor: formData.bodyBgColor,
+      sidebarColor: formData.sidebarColor,
 
       heroBgType: formData.heroBgType,
       heroBgUrl: formData.heroImages?.[0] || formData.heroBgUrl,
@@ -284,8 +287,15 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
         setMsg({ type: "success", text: "College Portal, Photos, Videos & Featured Profiles saved successfully!" });
         if (typeof window !== "undefined" && selectedCollege) {
           try {
-            if (selectedCollege.code) localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, formData.ribbonColor);
-            if (selectedCollege.id) localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, formData.ribbonColor);
+            if (selectedCollege.code) {
+              localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, formData.ribbonColor);
+              localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, formData.sidebarColor);
+            }
+            if (selectedCollege.id) {
+              localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, formData.ribbonColor);
+              localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, formData.sidebarColor);
+            }
+            window.dispatchEvent(new CustomEvent("college-theme-change", { detail: { sidebarColor: formData.sidebarColor } }));
           } catch { }
         }
       } else {
@@ -457,7 +467,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               {/* Color 1: Ribbon Bar ("Red Patii") */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between">
@@ -608,6 +618,114 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                         {c.name}
                       </button>
                     ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Color 4: Sidebar Background Color (سائیڈ بار رنگ) */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">
+                    Sidebar Background (سائیڈ بار رنگ)
+                  </label>
+                  <div
+                    className="w-6 h-6 rounded-md border border-slate-300 shadow-inner"
+                    style={{ backgroundColor: formData.sidebarColor }}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={formData.sidebarColor}
+                    onChange={(e) => setFormData({ ...formData, sidebarColor: e.target.value })}
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 bg-transparent p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.sidebarColor}
+                    onChange={(e) => setFormData({ ...formData, sidebarColor: e.target.value })}
+                    className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800"
+                  />
+                </div>
+
+                {/* Quick Presets for Sidebar */}
+                <div className="pt-2">
+                  <span className="text-[10px] font-bold text-slate-400 block mb-1.5 uppercase">Quick Presets:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { name: "Navy", hex: "#090E24" },
+                      { name: "Slate 900", hex: "#0f172a" },
+                      { name: "Emerald", hex: "#064e3b" },
+                      { name: "Indigo", hex: "#1e1b4b" },
+                      { name: "Midnight", hex: "#020617" },
+                      { name: "Burgundy", hex: "#450a0a" },
+                    ].map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, sidebarColor: c.hex })}
+                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white shadow-xs hover:scale-105 transition-transform"
+                        style={{ backgroundColor: c.hex }}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Interactive Sidebar Color & Header Preview */}
+            <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-200">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <span>🎨 Live Sidebar Preview (White Header + Custom Color)</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold text-slate-500">
+                  Header: Pure White (#FFFFFF) • Sidebar: {formData.sidebarColor}
+                </span>
+              </div>
+              <div className="max-w-xs rounded-2xl overflow-hidden shadow-lg border border-slate-300">
+                {/* White Logo & Full Name Header */}
+                <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center gap-3">
+                  {formData.logoUrl ? (
+                    <img
+                      src={formData.logoUrl}
+                      alt="College Logo"
+                      className="w-10 h-10 object-contain rounded-xl bg-slate-50 p-1 border border-slate-200 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0">
+                      {selectedCollege?.code?.substring(0, 3) || "GDC"}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-black text-slate-900 leading-tight uppercase">
+                      {formData.collegeName || selectedCollege?.name || "Govt. Post Graduate College Quetta"}
+                    </div>
+                    <div className="text-[9px] text-indigo-700 font-black uppercase tracking-wider mt-0.5">
+                      CAMPUS ERP PORTAL
+                    </div>
+                  </div>
+                </div>
+
+                {/* Custom-Colored Sidebar Body */}
+                <div
+                  className="p-3.5 space-y-2 text-xs transition-colors duration-200"
+                  style={{ backgroundColor: formData.sidebarColor }}
+                >
+                  <div className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-sm flex items-center justify-between">
+                    <span>📊 Dashboard</span>
+                    <span className="text-[9px] bg-white/20 px-1.5 py-0.2 rounded font-black">Active</span>
+                  </div>
+                  <div className="px-3 py-2 rounded-xl text-slate-200/90 hover:bg-white/10 text-xs font-medium flex items-center justify-between">
+                    <span>👥 Admissions</span>
+                    <span className="text-slate-400">›</span>
+                  </div>
+                  <div className="px-3 py-2 rounded-xl text-slate-200/90 hover:bg-white/10 text-xs font-medium flex items-center justify-between">
+                    <span>🎓 Students & Enrollment</span>
+                    <span className="text-slate-400">›</span>
                   </div>
                 </div>
               </div>

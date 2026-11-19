@@ -17,6 +17,7 @@ const DEFAULT_PORTAL_SETTINGS = {
   primaryColor: "#040d1a", // Deep dark navy header & top bar
   ribbonColor: "#dc2626", // Red patii (accent ribbon)
   bodyBgColor: "#070d19", // Dark body background matching uploaded design
+  sidebarColor: "#090E24", // Sidebar background color for Campus ERP
   textColor: "#ffffff",
   noticeTickerShow: true,
   noticeBadge: "DEVELOPMENT NOTICE:",
@@ -256,6 +257,15 @@ export async function POST(
         collegeId: college.id
       }
     });
+
+    if (body.sidebarColor) {
+      const sidebarKey = `COLLEGE_SIDEBAR_BG_${college.id}`;
+      await prisma.systemSetting.upsert({
+        where: { key: sidebarKey },
+        update: { value: body.sidebarColor, collegeId: college.id },
+        create: { key: sidebarKey, value: body.sidebarColor, collegeId: college.id }
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

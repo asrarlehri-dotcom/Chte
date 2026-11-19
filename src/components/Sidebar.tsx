@@ -49,7 +49,7 @@ export function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const { can } = usePermissions();
-  const { collegeName, collegeLogo } = useSettings();
+  const { collegeName, collegeLogo, collegeSidebarBg } = useSettings();
   const [chteGovtLogo, setChteGovtLogo] = useState<string>("/balochistan-seal.png");
 
   const sessionUser = session?.user as any;
@@ -67,6 +67,64 @@ export function Sidebar() {
   // Central CHTE login vs College-specific campus login
   const isCentral =
     role === "CHTE_ADMIN" || role === "SUPER_ADMIN" || !sessionUser?.collegeId;
+
+  // Dynamic College Sidebar Background Color (Theme Settings)
+  const [sidebarBgColor, setSidebarBgColor] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
+        if (cCode) {
+          const cached = localStorage.getItem(`college_sidebar_${cCode.toLowerCase()}`);
+          if (cached) return cached;
+        }
+        if (sessionUser?.collegeId) {
+          const cachedId = localStorage.getItem(`college_sidebar_${sessionUser.collegeId.toLowerCase()}`);
+          if (cachedId) return cachedId;
+        }
+      } catch {}
+    }
+    return "#090E24";
+  });
+
+  useEffect(() => {
+    if (collegeSidebarBg && collegeSidebarBg !== "#090E24") {
+      setSidebarBgColor(collegeSidebarBg);
+    }
+  }, [collegeSidebarBg]);
+
+  useEffect(() => {
+    const collegeKey = sessionUser?.collegeId || sessionUser?.collegeCode;
+    if (!isCentral && collegeKey) {
+      fetch(`/api/colleges/${encodeURIComponent(collegeKey)}/portal-settings`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.sidebarColor) {
+            setSidebarBgColor(data.sidebarColor);
+            if (typeof window !== "undefined") {
+              try {
+                if (sessionUser?.collegeCode) {
+                  localStorage.setItem(`college_sidebar_${sessionUser.collegeCode.toLowerCase()}`, data.sidebarColor);
+                }
+                if (sessionUser?.collegeId) {
+                  localStorage.setItem(`college_sidebar_${sessionUser.collegeId.toLowerCase()}`, data.sidebarColor);
+                }
+              } catch {}
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    const handleThemeEvent = (e: any) => {
+      if (e?.detail?.sidebarColor) {
+        setSidebarBgColor(e.detail.sidebarColor);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("college-theme-change", handleThemeEvent);
+      return () => window.removeEventListener("college-theme-change", handleThemeEvent);
+    }
+  }, [isCentral, sessionUser?.collegeId, sessionUser?.collegeCode]);
 
   useEffect(() => {
     if (isCentral) {
@@ -296,7 +354,10 @@ export function Sidebar() {
   const NAV_GROUPS = isCentral ? CENTRAL_NAV_GROUPS : COLLEGE_NAV_GROUPS;
 
   return (
-    <aside className="flex flex-col w-64 bg-[#090E24] text-slate-100 h-screen border-r border-slate-800/90 select-none shadow-2xl z-30 flex-shrink-0 print:hidden">
+    <aside
+      className="flex flex-col w-64 text-slate-100 h-screen border-r border-white/10 select-none shadow-2xl z-30 flex-shrink-0 print:hidden transition-colors duration-300"
+      style={{ backgroundColor: isCentral ? "#090E24" : sidebarBgColor }}
+    >
       {/* Top Header Logo */}
       {isCentral ? (
         <div className="px-4 py-4 border-b border-slate-800/90 flex items-center gap-3 bg-[#070C1E] relative overflow-hidden">
@@ -333,12 +394,13 @@ export function Sidebar() {
           </div>
         </div>
       ) : (
-        <div className="px-4 py-4 border-b border-slate-800/80 flex items-center gap-3 bg-[#080D21]">
+        /* College Campus Header with Pure White Background and Full Name */
+        <div className="px-4 py-3.5 bg-white border-b border-slate-200/90 flex items-center gap-3 shadow-xs">
           {collegeLogo ? (
             <img
               src={collegeLogo}
-              alt="Logo"
-              className="w-10 h-10 object-contain rounded-xl bg-slate-800/60 p-1 border border-slate-700/50"
+              alt={collegeName || "Logo"}
+              className="w-11 h-11 object-contain rounded-xl bg-slate-50 p-1 border border-slate-200/90 flex-shrink-0 shadow-xs"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
                 const fallback = e.currentTarget.parentElement?.querySelector(".sidebar-fallback-badge") as HTMLElement;
@@ -347,17 +409,25 @@ export function Sidebar() {
             />
           ) : null}
           <div
-            className="sidebar-fallback-badge w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white font-extrabold text-xs flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-indigo-400/30 flex-shrink-0"
+            className="sidebar-fallback-badge w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-indigo-500/20 border border-indigo-200 flex-shrink-0"
             style={{ display: collegeLogo ? "none" : "flex" }}
           >
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-extrabold text-white tracking-wider leading-snug uppercase truncate">
+            <div
+              className="text-xs font-black text-slate-900 tracking-wide leading-tight uppercase line-clamp-2"
+              title={collegeName || "Govt. Degree College"}
+            >
               {collegeName || "Govt. Degree College"}
             </div>
-            <div className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest mt-0.5">
-              CAMPUS ERP PORTAL
+            <div className="text-[9px] text-indigo-700 font-black uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
+              <span>CAMPUS ERP PORTAL</span>
+              {sessionUser?.collegeCode && (
+                <span className="text-[8px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200/60 font-black">
+                  {sessionUser.collegeCode}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -449,8 +519,8 @@ export function Sidebar() {
       </div>
 
       {/* Help Card Footer */}
-      <div className="p-3.5 border-t border-slate-800/80 bg-[#070C1E]">
-        <div className="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 space-y-2">
+      <div className="p-3.5 border-t border-white/10 bg-black/25 backdrop-blur-xs">
+        <div className="bg-black/30 rounded-2xl p-3 border border-white/10 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-slate-200">
               <HelpCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -464,7 +534,7 @@ export function Sidebar() {
               </span>
             )}
           </div>
-          <p className="text-[10px] text-slate-400 font-medium">
+          <p className="text-[10px] text-slate-300 font-medium">
             {isCentral
               ? "Central IT Cell & Support"
               : "Contact campus support team"}
@@ -475,14 +545,14 @@ export function Sidebar() {
                 ? "mailto:support@chte.gob.pk"
                 : "mailto:support@college.edu"
             }
-            className="block w-full text-center py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-[11px] rounded-xl transition-colors border border-slate-700/60"
+            className="block w-full text-center py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] rounded-xl transition-colors border border-white/15"
           >
             {isCentral ? "CHTE Support" : "Get Support"}
           </a>
         </div>
 
         {/* User Quick Info */}
-        <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-slate-800/60">
+        <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-white/10">
           <div className="flex items-center gap-2 min-w-0">
             <div
               className={`w-7 h-7 rounded-lg font-bold text-[10px] flex items-center justify-center border flex-shrink-0 ${isCentral
@@ -496,7 +566,7 @@ export function Sidebar() {
               <div className="text-xs font-bold text-white truncate">
                 {userName}
               </div>
-              <div className="text-[9.5px] text-slate-400 truncate">
+              <div className="text-[9.5px] text-slate-300 truncate">
                 {isCentral
                   ? role === "CHTE_ADMIN"
                     ? "CHTE Administrator"
@@ -508,7 +578,7 @@ export function Sidebar() {
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             title="Sign Out"
-            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0"
+            className="p-1.5 text-slate-300 hover:text-rose-400 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
           >
             <LogOut className="w-4 h-4" />
           </button>
