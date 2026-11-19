@@ -87,6 +87,9 @@ type PortalSettings = {
   primaryColor: string;
   ribbonColor: string; // The "red patii"
   bodyBgColor: string;
+  sidebarBgColor?: string;
+  collegeNameColor?: string;
+  customColors?: string[];
   textColor: string;
   noticeTickerShow: boolean;
   noticeBadge: string;
@@ -465,7 +468,10 @@ export default function CollegePortalHomePage() {
             </div>
 
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-wide uppercase leading-tight group-hover:text-amber-200 transition-colors">
+              <h1 
+                className="text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight group-hover:text-amber-200 transition-colors"
+                style={{ color: s.collegeNameColor || "#ffffff" }}
+              >
                 {college.name}
               </h1>
               <p className="text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-widest mt-0.5">

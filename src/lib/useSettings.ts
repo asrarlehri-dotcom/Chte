@@ -66,5 +66,6 @@ export function useSettings() {
     collegeCode: sessionUser?.collegeCode || settings.COLLEGE_CODE || "",
     collegeId: userCollegeId || null,
     collegeSidebarBg: settings.COLLEGE_SIDEBAR_BG || settings.sidebarColor || "#090E24",
+    collegeNameColor: settings.COLLEGE_NAME_COLOR || settings.collegeNameColor || "#0f172a",
   };
 }

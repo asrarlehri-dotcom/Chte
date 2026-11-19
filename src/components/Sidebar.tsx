@@ -49,7 +49,7 @@ export function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const { can } = usePermissions();
-  const { collegeName, collegeLogo, collegeSidebarBg } = useSettings();
+  const { collegeName, collegeLogo, collegeSidebarBg, collegeNameColor: hookCollegeNameColor } = useSettings();
   const [chteGovtLogo, setChteGovtLogo] = useState<string>("/balochistan-seal.png");
 
   const sessionUser = session?.user as any;
@@ -86,11 +86,35 @@ export function Sidebar() {
     return "#090E24";
   });
 
+  // Dynamic College Name Color (Theme Settings)
+  const [collegeNameColor, setCollegeNameColor] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
+        if (cCode) {
+          const cached = localStorage.getItem(`college_name_color_${cCode.toLowerCase()}`);
+          if (cached) return cached;
+        }
+        if (sessionUser?.collegeId) {
+          const cachedId = localStorage.getItem(`college_name_color_${sessionUser.collegeId.toLowerCase()}`);
+          if (cachedId) return cachedId;
+        }
+      } catch {}
+    }
+    return "#0f172a";
+  });
+
   useEffect(() => {
     if (collegeSidebarBg && collegeSidebarBg !== "#090E24") {
       setSidebarBgColor(collegeSidebarBg);
     }
   }, [collegeSidebarBg]);
+
+  useEffect(() => {
+    if (hookCollegeNameColor && hookCollegeNameColor !== "#0f172a") {
+      setCollegeNameColor(hookCollegeNameColor);
+    }
+  }, [hookCollegeNameColor]);
 
   useEffect(() => {
     const collegeKey = sessionUser?.collegeId || sessionUser?.collegeCode;
@@ -111,6 +135,19 @@ export function Sidebar() {
               } catch {}
             }
           }
+          if (data?.collegeNameColor) {
+            setCollegeNameColor(data.collegeNameColor);
+            if (typeof window !== "undefined") {
+              try {
+                if (sessionUser?.collegeCode) {
+                  localStorage.setItem(`college_name_color_${sessionUser.collegeCode.toLowerCase()}`, data.collegeNameColor);
+                }
+                if (sessionUser?.collegeId) {
+                  localStorage.setItem(`college_name_color_${sessionUser.collegeId.toLowerCase()}`, data.collegeNameColor);
+                }
+              } catch {}
+            }
+          }
         })
         .catch(() => {});
     }
@@ -118,6 +155,9 @@ export function Sidebar() {
     const handleThemeEvent = (e: any) => {
       if (e?.detail?.sidebarColor) {
         setSidebarBgColor(e.detail.sidebarColor);
+      }
+      if (e?.detail?.collegeNameColor) {
+        setCollegeNameColor(e.detail.collegeNameColor);
       }
     };
     if (typeof window !== "undefined") {
@@ -416,7 +456,8 @@ export function Sidebar() {
           </div>
           <div className="min-w-0 flex-1">
             <div
-              className="text-xs font-black text-slate-900 tracking-wide leading-tight uppercase line-clamp-2"
+              className="text-xs font-black tracking-wide leading-tight uppercase line-clamp-2 transition-colors duration-200"
+              style={{ color: collegeNameColor || "#0f172a" }}
               title={collegeName || "Govt. Degree College"}
             >
               {collegeName || "Govt. Degree College"}
