@@ -26,7 +26,13 @@ import {
   ZoomOut,
   Move,
   RotateCcw,
-  Landmark
+  Landmark,
+  Wand2,
+  Scissors,
+  Pipette,
+  Check,
+  Eye,
+  Undo2
 } from "lucide-react";
 
 type CollegeOption = {
@@ -84,6 +90,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     bodyBgColor: "#070d19",
     sidebarColor: "#090E24", // Sidebar ERP background color
     collegeNameColor: "#0f172a", // Custom College Name font color
+    collegeHeaderBg: "#ffffff", // Custom College Header Box background color
+    originalLogoUrl: "", // Preserves original unedited logo before background removal
     customColors: [] as string[], // User added custom color presets palette
 
     // Hero Media
@@ -148,6 +156,245 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       ...prev,
       customColors: prev.customColors.filter((c) => c !== colorToRemove),
     }));
+  };
+
+  // Logo Background Remover State (MS Word Style)
+  const [showBgRemoverModal, setShowBgRemoverModal] = useState(false);
+  const [bgRemoverProcessing, setBgRemoverProcessing] = useState(false);
+  const [bgTolerance, setBgTolerance] = useState<number>(28);
+  const [bgFeather, setBgFeather] = useState<number>(6);
+  const [bgMode, setBgMode] = useState<"contiguous" | "global">("contiguous");
+  const [bgCustomColor, setBgCustomColor] = useState<{ r: number; g: number; b: number } | null>(null);
+  const [bgPreviewUrl, setBgPreviewUrl] = useState<string>("");
+  const [bgPreviewTab, setBgPreviewTab] = useState<"checker" | "theme" | "dark" | "white">("checker");
+
+  const loadSafeImage = (url: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => {
+        const fallback = new Image();
+        fallback.onload = () => resolve(fallback);
+        fallback.onerror = (err) => reject(new Error("Image failed to load: " + err));
+        fallback.src = url;
+      };
+      img.src = url;
+    });
+  };
+
+  const processLogoBackgroundRemoval = (
+    imgElement: HTMLImageElement,
+    options: {
+      targetColor?: { r: number; g: number; b: number } | null;
+      tolerance?: number;
+      feather?: number;
+      mode?: "contiguous" | "global";
+    } = {}
+  ): string => {
+    const {
+      tolerance = 28,
+      feather = 6,
+      mode = "contiguous",
+      targetColor = null,
+    } = options;
+
+    const canvas = document.createElement("canvas");
+    const width = imgElement.naturalWidth || imgElement.width || 400;
+    const height = imgElement.naturalHeight || imgElement.height || 400;
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return imgElement.src;
+
+    ctx.drawImage(imgElement, 0, 0, width, height);
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
+
+    let tr = 255, tg = 255, tb = 255;
+    if (targetColor) {
+      tr = targetColor.r;
+      tg = targetColor.g;
+      tb = targetColor.b;
+    } else {
+      const cornerIndices = [
+        0,
+        (width - 1) * 4,
+        ((height - 1) * width) * 4,
+        ((height - 1) * width + width - 1) * 4,
+      ];
+      let sumR = 0, sumG = 0, sumB = 0;
+      for (const idx of cornerIndices) {
+        sumR += data[idx];
+        sumG += data[idx + 1];
+        sumB += data[idx + 2];
+      }
+      tr = Math.round(sumR / 4);
+      tg = Math.round(sumG / 4);
+      tb = Math.round(sumB / 4);
+    }
+
+    const tolDist = (tolerance / 100) * 441.67;
+    const featherDist = Math.max(1, (feather / 100) * tolDist);
+
+    const colorDist = (r: number, g: number, b: number) => {
+      const dr = r - tr;
+      const dg = g - tg;
+      const db = b - tb;
+      return Math.sqrt(dr * dr + dg * dg + db * db);
+    };
+
+    if (mode === "global") {
+      for (let i = 0; i < data.length; i += 4) {
+        const dist = colorDist(data[i], data[i + 1], data[i + 2]);
+        if (dist <= tolDist - featherDist) {
+          data[i + 3] = 0;
+        } else if (dist <= tolDist) {
+          const factor = (dist - (tolDist - featherDist)) / featherDist;
+          data[i + 3] = Math.round(data[i + 3] * factor);
+        }
+      }
+    } else {
+      // Contiguous Flood Fill from borders
+      const visited = new Uint8Array(width * height);
+      const queue = new Int32Array(width * height);
+      let head = 0;
+      let tail = 0;
+
+      for (let x = 0; x < width; x++) {
+        const tIdx = x;
+        const tP = tIdx * 4;
+        if (colorDist(data[tP], data[tP + 1], data[tP + 2]) <= tolDist) {
+          visited[tIdx] = 1;
+          queue[tail++] = tIdx;
+        }
+        const bIdx = (height - 1) * width + x;
+        const bP = bIdx * 4;
+        if (colorDist(data[bP], data[bP + 1], data[bP + 2]) <= tolDist) {
+          visited[bIdx] = 1;
+          queue[tail++] = bIdx;
+        }
+      }
+
+      for (let y = 0; y < height; y++) {
+        const lIdx = y * width;
+        const lP = lIdx * 4;
+        if (!visited[lIdx] && colorDist(data[lP], data[lP + 1], data[lP + 2]) <= tolDist) {
+          visited[lIdx] = 1;
+          queue[tail++] = lIdx;
+        }
+        const rIdx = y * width + (width - 1);
+        const rP = rIdx * 4;
+        if (!visited[rIdx] && colorDist(data[rP], data[rP + 1], data[rP + 2]) <= tolDist) {
+          visited[rIdx] = 1;
+          queue[tail++] = rIdx;
+        }
+      }
+
+      while (head < tail) {
+        const curr = queue[head++];
+        const cx = curr % width;
+        const cy = Math.floor(curr / width);
+
+        const neighbors = [
+          cx > 0 ? curr - 1 : -1,
+          cx < width - 1 ? curr + 1 : -1,
+          cy > 0 ? curr - width : -1,
+          cy < height - 1 ? curr + width : -1,
+        ];
+
+        for (let n = 0; n < 4; n++) {
+          const next = neighbors[n];
+          if (next !== -1 && !visited[next]) {
+            const np = next * 4;
+            if (colorDist(data[np], data[np + 1], data[np + 2]) <= tolDist) {
+              visited[next] = 1;
+              queue[tail++] = next;
+            }
+          }
+        }
+      }
+
+      for (let i = 0; i < visited.length; i++) {
+        if (visited[i]) {
+          const p = i * 4;
+          const dist = colorDist(data[p], data[p + 1], data[p + 2]);
+          if (dist <= tolDist - featherDist) {
+            data[p + 3] = 0;
+          } else if (dist <= tolDist) {
+            const factor = (dist - (tolDist - featherDist)) / featherDist;
+            data[p + 3] = Math.round(data[p + 3] * factor);
+          }
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+    return canvas.toDataURL("image/png");
+  };
+
+  const handleInstantAutoRemoveBg = async () => {
+    const targetSource = formData.originalLogoUrl || formData.logoUrl;
+    if (!targetSource) {
+      setMsg({ type: "error", text: "Please upload a college logo first." });
+      return;
+    }
+    try {
+      setBgRemoverProcessing(true);
+      const img = await loadSafeImage(targetSource);
+      const transparentUrl = processLogoBackgroundRemoval(img, {
+        tolerance: 28,
+        feather: 6,
+        mode: "contiguous",
+      });
+      setFormData((prev) => ({
+        ...prev,
+        originalLogoUrl: prev.originalLogoUrl || prev.logoUrl,
+        logoUrl: transparentUrl,
+      }));
+      setMsg({ type: "success", text: "✨ 1-Click Background Removal applied! Logo is now completely transparent and clean on any background." });
+    } catch (err: any) {
+      setMsg({ type: "error", text: "Could not auto-process logo background: " + (err.message || "Unknown error") });
+    } finally {
+      setBgRemoverProcessing(false);
+    }
+  };
+
+  const handleRestoreOriginalLogo = () => {
+    if (formData.originalLogoUrl) {
+      setFormData((prev) => ({
+        ...prev,
+        logoUrl: prev.originalLogoUrl,
+        originalLogoUrl: "",
+      }));
+      setMsg({ type: "success", text: "↩️ Original unedited logo restored!" });
+    }
+  };
+
+  const updateModalPreview = async (
+    targetCol: { r: number; g: number; b: number } | null = bgCustomColor,
+    tol: number = bgTolerance,
+    fthr: number = bgFeather,
+    md: "contiguous" | "global" = bgMode
+  ) => {
+    const source = formData.originalLogoUrl || formData.logoUrl;
+    if (!source) return;
+    try {
+      setBgRemoverProcessing(true);
+      const img = await loadSafeImage(source);
+      const result = processLogoBackgroundRemoval(img, {
+        targetColor: targetCol,
+        tolerance: tol,
+        feather: fthr,
+        mode: md,
+      });
+      setBgPreviewUrl(result);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBgRemoverProcessing(false);
+    }
   };
 
   // Helper to upload any file directly (with serverless fallback)
@@ -215,6 +462,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           bodyBgColor: data.bodyBgColor || "#070d19",
           sidebarColor: data.sidebarColor || "#090E24",
           collegeNameColor: data.collegeNameColor || "#0f172a",
+          collegeHeaderBg: data.collegeHeaderBg || "#ffffff",
+          originalLogoUrl: data.originalLogoUrl || "",
           customColors: Array.isArray(data.customColors) ? data.customColors : [],
 
           heroBgType: data.heroBgType || "IMAGE",
@@ -287,6 +536,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       bodyBgColor: formData.bodyBgColor,
       sidebarColor: formData.sidebarColor,
       collegeNameColor: formData.collegeNameColor,
+      collegeHeaderBg: formData.collegeHeaderBg,
+      originalLogoUrl: formData.originalLogoUrl,
       customColors: formData.customColors,
 
       heroBgType: formData.heroBgType,
@@ -330,16 +581,19 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, formData.ribbonColor);
               localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, formData.sidebarColor);
               localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, formData.collegeNameColor);
+              localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, formData.collegeHeaderBg);
             }
             if (selectedCollege.id) {
               localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, formData.ribbonColor);
               localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, formData.sidebarColor);
               localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, formData.collegeNameColor);
+              localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, formData.collegeHeaderBg);
             }
             window.dispatchEvent(new CustomEvent("college-theme-change", {
               detail: {
                 sidebarColor: formData.sidebarColor,
-                collegeNameColor: formData.collegeNameColor
+                collegeNameColor: formData.collegeNameColor,
+                collegeHeaderBg: formData.collegeHeaderBg,
               }
             }));
           } catch { }
@@ -513,7 +767,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               {/* Color 1: Ribbon Bar ("Red Patii") */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 flex flex-col justify-between">
                 <div>
@@ -932,6 +1186,94 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   )}
                 </div>
               </div>
+
+              {/* Color 6: College Header / Box Background (کالج باکس کا پس منظر / رنگ) */}
+              <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 space-y-3 flex flex-col justify-between shadow-xs">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-black text-amber-950 flex items-center gap-1">
+                      <span>College Header Bg</span>
+                      <span className="text-[10px] text-amber-700 font-bold">(باکس بیک گراؤنڈ)</span>
+                    </label>
+                    <div
+                      className="w-6 h-6 rounded-md border border-amber-300 shadow-inner flex-shrink-0"
+                      style={{ backgroundColor: toSafeColor(formData.collegeHeaderBg, "#ffffff") }}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={toSafeColor(formData.collegeHeaderBg, "#ffffff")}
+                      onChange={(e) => setFormData({ ...formData, collegeHeaderBg: e.target.value })}
+                      className="w-10 h-10 rounded-lg cursor-pointer border border-amber-200 bg-transparent p-0.5 flex-shrink-0"
+                    />
+                    <input
+                      type="text"
+                      value={formData.collegeHeaderBg}
+                      onChange={(e) => setFormData({ ...formData, collegeHeaderBg: normalizeHex(e.target.value) })}
+                      placeholder="#ffffff"
+                      className="flex-1 bg-white border border-amber-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Presets for College Header Bg */}
+                <div className="pt-2 border-t border-amber-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-bold text-amber-600 uppercase">Presets:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomColor(formData.collegeHeaderBg)}
+                      className="text-[9px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-0.5"
+                      title="Save current color into custom presets"
+                    >
+                      <Plus className="w-2.5 h-2.5" /> Save
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { name: "White", hex: "#ffffff" },
+                      { name: "Slate 100", hex: "#f1f5f9" },
+                      { name: "Sidebar", hex: formData.sidebarColor || "#090E24" },
+                      { name: "Navy", hex: "#1e3a8a" },
+                      { name: "Emerald", hex: "#0c5938" },
+                      { name: "Crimson", hex: "#991b1b" },
+                      { name: "Gold", hex: "#d97706" },
+                    ].map((c) => (
+                      <button
+                        key={c.name}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, collegeHeaderBg: c.hex })}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-xs hover:scale-105 transition-transform ${
+                          c.hex === "#ffffff" || c.hex === "#f1f5f9" ? "text-slate-900 border border-slate-300 bg-white" : "text-white"
+                        }`}
+                        style={{ backgroundColor: c.hex }}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  {formData.customColors.length > 0 && (
+                    <div className="mt-2 pt-1.5 border-t border-amber-200">
+                      <span className="text-[9px] font-bold text-amber-800 uppercase block mb-1">My Saved Presets:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {formData.customColors.map((hex) => (
+                          <button
+                            key={hex}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, collegeHeaderBg: hex })}
+                            className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
+                            style={{ backgroundColor: hex }}
+                            title={`Apply ${hex} to College Header Box`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Dedicated Custom Color Palette Manager */}
@@ -1039,6 +1381,14 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           >
                             Header
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, collegeHeaderBg: hex })}
+                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-amber-600 hover:text-white text-slate-700 transition-colors"
+                            title="Apply to College Header Box"
+                          >
+                            Box
+                          </button>
                         </div>
 
                         <button
@@ -1064,20 +1414,23 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
                 <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <span>🎨 Live Sidebar Preview (White Header + Custom Color)</span>
+                  <span>🎨 Live Sidebar Preview (Custom Header Box + Theme Colors)</span>
                 </span>
                 <span className="text-[10px] font-mono font-bold text-slate-500">
-                  Header: Pure White (#FFFFFF) • Name: <span style={{ color: toSafeColor(formData.collegeNameColor, "#0f172a") }}>{formData.collegeNameColor || "#0f172a"}</span> • Sidebar: {formData.sidebarColor}
+                  Header Bg: {formData.collegeHeaderBg || "#FFFFFF"} • Name: <span style={{ color: toSafeColor(formData.collegeNameColor, "#0f172a") }}>{formData.collegeNameColor || "#0f172a"}</span> • Sidebar: {formData.sidebarColor}
                 </span>
               </div>
               <div className="max-w-xs rounded-2xl overflow-hidden shadow-lg border border-slate-300">
-                {/* White Logo & Full Name Header */}
-                <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center gap-3">
+                {/* Dynamic Logo & Full Name Header Box */}
+                <div 
+                  className="px-4 py-3 border-b border-slate-200 flex items-center gap-3 transition-colors duration-200"
+                  style={{ backgroundColor: formData.collegeHeaderBg || "#ffffff" }}
+                >
                   {formData.logoUrl ? (
                     <img
                       src={formData.logoUrl}
                       alt="College Logo"
-                      className="w-10 h-10 object-contain rounded-xl bg-slate-50 p-1 border border-slate-200 flex-shrink-0"
+                      className="w-10 h-10 object-contain flex-shrink-0"
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0">
@@ -1086,7 +1439,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   )}
                   <div className="min-w-0 flex-1">
                     <div
-                      className="text-xs font-black leading-tight uppercase transition-colors duration-200"
+                      className="text-xs font-black leading-tight uppercase transition-colors duration-200 line-clamp-2"
                       style={{ color: toSafeColor(formData.collegeNameColor, "#0f172a") }}
                     >
                       {formData.collegeName || selectedCollege?.name || "Govt. Post Graduate College Quetta"}
@@ -1114,6 +1467,66 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <span>🎓 Students & Enrollment</span>
                     <span className="text-slate-400">›</span>
                   </div>
+                </div>
+              </div>
+
+              {/* MS Word-Style Logo Background Remover Quick Action Bar */}
+              <div className="mt-4 p-3.5 rounded-2xl bg-white border border-indigo-100 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                    <Wand2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Logo Background Remover (مونوگرام کا بیک گراؤنڈ ہٹائیں)</span>
+                      <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        MS Word Technique
+                      </span>
+                    </span>
+                    <p className="text-[11px] text-slate-500">
+                      Remove white/solid backgrounds so your crest stays clean on any background color (White, Navy, Pink, Emerald).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 self-stretch md:self-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={handleInstantAutoRemoveBg}
+                    disabled={bgRemoverProcessing || !formData.logoUrl}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-transform hover:scale-102 disabled:opacity-50"
+                    title="1-Click automatic detection & removal of white background from corners inwards"
+                  >
+                    {bgRemoverProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                    <span>✨ 1-Click Remove White</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!formData.logoUrl) return;
+                      setShowBgRemoverModal(true);
+                      await updateModalPreview(bgCustomColor, bgTolerance, bgFeather, bgMode);
+                    }}
+                    disabled={!formData.logoUrl}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-transform hover:scale-102 disabled:opacity-50"
+                    title="Open interactive MS Word background removal tool with eyedropper and tolerance sliders"
+                  >
+                    <Scissors className="w-3.5 h-3.5" />
+                    <span>🪄 Advanced MS Word Tool</span>
+                  </button>
+
+                  {formData.originalLogoUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRestoreOriginalLogo}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                      title="Restore original unedited logo"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>↩️ Restore Original</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1840,7 +2253,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
                   <label className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all">
                     {uploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                     <span>{uploadingLogo ? "Uploading..." : "Direct Upload Logo"}</span>
@@ -1855,7 +2268,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                         try {
                           setUploadingLogo(true);
                           const url = await uploadFile(file);
-                          setFormData((prev) => ({ ...prev, logoUrl: url }));
+                          setFormData((prev) => ({ ...prev, logoUrl: url, originalLogoUrl: url }));
                           setMsg({ type: "success", text: "College logo uploaded successfully!" });
                         } catch (err: any) {
                           setMsg({ type: "error", text: err.message || "Failed to upload logo." });
@@ -1865,6 +2278,46 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       }}
                     />
                   </label>
+
+                  {formData.logoUrl && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleInstantAutoRemoveBg}
+                        disabled={bgRemoverProcessing}
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all"
+                        title="1-Click remove white background from logo"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>✨ Remove Bg</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setShowBgRemoverModal(true);
+                          await updateModalPreview(bgCustomColor, bgTolerance, bgFeather, bgMode);
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all"
+                        title="Open interactive MS Word background removal tool"
+                      >
+                        <Wand2 className="w-3.5 h-3.5" />
+                        <span>🪄 MS Word Tool</span>
+                      </button>
+
+                      {formData.originalLogoUrl && (
+                        <button
+                          type="button"
+                          onClick={handleRestoreOriginalLogo}
+                          className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition-colors"
+                          title="Restore original unedited logo"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </>
+                  )}
+
                   <input
                     type="text"
                     placeholder="or paste URL"
@@ -2296,6 +2749,300 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             </div>
           </div>
         </form>
+      )}
+
+      {/* ── MS WORD-STYLE LOGO BACKGROUND REMOVAL MODAL ── */}
+      {showBgRemoverModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-xs">
+                  <Wand2 className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black tracking-wide">
+                    MS Word-Style Logo Background Remover (بیک گراؤنڈ شفاف بنائیں)
+                  </h3>
+                  <p className="text-[11px] text-slate-300">
+                    Remove solid or white background so your emblem looks clean and transparent in any color.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBgRemoverModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-800">Live Preview & Clean Result:</span>
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setBgPreviewTab("checker")}
+                      className={`px-2 py-0.5 rounded ${bgPreviewTab === "checker" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                    >
+                      🏁 Checkerboard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBgPreviewTab("theme")}
+                      className={`px-2 py-0.5 rounded ${bgPreviewTab === "theme" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                    >
+                      🎨 My Header Bg
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBgPreviewTab("dark")}
+                      className={`px-2 py-0.5 rounded ${bgPreviewTab === "dark" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                    >
+                      ⬛ Dark
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBgPreviewTab("white")}
+                      className={`px-2 py-0.5 rounded ${bgPreviewTab === "white" ? "bg-white text-indigo-600 shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                    >
+                      ⬜ White
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Original Logo with Eyedropper Guide */}
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center">
+                    <span className="text-[10px] font-black uppercase text-slate-500 mb-2">
+                      Original Logo (Click to sample color):
+                    </span>
+                    <div className="relative group cursor-crosshair rounded-xl border border-dashed border-slate-300 p-2 bg-white flex items-center justify-center min-h-[160px] w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        id="original-logo-preview"
+                        src={formData.originalLogoUrl || formData.logoUrl}
+                        alt="Original Logo"
+                        className="max-h-36 max-w-full object-contain cursor-crosshair"
+                        onClick={(e) => {
+                          const target = e.currentTarget;
+                          const rect = target.getBoundingClientRect();
+                          const x = Math.floor((e.clientX - rect.left) * (target.naturalWidth / rect.width));
+                          const y = Math.floor((e.clientY - rect.top) * (target.naturalHeight / rect.height));
+                          const offCanvas = document.createElement("canvas");
+                          offCanvas.width = target.naturalWidth;
+                          offCanvas.height = target.naturalHeight;
+                          const ctx = offCanvas.getContext("2d");
+                          if (ctx) {
+                            ctx.drawImage(target, 0, 0);
+                            const p = ctx.getImageData(x, y, 1, 1).data;
+                            const picked = { r: p[0], g: p[1], b: p[2] };
+                            setBgCustomColor(picked);
+                            updateModalPreview(picked);
+                          }
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-indigo-900/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-xl flex items-center justify-center text-[11px] font-bold text-indigo-900">
+                        <Pipette className="w-4 h-4 mr-1" /> Click anywhere to set transparent color
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+                      <Pipette className="w-3 h-3 text-indigo-600" />
+                      Target: {bgCustomColor ? `RGB(${bgCustomColor.r}, ${bgCustomColor.g}, ${bgCustomColor.b})` : "Auto-Detected (Corners)"}
+                    </span>
+                  </div>
+
+                  {/* Clean Result Preview on selected background */}
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center">
+                    <span className="text-[10px] font-black uppercase text-emerald-600 mb-2">
+                      Clean Transparent Result:
+                    </span>
+                    <div
+                      className="rounded-xl border border-slate-300 p-2 flex items-center justify-center min-h-[160px] w-full transition-colors"
+                      style={{
+                        backgroundColor:
+                          bgPreviewTab === "theme"
+                            ? (formData.collegeHeaderBg || "#ffffff")
+                            : bgPreviewTab === "dark"
+                            ? "#090E24"
+                            : bgPreviewTab === "white"
+                            ? "#ffffff"
+                            : "transparent",
+                        backgroundImage:
+                          bgPreviewTab === "checker"
+                            ? "repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%) 50% / 16px 16px"
+                            : "none",
+                      }}
+                    >
+                      {bgRemoverProcessing ? (
+                        <div className="flex flex-col items-center gap-1 text-indigo-600 font-bold text-xs">
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                          <span>Processing transparent PNG...</span>
+                        </div>
+                      ) : bgPreviewUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={bgPreviewUrl}
+                          alt="Processed Transparent"
+                          className="max-h-36 max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-slate-400">Loading...</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 mt-1.5">
+                      {bgPreviewTab === "theme" ? "Showing on your college header background" : "100% transparent PNG with alpha smoothing"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technique & Mode Controls */}
+              <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <div>
+                  <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                    Background Removal Technique (تکنیک منتخب کریں):
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBgMode("contiguous");
+                        updateModalPreview(bgCustomColor, bgTolerance, bgFeather, "contiguous");
+                      }}
+                      className={`p-2.5 rounded-xl text-left border transition-all ${
+                        bgMode === "contiguous"
+                          ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-300 shadow-xs"
+                          : "bg-white border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-950">
+                        <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Contiguous / Flood Fill (Recommended)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        Removes outer background inwards from borders. Keeps white lettering & symbols inside the shield safe!
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBgMode("global");
+                        updateModalPreview(bgCustomColor, bgTolerance, bgFeather, "global");
+                      }}
+                      className={`p-2.5 rounded-xl text-left border transition-all ${
+                        bgMode === "global"
+                          ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-300 shadow-xs"
+                          : "bg-white border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-950">
+                        <Pipette className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>MS Word "Set Transparent Color" (Global)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        Turns all matching pixels transparent across the whole image, exactly like Word's color-key wand.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tolerance & Feather Sliders */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1">
+                      <span>Tolerance / Sensitivity (حساسیت):</span>
+                      <span className="font-mono text-indigo-600">{bgTolerance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={5}
+                      max={75}
+                      value={bgTolerance}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setBgTolerance(val);
+                        updateModalPreview(bgCustomColor, val, bgFeather, bgMode);
+                      }}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg accent-indigo-600 cursor-pointer"
+                    />
+                    <span className="text-[9px] text-slate-400">Higher values remove JPG compression noise and halos.</span>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1">
+                      <span>Edge Feathering (کناروں کی صفائی):</span>
+                      <span className="font-mono text-indigo-600">{bgFeather}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={20}
+                      value={bgFeather}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setBgFeather(val);
+                        updateModalPreview(bgCustomColor, bgTolerance, val, bgMode);
+                      }}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg accent-indigo-600 cursor-pointer"
+                    />
+                    <span className="text-[9px] text-slate-400">Smooths boundary pixels for crisp antialiasing.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 bg-slate-100 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setBgCustomColor(null);
+                  setBgTolerance(28);
+                  setBgFeather(6);
+                  updateModalPreview(null, 28, 6, "contiguous");
+                }}
+                className="text-xs text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Reset Settings
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBgRemoverModal(false)}
+                  className="px-4 py-2 rounded-xl text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (bgPreviewUrl) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        originalLogoUrl: prev.originalLogoUrl || prev.logoUrl,
+                        logoUrl: bgPreviewUrl,
+                      }));
+                      setMsg({ type: "success", text: "✨ Transparent logo applied successfully! Logo is clean on all backgrounds." });
+                    }
+                    setShowBgRemoverModal(false);
+                  }}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Apply & Use Transparent Logo (لاگو کریں)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

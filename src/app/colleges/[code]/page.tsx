@@ -89,6 +89,8 @@ type PortalSettings = {
   bodyBgColor: string;
   sidebarBgColor?: string;
   collegeNameColor?: string;
+  collegeHeaderBg?: string;
+  originalLogoUrl?: string;
   customColors?: string[];
   textColor: string;
   noticeTickerShow: boolean;

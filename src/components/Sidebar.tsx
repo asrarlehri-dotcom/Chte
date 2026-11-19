@@ -49,7 +49,7 @@ export function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const { can } = usePermissions();
-  const { collegeName, collegeLogo, collegeSidebarBg, collegeNameColor: hookCollegeNameColor } = useSettings();
+  const { collegeName, collegeLogo, collegeSidebarBg, collegeNameColor: hookCollegeNameColor, collegeHeaderBg: hookCollegeHeaderBg } = useSettings();
   const [chteGovtLogo, setChteGovtLogo] = useState<string>("/balochistan-seal.png");
 
   const sessionUser = session?.user as any;
@@ -104,6 +104,24 @@ export function Sidebar() {
     return "#0f172a";
   });
 
+  // Dynamic College Header Background Color (Theme Settings)
+  const [collegeHeaderBg, setCollegeHeaderBg] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
+        if (cCode) {
+          const cached = localStorage.getItem(`college_header_bg_${cCode.toLowerCase()}`);
+          if (cached) return cached;
+        }
+        if (sessionUser?.collegeId) {
+          const cachedId = localStorage.getItem(`college_header_bg_${sessionUser.collegeId.toLowerCase()}`);
+          if (cachedId) return cachedId;
+        }
+      } catch {}
+    }
+    return "#ffffff";
+  });
+
   useEffect(() => {
     if (collegeSidebarBg && collegeSidebarBg !== "#090E24") {
       setSidebarBgColor(collegeSidebarBg);
@@ -115,6 +133,12 @@ export function Sidebar() {
       setCollegeNameColor(hookCollegeNameColor);
     }
   }, [hookCollegeNameColor]);
+
+  useEffect(() => {
+    if (hookCollegeHeaderBg && hookCollegeHeaderBg !== "#ffffff") {
+      setCollegeHeaderBg(hookCollegeHeaderBg);
+    }
+  }, [hookCollegeHeaderBg]);
 
   useEffect(() => {
     const collegeKey = sessionUser?.collegeId || sessionUser?.collegeCode;
@@ -148,6 +172,19 @@ export function Sidebar() {
               } catch {}
             }
           }
+          if (data?.collegeHeaderBg) {
+            setCollegeHeaderBg(data.collegeHeaderBg);
+            if (typeof window !== "undefined") {
+              try {
+                if (sessionUser?.collegeCode) {
+                  localStorage.setItem(`college_header_bg_${sessionUser.collegeCode.toLowerCase()}`, data.collegeHeaderBg);
+                }
+                if (sessionUser?.collegeId) {
+                  localStorage.setItem(`college_header_bg_${sessionUser.collegeId.toLowerCase()}`, data.collegeHeaderBg);
+                }
+              } catch {}
+            }
+          }
         })
         .catch(() => {});
     }
@@ -158,6 +195,9 @@ export function Sidebar() {
       }
       if (e?.detail?.collegeNameColor) {
         setCollegeNameColor(e.detail.collegeNameColor);
+      }
+      if (e?.detail?.collegeHeaderBg) {
+        setCollegeHeaderBg(e.detail.collegeHeaderBg);
       }
     };
     if (typeof window !== "undefined") {
@@ -434,13 +474,16 @@ export function Sidebar() {
           </div>
         </div>
       ) : (
-        /* College Campus Header with Pure White Background and Full Name */
-        <div className="px-4 py-3.5 bg-white border-b border-slate-200/90 flex items-center gap-3 shadow-xs">
+        /* College Campus Header with Custom Background and Full Name */
+        <div 
+          className="px-4 py-3.5 border-b border-slate-200/90 flex items-center gap-3 shadow-xs transition-colors duration-200"
+          style={{ backgroundColor: collegeHeaderBg || "#ffffff" }}
+        >
           {collegeLogo ? (
             <img
               src={collegeLogo}
               alt={collegeName || "Logo"}
-              className="w-11 h-11 object-contain rounded-xl bg-slate-50 p-1 border border-slate-200/90 flex-shrink-0 shadow-xs"
+              className="w-11 h-11 object-contain flex-shrink-0"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
                 const fallback = e.currentTarget.parentElement?.querySelector(".sidebar-fallback-badge") as HTMLElement;

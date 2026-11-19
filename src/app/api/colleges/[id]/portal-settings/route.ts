@@ -19,6 +19,8 @@ const DEFAULT_PORTAL_SETTINGS = {
   bodyBgColor: "#070d19", // Dark body background matching uploaded design
   sidebarColor: "#090E24", // Sidebar background color for Campus ERP
   collegeNameColor: "#0f172a", // Custom College Name color in sidebar & header
+  collegeHeaderBg: "#ffffff", // Custom College Logo & Name header card background in sidebar
+  originalLogoUrl: "", // Preserves original logo before background removal
   customColors: [] as string[], // User added custom color presets
   textColor: "#ffffff",
   noticeTickerShow: true,
