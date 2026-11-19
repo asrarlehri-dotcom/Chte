@@ -543,16 +543,8 @@ export default function StudentResultSearch({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handlePrint}
-                className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-extrabold rounded-lg shadow-sm flex items-center gap-2 transition-all"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Result Slip</span>
-              </button>
-              <button
-                type="button"
                 onClick={handleReset}
-                className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 transition-all"
+                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold rounded-lg border border-slate-300 shadow-xs transition-all hover:scale-105"
               >
                 Search Another
               </button>
@@ -564,9 +556,20 @@ export default function StudentResultSearch({
             ref={printAreaRef}
             className="bg-white rounded-2xl border-2 border-slate-300/80 shadow-2xl p-6 sm:p-10 text-slate-900 overflow-hidden relative print:border-none print:shadow-none print:p-0"
           >
-            {/* Watermark Logo in Background */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
-              <GraduationCap className="w-96 h-96 text-black" />
+            {/* Watermark Logo in Background of Result Slip (Concerned College Transparent Logo) */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">
+              {selectedResult.college.logoUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={selectedResult.college.logoUrl}
+                  alt={selectedResult.college.name}
+                  className="w-80 h-80 sm:w-96 sm:h-96 object-contain opacity-[0.07] pointer-events-none"
+                />
+              ) : (
+                <div className="text-8xl sm:text-9xl font-black text-slate-900 opacity-[0.04] uppercase">
+                  {selectedResult.college.code}
+                </div>
+              )}
             </div>
 
             {/* Card Header */}
@@ -697,9 +700,25 @@ export default function StudentResultSearch({
               </div>
             </div>
 
-            {/* Subject-Wise Examination Marks Table */}
-            <div className="mb-6 overflow-x-auto rounded-xl border border-slate-300">
-              <table className="w-full text-left text-xs border-collapse">
+            {/* Subject-Wise Examination Marks Table with College Transparent Watermark */}
+            <div className="mb-6 overflow-x-auto rounded-xl border border-slate-300 relative bg-white/70 shadow-xs">
+              {/* College Transparent Watermark directly behind the Marks */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden">
+                {selectedResult.college.logoUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={selectedResult.college.logoUrl}
+                    alt=""
+                    className="w-56 h-56 sm:w-72 sm:h-72 object-contain opacity-[0.12] pointer-events-none"
+                  />
+                ) : (
+                  <div className="text-8xl font-black text-slate-900 opacity-[0.06] pointer-events-none">
+                    {selectedResult.college.code}
+                  </div>
+                )}
+              </div>
+
+              <table className="w-full text-left text-xs border-collapse relative z-10 bg-transparent">
                 <thead>
                   <tr className="bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider">
                     <th className="p-3 text-center w-12 border-r border-slate-700">#</th>
@@ -718,10 +737,10 @@ export default function StudentResultSearch({
                       key={idx}
                       className={
                         !course.isPass
-                          ? "bg-red-50/70 text-red-950 font-bold"
+                          ? "bg-red-50/80 text-red-950 font-bold"
                           : idx % 2 === 0
-                          ? "bg-white"
-                          : "bg-slate-50/50"
+                          ? "bg-white/75 hover:bg-white/95"
+                          : "bg-slate-50/55 hover:bg-white/95"
                       }
                     >
                       <td className="p-3 text-center font-bold text-slate-500 border-r border-slate-200">

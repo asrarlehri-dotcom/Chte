@@ -185,10 +185,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           heroImages: Array.isArray(data.heroImages) && data.heroImages.length > 0
             ? data.heroImages
             : (data.heroBgUrl ? [data.heroBgUrl] : [
-                "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
-                "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
-                "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
-              ]),
+              "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+              "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+              "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+            ]),
           heroImgZoom: typeof data.heroImgZoom === "number" ? data.heroImgZoom : 100,
           heroImgPosX: typeof data.heroImgPosX === "number" ? data.heroImgPosX : 50,
           heroImgPosY: typeof data.heroImgPosY === "number" ? data.heroImgPosY : 50,
@@ -433,8 +433,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       {msg.text && (
         <div
           className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 animate-fadeIn ${msg.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-              : "bg-rose-50 text-rose-800 border border-rose-200"
+            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+            : "bg-rose-50 text-rose-800 border border-rose-200"
             }`}
         >
           {msg.type === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
@@ -753,8 +753,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   type="button"
                   onClick={() => setFormData({ ...formData, heroBgType: "IMAGE" })}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${formData.heroBgType === "IMAGE"
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   <ImageIcon className="w-3.5 h-3.5" />
@@ -765,8 +765,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   type="button"
                   onClick={() => setFormData({ ...formData, heroBgType: "VIDEO" })}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${formData.heroBgType === "VIDEO"
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   <Video className="w-3.5 h-3.5 text-indigo-600" />
