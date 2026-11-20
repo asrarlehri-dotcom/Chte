@@ -351,7 +351,7 @@ export function Sidebar() {
         {
           key: "chte-master-dashboard",
           href: "/chte",
-          label: "CHTE Master Dashboard",
+          label: "HEMIS Master Dashboard",
           badge: "HQ",
           icon: LayoutDashboard,
         },
@@ -563,14 +563,14 @@ export function Sidebar() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black text-white tracking-wider uppercase">
-                CHTE PORTAL
+                HEMIS PORTAL
               </span>
               <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">
                 CENTRAL
               </span>
             </div>
             <div className="text-[10px] font-semibold text-slate-300 truncate leading-snug mt-0.5">
-              Higher & Technical Education
+              Higher Education Management Information System
             </div>
             <div className="text-[8.5px] font-medium text-emerald-400/90 tracking-wide">
               Government of Balochistan
@@ -716,7 +716,7 @@ export function Sidebar() {
             <div className="flex items-center gap-2 text-slate-200">
               <HelpCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               <div className="text-xs font-bold">
-                {isCentral ? "CHTE Central Helpdesk" : "Need Help?"}
+                {isCentral ? "HEMIS Central Helpdesk" : "Need Help?"}
               </div>
             </div>
             {isCentral && (
@@ -738,7 +738,7 @@ export function Sidebar() {
             }
             className="block w-full text-center py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-[11px] rounded-xl transition-colors border border-white/15"
           >
-            {isCentral ? "CHTE Support" : "Get Support"}
+            {isCentral ? "HEMIS Support" : "Get Support"}
           </a>
         </div>
 
@@ -760,7 +760,7 @@ export function Sidebar() {
               <div className="text-[9.5px] text-slate-300 truncate">
                 {isCentral
                   ? role === "CHTE_ADMIN"
-                    ? "CHTE Administrator"
+                    ? "HEMIS Administrator"
                     : "Central Super Admin"
                   : userEmail}
               </div>

@@ -259,8 +259,8 @@ export default function HomepageSettingsTab({
       {msg.text && (
         <div
           className={`p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 animate-fadeIn ${msg.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-              : "bg-rose-50 text-rose-800 border border-rose-200"
+            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+            : "bg-rose-50 text-rose-800 border border-rose-200"
             }`}
         >
           {msg.type === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
@@ -271,7 +271,7 @@ export default function HomepageSettingsTab({
       {loading ? (
         <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
           <div className="w-10 h-10 border-4 border-[#0c5938] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-slate-500 font-bold">Loading CHTE homepage settings...</p>
+          <p className="text-xs text-slate-500 font-bold">Loading HEMIS homepage settings...</p>
         </div>
       ) : !isChteAdmin ? (
         <div className="bg-white p-10 rounded-3xl border border-amber-200 shadow-sm text-center space-y-5 animate-fadeIn">
@@ -280,7 +280,7 @@ export default function HomepageSettingsTab({
           </div>
           <div className="max-w-md mx-auto space-y-2">
             <span className="inline-block px-3 py-1 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 uppercase tracking-wider">
-              Restricted to CHTE Super Admin
+              Restricted to HEMIS Super Admin
             </span>
             <h3 className="text-xl font-black text-slate-900">
               Access Restricted: Institute / College Admin
@@ -292,15 +292,15 @@ export default function HomepageSettingsTab({
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
-          {/* ── SECTION 0: OFFICIAL GOVERNMENT OF BALOCHISTAN LOGO / CHTE SEAL ── */}
+          {/* ── SECTION 0: OFFICIAL GOVERNMENT OF BALOCHISTAN LOGO / HEMIS SEAL ── */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Landmark className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Official Government of Balochistan Emblem / CHTE Seal</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Official Government of Balochistan Emblem / HEMIS Seal</h3>
                   <p className="text-xs text-slate-500">
-                    Upload official government emblem. This logo displays at the top of the CHTE Central Portal and in the apex Sidebar.
+                    Upload official government emblem. This logo displays at the top of the HEMIS Central Portal and in the apex Sidebar.
                   </p>
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function HomepageSettingsTab({
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">Government Emblem Preview</span>
                   <span className="text-[10px] text-slate-500">
-                    Used for CHTE Central Header, Apex Sidebar, and official documents.
+                    Used for HEMIS Central Header, Apex Sidebar, and official documents.
                   </span>
                 </div>
               </div>
@@ -372,12 +372,12 @@ export default function HomepageSettingsTab({
             </div>
           </div>
 
-          {/* ── SECTION 1: CHTE HOMEPAGE BACKGROUND & THEME COLORS ── */}
+          {/* ── SECTION 1: HEMIS HOMEPAGE BACKGROUND & THEME COLORS ── */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <Palette className="w-5 h-5 text-emerald-600" />
               <div>
-                <h3 className="text-sm font-bold text-slate-900">CHTE Background Colors & Primary Theme</h3>
+                <h3 className="text-sm font-bold text-slate-900">HEMIS Background Colors & Primary Theme</h3>
                 <p className="text-xs text-slate-500">
                   Configure the page background, hero backdrop gradient start/end colors, and primary accent color.
                 </p>
@@ -960,12 +960,12 @@ export default function HomepageSettingsTab({
             </div>
           </div>
 
-          {/* ── SECTION 3: CHTE HERO TEXTS & HEADINGS ── */}
+          {/* ── SECTION 3: HEMIS HERO TEXTS & HEADINGS ── */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <Layers className="w-5 h-5 text-amber-500" />
               <div>
-                <h3 className="text-sm font-bold text-slate-900">CHTE Homepage Headlines & Subtitles</h3>
+                <h3 className="text-sm font-bold text-slate-900">HEMIS Homepage Headlines & Subtitles</h3>
                 <p className="text-xs text-slate-500">
                   Update the main title banner text, pill badge, and description paragraph.
                 </p>
@@ -1382,7 +1382,7 @@ export default function HomepageSettingsTab({
           {/* ── STICKY BOTTOM SAVE ACTIONS ── */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-4 z-30">
             <div className="text-xs text-slate-500 font-semibold">
-              Configuring: <strong className="text-slate-900">CHTE Central Portal & Governance Cloud</strong>
+              Configuring: <strong className="text-slate-900">HEMIS Central Portal & Governance Cloud</strong>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -1402,7 +1402,7 @@ export default function HomepageSettingsTab({
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#0c5938] hover:bg-[#09472d] disabled:opacity-50 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 hover:scale-105 active:scale-95"
               >
                 <Save className="w-4 h-4" />
-                <span>{saving ? "Saving Changes..." : "Save CHTE Settings"}</span>
+                <span>{saving ? "Saving Changes..." : "Save HEMIS Settings"}</span>
               </button>
             </div>
           </div>

@@ -934,11 +934,11 @@ export default function UnifiedSettingsPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {isChteAdmin ? "⚙️ CHTE Apex Control Center & System Settings" : "⚙️ College Settings & Administration"}
+              {isChteAdmin ? "⚙️ HEMIS Apex Control Center & System Settings" : "⚙️ College Settings & Administration"}
             </h1>
             <p className="text-gray-500 mt-1">
               {isChteAdmin
-                ? "Configure CHTE central branding & scenery, college portal themes, academic setup, fee structures, and permissions."
+                ? "Configure HEMIS central branding & scenery, college portal themes, academic setup, fee structures, and permissions."
                 : "Manage campus portal, academic departments, fee structure, and staff role permissions."}
             </p>
           </div>
@@ -957,7 +957,7 @@ export default function UnifiedSettingsPage() {
 
         {/* Hover Dropdown Mega Menu Bar */}
         <div className="flex flex-wrap bg-gray-50 p-1.5 rounded-xl border border-gray-200/60 max-w-5xl gap-1.5 overflow-visible relative z-30">
-          {/* TAB 0: CHTE MAIN HOMEPAGE & CENTRAL SETTINGS (Logo, Background, Theme, Slides, Leadership) */}
+          {/* TAB 0: HEMIS MAIN HOMEPAGE & CENTRAL SETTINGS (Logo, Background, Theme, Slides, Leadership) */}
           {isChteAdmin && (
             <button
               onClick={() => handleTabChange("CHTE_SETTINGS")}
@@ -966,7 +966,7 @@ export default function UnifiedSettingsPage() {
                   : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
                 }`}
             >
-              <span>🏛️ CHTE Main Settings</span>
+              <span>🏛️ HEMIS Main Settings</span>
               <span className="text-[10px] bg-emerald-400/20 px-1.5 py-0.5 rounded text-emerald-300">Apex</span>
             </button>
           )}
@@ -2649,7 +2649,7 @@ export default function UnifiedSettingsPage() {
                 disabled={savingMatrix || permissionsLoading}
                 className="px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all"
               >
-                Grant All for CHTE Directorate Admin
+                Grant All for HEMIS Directorate Admin
               </button>
               <button
                 type="button"
@@ -2669,10 +2669,10 @@ export default function UnifiedSettingsPage() {
             </div>
           </div>
 
-          {/* Active Role Identifier (CHTE Directorate Admin) */}
+          {/* Active Role Identifier (HEMIS Directorate Admin) */}
           <div className="flex border-b overflow-x-auto bg-slate-50/60 rounded-t-2xl px-3 pt-2 gap-2">
             <div className="px-6 py-3 font-bold text-xs whitespace-nowrap rounded-t-xl flex items-center gap-2 bg-white text-indigo-700 shadow-xs border-t border-x border-slate-200 font-black">
-              <span>🏛️ CHTE Directorate Admin</span>
+              <span>🏛️ HEMIS Directorate Admin</span>
               <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">Apex Matrix</span>
             </div>
           </div>

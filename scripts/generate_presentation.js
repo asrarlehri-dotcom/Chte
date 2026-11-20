@@ -4,7 +4,7 @@ const path = require("path");
 const fs = require("fs");
 
 async function generateMasterPresentation() {
-  console.log("Starting End-to-End Master Presentation generation (Main CHTE Portal to Campus ERP)...");
+  console.log("Starting End-to-End Master Presentation generation (Main HEMIS Portal to Campus ERP)...");
 
   const pres = new pptxgen();
 
@@ -13,8 +13,8 @@ async function generateMasterPresentation() {
   pres.layout = "WIDE_16_9";
 
   pres.author = "Engr. Israr Ahmed - Lead Systems Specialist";
-  pres.company = "Balochistan Higher & Technical Education Department (CHTE)";
-  pres.title = "CHTE Unified Higher Education Ecosystem - End-to-End Operational Manual";
+  pres.company = "Higher Education Management Information System (HEMIS) Balochistan";
+  pres.title = "HEMIS Unified Higher Education Ecosystem - End-to-End Operational Manual";
 
   // Brand Palette
   const NAVY = "061229";
@@ -32,7 +32,7 @@ async function generateMasterPresentation() {
   const UPLOAD_DIR = "C:/Users/Israr/.gemini/antigravity/brain/33e41e52-479a-4a1b-bec1-073a3bfad0dd/.user_uploaded";
   const PUBLIC_DIR = path.resolve("cms/public");
 
-  const IMG_CHTE_HOMEPAGE = path.join(PUBLIC_DIR, "homepage-design.png");
+  const IMG_HEMIS_HOMEPAGE = path.join(PUBLIC_DIR, "homepage-design.png");
   const IMG_BALOCHISTAN_SEAL = path.join(PUBLIC_DIR, "balochistan-seal.png");
 
   const IMG_CENTRAL_DASH = path.join(UPLOAD_DIR, "media_1795020756568_6e8f6161.jpg");
@@ -69,7 +69,7 @@ async function generateMasterPresentation() {
     });
 
     // Department Kicker
-    slide.addText("GOVERNMENT OF BALOCHISTAN • HIGHER & TECHNICAL EDUCATION DEPARTMENT (CHTE)", {
+    slide.addText("GOVERNMENT OF BALOCHISTAN • HIGHER & TECHNICAL EDUCATION DEPARTMENT (HEMIS)", {
       x: 0.8,
       y: 0.16,
       w: 9.5,
@@ -126,7 +126,7 @@ async function generateMasterPresentation() {
       fill: { color: "F1F5F9" },
     });
 
-    slide.addText("CHTE End-to-End System Walkthrough • Main Portal to Campus ERP • Autonomous Governance", {
+    slide.addText("HEMIS End-to-End System Walkthrough • Main Portal to Campus ERP • Autonomous Governance", {
       x: 0.8,
       y: 7.22,
       w: 8.8,
@@ -184,7 +184,7 @@ async function generateMasterPresentation() {
       charSpacing: 3,
     });
 
-    slide.addText("Higher & Technical Education Department (CHTE)", {
+    slide.addText("Higher & Technical Education Department (HEMIS)", {
       x: 1.2,
       y: 1.2,
       w: 10.5,
@@ -207,7 +207,7 @@ async function generateMasterPresentation() {
     });
 
     // Subtitle
-    slide.addText("Complete End-to-End System Walkthrough: From CHTE Main Portal to Autonomous Campus ERP", {
+    slide.addText("Complete End-to-End System Walkthrough: From HEMIS Main Portal to Autonomous Campus ERP", {
       x: 1.2,
       y: 3.2,
       w: 11.2,
@@ -233,7 +233,7 @@ async function generateMasterPresentation() {
     const badges = [
       {
         title: "Phase 1: Provincial Gateway",
-        desc: "Main CHTE Portal (chte-edu.vercel.app), Central Directory, District Discovery & Directorate Governance.",
+        desc: "Main HEMIS Portal (HEMIS-edu.vercel.app), Central Directory, District Discovery & Directorate Governance.",
       },
       {
         title: "Phase 2: College Public Portals",
@@ -281,7 +281,7 @@ async function generateMasterPresentation() {
 
     // Author & System Meta
     slide.addText(
-      "Architect & Developer: Engr. Israr Ahmed (Computer Programmer & Systems Specialist, GPGC Quetta)\nBalochistan Higher & Technical Education Department • Live URL: https://chte-edu.vercel.app",
+      "Architect & Developer: Engr. Israr Ahmed (Computer Programmer & Systems Specialist, GPGC Quetta)\nBalochistan Higher & Technical Education Department • Live URL: https://HEMIS-edu.vercel.app",
       {
         x: 1.2,
         y: 6.3,
@@ -295,15 +295,15 @@ async function generateMasterPresentation() {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // SLIDE 2: Level 1 — Main CHTE Provincial Portal Homepage (/)
+  // SLIDE 2: Level 1 — Main HEMIS Provincial Portal Homepage (/)
   // ═══════════════════════════════════════════════════════════════
   {
     const slide = pres.addSlide();
     slide.background = { color: BG_LIGHT };
     addSlideHeader(
       slide,
-      "Step 1: Main CHTE Provincial Portal Homepage (Gateway)",
-      "The unified digital front door for Higher Education in Balochistan (https://chte-edu.vercel.app)",
+      "Step 1: Main HEMIS Provincial Portal Homepage (Gateway)",
+      "The unified digital front door for Higher Education in Balochistan (https://HEMIS-edu.vercel.app)",
       2
     );
 
@@ -318,7 +318,7 @@ async function generateMasterPresentation() {
       line: { color: BORDER_COLOR, width: 1.5 },
     });
 
-    slide.addText("LIVE INTERFACE: CHTE PROVINCIAL HOMEPAGE", {
+    slide.addText("LIVE INTERFACE: HEMIS PROVINCIAL HOMEPAGE", {
       x: 1.0,
       y: 1.55,
       w: 5.4,
@@ -329,9 +329,9 @@ async function generateMasterPresentation() {
       color: EMERALD_LIGHT,
     });
 
-    if (fs.existsSync(IMG_CHTE_HOMEPAGE)) {
+    if (fs.existsSync(IMG_HEMIS_HOMEPAGE)) {
       slide.addImage({
-        path: IMG_CHTE_HOMEPAGE,
+        path: IMG_HEMIS_HOMEPAGE,
         x: 1.0,
         y: 1.95,
         w: 5.4,
@@ -407,9 +407,9 @@ async function generateMasterPresentation() {
         route: "Route: /#department-info",
       },
       {
-        title: "4. CHTE Directorate Portal",
+        title: "4. HEMIS Directorate Portal",
         desc: "Provincial macro administration, college provisioning, and multi-campus management for government officials.",
-        route: "Route: /login?mode=chte",
+        route: "Route: /login?mode=HEMIS",
       },
     ];
 
@@ -555,14 +555,14 @@ async function generateMasterPresentation() {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // SLIDE 4: Level 1 — CHTE Central Governance & Apex Directorate (/chte)
+  // SLIDE 4: Level 1 — HEMIS Central Governance & Apex Directorate (/HEMIS)
   // ═══════════════════════════════════════════════════════════════
   {
     const slide = pres.addSlide();
     slide.background = { color: BG_LIGHT };
     addSlideHeader(
       slide,
-      "Step 3: CHTE Central Governance & Apex Directorate (/chte)",
+      "Step 3: HEMIS Central Governance & Apex Directorate (/HEMIS)",
       "Macro oversight for the Directorate of Colleges without intruding into campus operations",
       4
     );
@@ -578,7 +578,7 @@ async function generateMasterPresentation() {
       line: { color: BORDER_COLOR, width: 1.5 },
     });
 
-    slide.addText("LIVE APPLICATION VIEW: CHTE CENTRAL DASHBOARD", {
+    slide.addText("LIVE APPLICATION VIEW: HEMIS CENTRAL DASHBOARD", {
       x: 1.0,
       y: 1.55,
       w: 5.4,
@@ -661,7 +661,7 @@ async function generateMasterPresentation() {
       },
       {
         title: "3. Direct Provisioning & Onboarding",
-        desc: "When a new college is established in any district, CHTE Super Admin provisions its account in seconds, handing full credentials to the College Principal.",
+        desc: "When a new college is established in any district, HEMIS Super Admin provisions its account in seconds, handing full credentials to the College Principal.",
       },
       {
         title: "4. Provincial Planning Analytics",
@@ -938,7 +938,7 @@ async function generateMasterPresentation() {
 
     const portalBullets = [
       "Custom College Domain: Dedicated route (e.g. Govt. Post Graduate College Quetta).",
-      "Campus Home Isolation: Clicking 'Home' stays within the specific college; never redirects to CHTE HQ.",
+      "Campus Home Isolation: Clicking 'Home' stays within the specific college; never redirects to HEMIS HQ.",
       "Direct 'Login to CMS' Button: College staff and faculty seamlessly launch the private ERP.",
     ];
 
@@ -1050,7 +1050,7 @@ async function generateMasterPresentation() {
         color: "064E3B",
         points: [
           "Login by Institute: Dedicated path for College Principals, Faculty, Accountants, and Examination Staff.",
-          "CHTE Directorate Login: Isolated channel for Provincial Secretariat officials and IT Cell administrators.",
+          "HEMIS Directorate Login: Isolated channel for Provincial Secretariat officials and IT Cell administrators.",
           "Automated Routing: Upon credential verification, users are routed directly to their campus ERP workspace.",
           "No Cross-Tenant Leaks: College A credentials are cryptographically rejected on College B accounts.",
         ],
@@ -2241,7 +2241,7 @@ async function generateMasterPresentation() {
       charSpacing: 2,
     });
 
-    slide.addText("CHTE Unified College CMS: Complete Journey Recap", {
+    slide.addText("HEMIS Unified College CMS: Complete Journey Recap", {
       x: 1.2,
       y: 1.15,
       w: 11.0,
@@ -2275,9 +2275,9 @@ async function generateMasterPresentation() {
     });
 
     const journeySteps = [
-      "Step 1: Main CHTE Portal (Provincial Gateway, Balochistan Seal, Live Notices)",
+      "Step 1: Main HEMIS Portal (Provincial Gateway, Balochistan Seal, Live Notices)",
       "Step 2: Provincial Colleges Directory (District Discovery across 36 Districts)",
-      "Step 3: Central Governance Dashboard (/chte Apex Master & Provisioning)",
+      "Step 3: Central Governance Dashboard (/HEMIS Apex Master & Provisioning)",
       "Step 4: Role Permissions Control (Decentralized Campus Autonomy)",
       "Step 5: College Public Portal (/colleges/[code] Dedicated Identity)",
       "Step 6: Principal Command Center & Campus ERP (Live Academic Metrics)",
@@ -2322,15 +2322,15 @@ async function generateMasterPresentation() {
     const contacts = [
       {
         head: "Government Deployment URL",
-        body: "https://chte-edu.vercel.app\nUnified Central Directorate & Affiliated Colleges Portals",
+        body: "https://HEMIS-edu.vercel.app\nUnified Central Directorate & Affiliated Colleges Portals",
       },
       {
         head: "Lead Systems Architect & Specialist",
         body: "Engr. Israr Ahmed\nComputer Programmer & Systems Specialist\nGovt. Post Graduate College Quetta (GPGCQ)",
       },
       {
-        head: "CHTE Central IT Directorate Cell",
-        body: "Balochistan Higher & Technical Education Department\nCivil Secretariat, Quetta, Balochistan\nEmail: chte.balochistan@gov.pk",
+        head: "HEMIS Central IT Directorate Cell",
+        body: "Balochistan Higher & Technical Education Department\nCivil Secretariat, Quetta, Balochistan\nEmail: HEMIS.balochistan@gov.pk",
       },
       {
         head: "Continuous Campus Helpdesk",
@@ -2375,7 +2375,7 @@ async function generateMasterPresentation() {
   // Transition mapping across 16 slides
   const transitionTypes = [
     '<p:transition spd="med" advClick="1"><p:fade/></p:transition>',        // 1 Cover
-    '<p:transition spd="med" advClick="1"><p:push dir="r"/></p:transition>',   // 2 Main CHTE Homepage
+    '<p:transition spd="med" advClick="1"><p:push dir="r"/></p:transition>',   // 2 Main HEMIS Homepage
     '<p:transition spd="med" advClick="1"><p:wipe dir="r"/></p:transition>',   // 3 Directory & Districts
     '<p:transition spd="med" advClick="1"><p:fade/></p:transition>',        // 4 Central Dashboard
     '<p:transition spd="med" advClick="1"><p:push dir="l"/></p:transition>',   // 5 Governance Matrix
@@ -2448,7 +2448,7 @@ async function generateMasterPresentation() {
   console.log("Re-compressing updated OpenXML PPTX package...");
   const finalBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 
-  const outputPath = path.resolve("d:/deskktop/Node.js CENT/CHTE_College_CMS_Principal_Faculty_Orientation.pptx");
+  const outputPath = path.resolve("d:/deskktop/Node.js CENT/HEMIS_College_CMS_Principal_Faculty_Orientation.pptx");
   fs.writeFileSync(outputPath, finalBuffer);
 
   console.log(`Master Presentation generated successfully!`);

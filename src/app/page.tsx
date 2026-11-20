@@ -111,7 +111,7 @@ export default function ChteHomePage() {
                   if (c.id) localStorage.setItem(`college_theme_${c.id.toLowerCase()}`, c.themeColor);
                 }
               });
-            } catch {}
+            } catch { }
           }
         }
       })
@@ -226,21 +226,21 @@ export default function ChteHomePage() {
       {/* ─────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white border-b border-emerald-900/10 shadow-xs px-4 sm:px-8 py-2.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          {/* Logo & CHTE Identity */}
+          {/* Logo & HEMIS Identity */}
           <Link href="/" className="flex items-center gap-3 group">
             <Image
               src="/balochistan-seal.png"
-              alt="CHTE Balochistan Seal"
+              alt="HEMIS Balochistan Seal"
               width={56}
               height={56}
               className="w-12 h-12 sm:w-14 sm:h-14 object-contain flex-shrink-0 group-hover:scale-105 transition-transform"
             />
             <div className="flex flex-col justify-center">
               <div className="text-sm sm:text-base md:text-lg font-black text-[#0a3826] tracking-tight leading-tight uppercase">
-                CHTE
+                HEMIS
               </div>
               <div className="text-[10px] sm:text-[11px] font-extrabold text-[#15803d] tracking-wider uppercase leading-none mt-0.5">
-                HIGHER & TECHNICAL EDUCATION
+                HIGHER EDUCATION MANAGEMENT INFORMATION SYSTEM
               </div>
               <div className="text-[9px] sm:text-[10px] font-bold text-slate-500 tracking-[0.22em] uppercase leading-none mt-0.5">
                 BALOCHISTAN
@@ -296,13 +296,13 @@ export default function ChteHomePage() {
               <span className={`w-full h-1 rounded-full mt-1 ${activeTab === "department" ? "bg-[#0c5938]" : "bg-transparent"}`} />
             </a>
 
-            {/* CHTE Portal Team / Officials */}
+            {/* HEMIS Portal Team / Officials */}
             <Link
               href="/login?mode=chte"
               className="flex flex-col items-center justify-center px-3 py-1 text-center text-slate-700 hover:text-[#0c5938] transition-colors group cursor-pointer"
             >
               <Users className="w-5 h-5 text-slate-600 group-hover:text-[#0c5938] group-hover:scale-110 transition-all" />
-              <span className="text-xs font-semibold mt-1">CHTE Portal</span>
+              <span className="text-xs font-semibold mt-1">HEMIS Portal</span>
               <span className="w-full h-1 bg-transparent rounded-full mt-1" />
             </Link>
           </nav>
@@ -367,9 +367,8 @@ export default function ChteHomePage() {
           {slideImages.map((imgUrl, idx) => (
             <div
               key={idx}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                idx === currentSlideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-              }`}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentSlideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                }`}
             >
               <img
                 src={imgUrl}
@@ -407,9 +406,8 @@ export default function ChteHomePage() {
                     key={i}
                     type="button"
                     onClick={() => setCurrentSlideIndex(i)}
-                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                      i === currentSlideIndex ? "w-5 bg-emerald-400" : "w-1.5 bg-white/40 hover:bg-white/70"
-                    }`}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${i === currentSlideIndex ? "w-5 bg-emerald-400" : "w-1.5 bg-white/40 hover:bg-white/70"
+                      }`}
                     title={`Slide ${i + 1}`}
                   />
                 ))}
@@ -580,7 +578,7 @@ export default function ChteHomePage() {
                   Department Info
                 </div>
                 <div className="text-[11px] text-slate-500 leading-tight mt-0.5 line-clamp-2">
-                  About CHTE Balochistan and its services.
+                  About HEMIS Balochistan and its services.
                 </div>
               </div>
             </div>
@@ -589,7 +587,7 @@ export default function ChteHomePage() {
             </div>
           </a>
 
-          {/* Card 4: CHTE Portal */}
+          {/* Card 4: HEMIS Portal */}
           <Link
             href="/login?mode=chte"
             className="group p-4 bg-white rounded-2xl border border-slate-200/90 shadow-md hover:shadow-xl hover:border-emerald-500/40 hover:-translate-y-1 transition-all flex items-center justify-between gap-3"
@@ -600,7 +598,7 @@ export default function ChteHomePage() {
               </div>
               <div className="min-w-0">
                 <div className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0c5938] transition-colors truncate">
-                  CHTE Portal
+                  HEMIS Portal
                 </div>
                 <div className="text-[11px] text-slate-500 leading-tight mt-0.5 line-clamp-2">
                   Officials, contact and central governance.
@@ -722,11 +720,10 @@ export default function ChteHomePage() {
             <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto py-1">
               <button
                 onClick={() => setSelectedDistrict("ALL")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
-                  selectedDistrict === "ALL"
-                    ? "bg-[#0c5938] text-white shadow-xs"
-                    : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
-                }`}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${selectedDistrict === "ALL"
+                  ? "bg-[#0c5938] text-white shadow-xs"
+                  : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+                  }`}
               >
                 All Districts ({colleges.length})
               </button>
@@ -734,11 +731,10 @@ export default function ChteHomePage() {
                 <button
                   key={d}
                   onClick={() => setSelectedDistrict(d)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
-                    selectedDistrict === d
-                      ? "bg-[#0c5938] text-white shadow-xs"
-                      : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${selectedDistrict === d
+                    ? "bg-[#0c5938] text-white shadow-xs"
+                    : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+                    }`}
                 >
                   {d}
                 </button>
@@ -1049,18 +1045,18 @@ export default function ChteHomePage() {
                                 p.category === "SECRETARY"
                                   ? "#e0f2fe"
                                   : p.category === "MINISTER"
-                                  ? "#fef3c7"
-                                  : p.category === "DIRECTOR"
-                                  ? "#dcfce7"
-                                  : "#f3e8ff",
+                                    ? "#fef3c7"
+                                    : p.category === "DIRECTOR"
+                                      ? "#dcfce7"
+                                      : "#f3e8ff",
                               color:
                                 p.category === "SECRETARY"
                                   ? "#0369a1"
                                   : p.category === "MINISTER"
-                                  ? "#b45309"
-                                  : p.category === "DIRECTOR"
-                                  ? "#15803d"
-                                  : "#7e22ce",
+                                    ? "#b45309"
+                                    : p.category === "DIRECTOR"
+                                      ? "#15803d"
+                                      : "#7e22ce",
                             }}
                           >
                             {p.category}
@@ -1133,18 +1129,18 @@ export default function ChteHomePage() {
             <div className="flex items-center gap-2.5">
               <Image
                 src="/balochistan-seal.png"
-                alt="CHTE Balochistan"
+                alt="HEMIS Balochistan"
                 width={40}
                 height={40}
                 className="w-10 h-10 object-contain rounded-full bg-white/10 p-0.5"
               />
               <div>
-                <span className="font-black text-white text-sm block">CHTE BALOCHISTAN</span>
-                <span className="text-[10px] text-emerald-300 font-semibold">Government of Balochistan</span>
+                <span className="font-black text-white text-sm block">HEMIS BALOCHISTAN</span>
+                <span className="text-[10px] text-emerald-300 font-semibold">Higher Education Management Information System</span>
               </div>
             </div>
             <p className="leading-relaxed">
-              Higher & Technical Education Department, Government of Balochistan, Zarghoon Road, Quetta.
+              Higher Education Management Information System (HEMIS), Government of Balochistan, Zarghoon Road, Quetta.
             </p>
           </div>
 
@@ -1160,7 +1156,7 @@ export default function ChteHomePage() {
               </li>
               <li>
                 <Link href="/login?mode=chte" className="hover:text-white transition-colors">
-                  CHTE Admin Login
+                  HEMIS Admin Login
                 </Link>
               </li>
               <li>
@@ -1206,11 +1202,11 @@ export default function ChteHomePage() {
 
         <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#0b3d2b] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-emerald-300/80">
           <div>
-            © {new Date().getFullYear()} Higher & Technical Education (CHTE) Balochistan. All Rights Reserved.
+            © {new Date().getFullYear()} Higher Education Management Information System (HEMIS) Balochistan. All Rights Reserved.
           </div>
           <div className="flex gap-4">
             <Link href="/login?mode=chte" className="hover:text-white">
-              CHTE Admin
+              HEMIS Admin
             </Link>
             <Link href="/login?mode=institute" className="hover:text-white">
               Institute Login

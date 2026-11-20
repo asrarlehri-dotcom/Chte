@@ -35,7 +35,7 @@ interface PermissionItem {
 const ROLES_LIST = [
   {
     key: "CHTE_ADMIN",
-    label: "🏛️ CHTE Directorate Admin",
+    label: "🏛️ HEMIS Directorate Admin",
     desc: "Central Apex Governance & Provincial Oversight",
   },
 ];
@@ -211,7 +211,7 @@ export default function RolePermissionsPage() {
             {isChte ? "Role Permissions Control" : "College Staff Role Permissions"}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Configure system-wide module-level and action-level credentials for CHTE Directorate Admin.
+            Configure system-wide module-level and action-level credentials for HEMIS Directorate Admin.
           </p>
         </div>
 
@@ -222,7 +222,7 @@ export default function RolePermissionsPage() {
             disabled={saving || loading}
             className="px-3.5 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl transition-all disabled:opacity-50"
           >
-            Grant All for CHTE Directorate Admin
+            Grant All for HEMIS Directorate Admin
           </button>
           <button
             type="button"
@@ -256,13 +256,13 @@ export default function RolePermissionsPage() {
         </div>
       )}
 
-      {/* Role Selection Badge (CHTE Directorate Admin) */}
+      {/* Role Selection Badge (HEMIS Directorate Admin) */}
       <div className="max-w-md">
         <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/40 via-slate-900 to-slate-900 border border-blue-500/30 text-white shadow-lg flex items-center justify-between gap-4">
           <div>
             <div className="text-xs font-black text-white flex items-center gap-2">
               <span className="text-base">🏛️</span>
-              <span>CHTE Directorate Admin</span>
+              <span>HEMIS Directorate Admin</span>
               <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
                 Apex Role
               </span>

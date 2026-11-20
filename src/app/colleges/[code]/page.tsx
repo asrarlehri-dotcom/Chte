@@ -152,13 +152,13 @@ function getInitialCollegeTheme(codeParam: string): string {
       if (qTheme) {
         return qTheme.startsWith("#") ? qTheme : `#${qTheme}`;
       }
-    } catch {}
+    } catch { }
 
     // 2. Check localStorage cache
     try {
       const cached = localStorage.getItem(`college_theme_${codeParam.toLowerCase()}`);
       if (cached) return cached;
-    } catch {}
+    } catch { }
   }
 
   // 3. Intelligent code-based presets
@@ -197,10 +197,10 @@ export default function CollegePortalHomePage() {
     college?.portalSettings?.heroImages && college.portalSettings.heroImages.length > 0
       ? college.portalSettings.heroImages
       : [
-          college?.portalSettings?.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
-          "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
-          "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
-        ];
+        college?.portalSettings?.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
+        "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
+        "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
+      ];
 
   useEffect(() => {
     if (collegeSlides.length <= 1) return;
@@ -240,7 +240,7 @@ export default function CollegePortalHomePage() {
               localStorage.setItem(`college_theme_${codeParam.toLowerCase()}`, resolved);
               if (data.code) localStorage.setItem(`college_theme_${data.code.toLowerCase()}`, resolved);
               if (data.id) localStorage.setItem(`college_theme_${data.id.toLowerCase()}`, resolved);
-            } catch {}
+            } catch { }
           }
         }
       })
@@ -472,7 +472,7 @@ export default function CollegePortalHomePage() {
             </div>
 
             <div>
-              <h1 
+              <h1
                 className="text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight group-hover:text-amber-200 transition-colors"
                 style={{ color: s.collegeNameColor || "#ffffff" }}
               >
@@ -574,9 +574,8 @@ export default function CollegePortalHomePage() {
             {collegeSlides.map((imgUrl, idx) => (
               <div
                 key={idx}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                  idx === heroSlideIdx ? "opacity-100 z-1" : "opacity-0 z-0 pointer-events-none"
-                }`}
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === heroSlideIdx ? "opacity-100 z-1" : "opacity-0 z-0 pointer-events-none"
+                  }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -626,9 +625,8 @@ export default function CollegePortalHomePage() {
                   key={i}
                   type="button"
                   onClick={() => setHeroSlideIdx(i)}
-                  className={`h-2 rounded-full transition-all cursor-pointer ${
-                    i === heroSlideIdx ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/70"
-                  }`}
+                  className={`h-2 rounded-full transition-all cursor-pointer ${i === heroSlideIdx ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/70"
+                    }`}
                   title={`Slide ${i + 1}`}
                 />
               ))}
@@ -979,27 +977,24 @@ export default function CollegePortalHomePage() {
             <div className="flex items-center bg-[#0b1324] p-1 rounded-xl border border-white/10 shadow-xs">
               <button
                 onClick={() => setActiveTab("ALL")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "ALL" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "ALL" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
+                  }`}
                 style={activeTab === "ALL" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
               >
                 All Programs ({college.programs.length})
               </button>
               <button
                 onClick={() => setActiveTab("BS")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "BS" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "BS" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
+                  }`}
                 style={activeTab === "BS" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
               >
                 BS 4-Year
               </button>
               <button
                 onClick={() => setActiveTab("INTERMEDIATE")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === "INTERMEDIATE" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "INTERMEDIATE" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
+                  }`}
                 style={activeTab === "INTERMEDIATE" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
               >
                 Intermediate
@@ -1247,7 +1242,7 @@ export default function CollegePortalHomePage() {
             </Link>
             <span>•</span>
             <Link href="/" className="hover:text-white transition-colors">
-              CHTE Central Portal
+              HEMIS Central Portal
             </Link>
             <span>•</span>
             <Link href={loginUrl} className="hover:text-amber-400 font-bold transition-colors">

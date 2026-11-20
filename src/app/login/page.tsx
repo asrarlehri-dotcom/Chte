@@ -136,7 +136,7 @@ function LoginForm() {
         if (res.error === "CredentialsSignin") {
           setError(
             loginMode === "CHTE"
-              ? "Ghalat CHTE username ya password (e.g. chte / chte123)."
+              ? "Ghalat HEMIS username ya password (e.g. chte / chte123)."
               : "Ghalat username ya password (e.g. admin / admin123)."
           );
         } else {
@@ -182,7 +182,7 @@ function LoginForm() {
           </div>
           <div>
             <div className="text-xs font-black text-white tracking-wider uppercase">
-              {loginMode === "CHTE" ? "CHTE Central" : "CHTE Portal"}
+              {loginMode === "CHTE" ? "HEMIS Central" : "HEMIS Portal"}
             </div>
             <div
               className={`text-[10px] font-bold uppercase tracking-widest ${
@@ -222,7 +222,7 @@ function LoginForm() {
               }`}
             >
               <ShieldCheck className="w-4 h-4 text-emerald-300" />
-              <span>CHTE Official</span>
+              <span>HEMIS Official</span>
             </button>
 
             <button
@@ -241,17 +241,17 @@ function LoginForm() {
 
           {/* Header Card based on Mode */}
           {loginMode === "CHTE" ? (
-            /* 1. CHTE Official Mode Header */
+            /* 1. HEMIS Official Mode Header */
             <div className="text-center space-y-2 p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
               <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 text-emerald-400 mx-auto flex items-center justify-center shadow-inner">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/30">
-                CHTE Central Platform
+                HEMIS Central Platform
               </div>
-              <h2 className="text-base font-bold text-white">CHTE Master Portal</h2>
+              <h2 className="text-base font-bold text-white">HEMIS Master Portal</h2>
               <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                Central Higher & Technical Education Authority • Apex Policy & Oversight
+                Higher Education Management Information System • Apex Policy & Oversight
               </p>
             </div>
           ) : (
@@ -333,7 +333,7 @@ function LoginForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                {loginMode === "CHTE" ? "CHTE Username / Email" : "Username / Email / Roll Number"}
+                {loginMode === "CHTE" ? "HEMIS Username / Email" : "Username / Email / Roll Number"}
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -401,7 +401,7 @@ function LoginForm() {
                 {loading
                   ? "Authenticating..."
                   : loginMode === "CHTE"
-                  ? "Sign In to CHTE Central Portal"
+                  ? "Sign In to HEMIS Central Portal"
                   : `Sign In to ${selectedCollege?.code || "College"} Portal`}
               </span>
               <ArrowRight className="w-4 h-4" />
@@ -411,7 +411,7 @@ function LoginForm() {
           {/* Quick Demo Credentials Autofill */}
           <div className="pt-3.5 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-2">
             <div className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-              {loginMode === "CHTE" ? "CHTE Quick Demo Login:" : "Institution Quick Demo Login:"}
+              {loginMode === "CHTE" ? "HEMIS Quick Demo Login:" : "Institution Quick Demo Login:"}
             </div>
 
             {loginMode === "CHTE" ? (
@@ -424,7 +424,7 @@ function LoginForm() {
                 className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 text-left transition-colors flex items-center justify-between"
               >
                 <div>
-                  <div className="font-bold text-white text-xs">CHTE Master Admin</div>
+                  <div className="font-bold text-white text-xs">HEMIS Master Admin</div>
                   <div className="text-slate-400 text-[11px]">User: <span className="text-emerald-400 font-mono">chte</span></div>
                 </div>
                 <div className="text-emerald-400 font-mono text-xs font-bold bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
@@ -488,7 +488,7 @@ function LoginForm() {
 
       {/* Footer */}
       <footer className="px-6 py-4 border-t border-slate-900 bg-slate-950/80 backdrop-blur-md relative z-10 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} Higher & Technical Education (CHTE) Balochistan. All Rights Reserved.
+        © {new Date().getFullYear()} Higher Education Management Information System (HEMIS) Balochistan. All Rights Reserved.
       </footer>
     </div>
   );
@@ -499,7 +499,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm">
-          Loading CHTE Portal...
+          Loading HEMIS Portal...
         </div>
       }
     >

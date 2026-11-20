@@ -5,8 +5,8 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "CMS - College Management System",
-  description: "Manage Intermediate and BS Programs",
+  title: "HEMIS - Higher Education Management Information System Balochistan",
+  description: "HEMIS - Higher Education Management Information System for Balochistan Colleges",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
