@@ -6,6 +6,7 @@ import { sortStudentsByRoll, distributeTotalMarks, parsePastedMarksText } from "
 import ResultsPromotionTab from "./ResultsPromotionTab";
 import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
 import { useSettings } from "@/lib/useSettings";
+import { getGPValue } from "@/lib/cgpa";
 
 export default function ExamsResultsPage() {
   const [activeTab, setActiveTab] = useState("paper_attendance");
@@ -2922,6 +2923,49 @@ function StatusAcademicActionsTab() {
     issueDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
   });
 
+  // ADA / ADS Exit State & Modal
+  const [showAdaModal, setShowAdaModal] = useState(false);
+  const [adaModalTab, setAdaModalTab] = useState<"minutes" | "transcript">("minutes");
+  const [adaStudent, setAdaStudent] = useState<any | null>(null);
+  const [adaReason, setAdaReason] = useState("Compulsory Work");
+  const [adaDegreeType, setAdaDegreeType] = useState<"ADA" | "ADS">("ADS");
+  const [adaMeetingDate, setAdaMeetingDate] = useState(() => {
+    const d = new Date();
+    const day = d.getDate();
+    let suffix = "th";
+    if (day === 1 || day === 21 || day === 31) suffix = "st";
+    else if (day === 2 || day === 22) suffix = "nd";
+    else if (day === 3 || day === 23) suffix = "rd";
+    const month = d.toLocaleDateString("en-US", { month: "long" });
+    const year = d.getFullYear();
+    return `${day}${suffix} of ${month}, ${year}`;
+  });
+  const [adaMeetingVenue, setAdaMeetingVenue] = useState("college conference hall");
+  const [adaCreditHours, setAdaCreditHours] = useState("64");
+  const [adaCgpa, setAdaCgpa] = useState("2.13");
+  const [adaLiaisonUniv, setAdaLiaisonUniv] = useState(universityName || "University of Baluchistan Quetta");
+
+  function computeStudentTwoYearStats(student: any) {
+    let totalCredits = 0;
+    let totalQP = 0;
+    if (Array.isArray(student?.marks)) {
+      student.marks.forEach((m: any) => {
+        const sem = m.semester || m.course?.semester || 1;
+        if (sem <= 4) {
+          const cr = m.course?.creditHours || 3;
+          const gp = getGPValue(m.obtainedMarks, m.totalMarks);
+          totalQP += gp * cr;
+          totalCredits += cr;
+        }
+      });
+    }
+    const cgpa = totalCredits > 0 ? (totalQP / totalCredits).toFixed(2) : "2.13";
+    return {
+      creditHours: totalCredits > 0 ? totalCredits : 64,
+      cgpa,
+    };
+  }
+
   const loadStudents = () => {
     setLoading(true);
     fetch("/api/students?educationLevel=BS&includeInactive=true")
@@ -2955,10 +2999,41 @@ function StatusAcademicActionsTab() {
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
 
+  useEffect(() => {
+    if (selectedStudent) {
+      const stats = computeStudentTwoYearStats(selectedStudent);
+      setAdaCreditHours(String(stats.creditHours));
+      setAdaCgpa(String(stats.cgpa));
+      const prog = (selectedStudent.program?.name || "").toLowerCase();
+      if (
+        prog.includes("arts") ||
+        prog.includes("english") ||
+        prog.includes("urdu") ||
+        prog.includes("islam") ||
+        prog.includes("history") ||
+        prog.includes("political") ||
+        prog.includes("pak") ||
+        prog.includes("sociology") ||
+        prog.includes("economics")
+      ) {
+        setAdaDegreeType("ADA");
+      } else {
+        setAdaDegreeType("ADS");
+      }
+    }
+  }, [selectedStudentId, students]);
+
   // List of students who have undergone migration
   const migratedStudentsList = students.filter((s) =>
     s.statuses?.some(
       (st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT"
+    )
+  );
+
+  // List of students who have quit under ADA / ADS 2-Year exit
+  const quitStudentsList = students.filter((s) =>
+    s.statuses?.some(
+      (st: any) => st.statusType === "QUIT" || st.statusType === "ADP"
     )
   );
 
@@ -2973,16 +3048,22 @@ function StatusAcademicActionsTab() {
         body: JSON.stringify({
           studentId: selectedStudentId,
           statusType: actionType,
-          reason: actionType === "MIGRATION" ? (destinationCollege || "Outward Migration") : reason,
+          reason: actionType === "MIGRATION"
+            ? (destinationCollege || "Outward Migration")
+            : actionType === "QUIT"
+            ? (adaReason || reason || "Compulsory Work")
+            : reason,
           notes: actionType === "MIGRATION"
             ? `Destination: ${destinationCollege}. NOC No: ${relievingNo}. Remarks: ${reason}`
+            : actionType === "QUIT"
+            ? `Degree: ${adaDegreeType}. Reason: ${adaReason || reason || "Compulsory Work"}. Credits: ${adaCreditHours}, CGPA: ${adaCgpa}. Meeting Date: ${adaMeetingDate}. Venue: ${adaMeetingVenue}`
             : reason,
           relievingNo: actionType === "MIGRATION" ? relievingNo : undefined,
         }),
       });
 
       if (res.ok) {
-        setSuccess(`Academic action '${actionType}' recorded successfully!`);
+        setSuccess(`Academic action '${actionType === "QUIT" ? "Quit / ADA / ADS" : actionType}' recorded successfully!`);
 
         if (actionType === "MIGRATION") {
           // Immediately generate migration certificate and official transcript
@@ -2999,6 +3080,19 @@ function StatusAcademicActionsTab() {
           setDestinationCollege("");
           setReason("");
           setRelievingNo(`NOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+        } else if (actionType === "QUIT") {
+          // Immediately generate ADA / ADS Minutes of Meeting report
+          setAdaStudent(selectedStudent);
+          setAdaReason(adaReason || reason || "Compulsory Work");
+          setAdaCreditHours(adaCreditHours || "64");
+          setAdaCgpa(adaCgpa || "2.13");
+          setAdaDegreeType(adaDegreeType);
+          setAdaMeetingDate(adaMeetingDate);
+          setAdaMeetingVenue(adaMeetingVenue);
+          setAdaLiaisonUniv(adaLiaisonUniv || universityName || "University of Baluchistan Quetta");
+          setAdaModalTab("minutes");
+          setShowAdaModal(true);
+          setReason("");
         } else {
           setReason("");
         }
@@ -3038,25 +3132,85 @@ function StatusAcademicActionsTab() {
     setShowDocModal(true);
   };
 
+  const openAdaMinutesForStudent = (student: any, tab: "minutes" | "transcript" = "minutes") => {
+    const quitStatus = student.statuses?.find(
+      (st: any) => st.statusType === "QUIT" || st.statusType === "ADP"
+    );
+    const stats = computeStudentTwoYearStats(student);
+    let rsn = quitStatus?.reason || "Compulsory Work";
+    let cr = String(stats.creditHours);
+    let gpa = String(stats.cgpa);
+    let mDate = adaMeetingDate;
+    let venue = "college conference hall";
+    let dType: "ADA" | "ADS" = "ADS";
+    const prog = (student.program?.name || "").toLowerCase();
+    if (
+      prog.includes("arts") ||
+      prog.includes("english") ||
+      prog.includes("urdu") ||
+      prog.includes("islam") ||
+      prog.includes("history") ||
+      prog.includes("political") ||
+      prog.includes("pak") ||
+      prog.includes("sociology") ||
+      prog.includes("economics")
+    ) {
+      dType = "ADA";
+    }
+
+    if (quitStatus?.notes) {
+      if (quitStatus.notes.includes("Credits: ")) {
+        const m = quitStatus.notes.match(/Credits:\s*([0-9.]+)/);
+        if (m) cr = m[1];
+      }
+      if (quitStatus.notes.includes("CGPA: ")) {
+        const m = quitStatus.notes.match(/CGPA:\s*([0-9.]+)/);
+        if (m) gpa = m[1];
+      }
+      if (quitStatus.notes.includes("Meeting Date: ")) {
+        const m = quitStatus.notes.match(/Meeting Date:\s*([^,\.]+)/);
+        if (m) mDate = m[1].trim();
+      }
+      if (quitStatus.notes.includes("Venue: ")) {
+        const m = quitStatus.notes.match(/Venue:\s*([^,\.]+)/);
+        if (m) venue = m[1].trim();
+      }
+      if (quitStatus.notes.includes("ADA")) dType = "ADA";
+      else if (quitStatus.notes.includes("ADS")) dType = "ADS";
+    }
+
+    setAdaStudent(student);
+    setAdaReason(rsn);
+    setAdaCreditHours(cr);
+    setAdaCgpa(gpa);
+    setAdaMeetingDate(mDate);
+    setAdaMeetingVenue(venue);
+    setAdaDegreeType(dType);
+    setAdaLiaisonUniv(universityName || "University of Baluchistan Quetta");
+    setAdaModalTab(tab);
+    setShowAdaModal(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Print isolation style: when modal is active, hide everything else and print the document container */}
-      {showDocModal && (
+      {(showDocModal || showAdaModal) && (
         <style>{`
           @media print {
             body * {
               visibility: hidden !important;
             }
-            #migration-print-container, #migration-print-container * {
+            #migration-print-container, #migration-print-container *,
+            #ada-print-container, #ada-print-container * {
               visibility: visible !important;
             }
-            #migration-print-container {
+            #migration-print-container, #ada-print-container {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
               width: 100% !important;
               background: white !important;
-              padding: 0 !important;
+              padding: 24px !important;
               margin: 0 !important;
             }
           }
@@ -3066,7 +3220,7 @@ function StatusAcademicActionsTab() {
       <div className="flex justify-between items-center border-b pb-4 print:hidden">
         <div>
           <h2 className="text-xl font-black text-gray-900 tracking-tight">Student Academic Status & Actions</h2>
-          <p className="text-gray-500 text-xs mt-0.5">Manage academic semester freezing, student quit, and outward migrations with reports.</p>
+          <p className="text-gray-500 text-xs mt-0.5">Manage academic semester freezing, student quit (ADA/ADS 2-Year exit), and outward migrations with reports.</p>
         </div>
       </div>
 
@@ -3074,7 +3228,7 @@ function StatusAcademicActionsTab() {
       <div className="flex flex-wrap gap-2.5 print:hidden">
         {[
           { key: "FREEZE", label: "❄️ Freeze", desc: "Freeze Semester" },
-          { key: "QUIT", label: "🚪 Quit", desc: "Quit Program" },
+          { key: "QUIT", label: "🎓 Quit / ADA / ADS", desc: "2-Year Exit & ADA/ADS Award Report" },
           { key: "MIGRATION", label: "🔄 Migration", desc: "Outward Migration & Clearance" },
         ].map((act) => (
           <button
@@ -3109,9 +3263,11 @@ function StatusAcademicActionsTab() {
           <span className={`px-3 py-1 text-xs rounded-full font-bold ${
             actionType === "MIGRATION" ? "bg-amber-100 text-amber-800" :
             actionType === "FREEZE" ? "bg-cyan-100 text-cyan-800" :
-            "bg-red-100 text-red-800"
+            "bg-blue-100 text-blue-800"
           }`}>
-            {actionType === "MIGRATION" ? "🔄 MIGRATION" : actionType}
+            {actionType === "MIGRATION" ? "🔄 MIGRATION" :
+             actionType === "QUIT" ? "🎓 QUIT / ADA / ADS (2-YEAR EXIT)" :
+             "❄️ FREEZE"}
           </span>
         </h3>
 
@@ -3149,7 +3305,7 @@ function StatusAcademicActionsTab() {
             </div>
 
             {selectedStudent && (
-              <div className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center justify-between text-slate-700">
+              <div className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex flex-wrap items-center justify-between gap-2 text-slate-700">
                 <span><strong>Father Name:</strong> {selectedStudent.fatherName || "—"}</span>
                 <span><strong>Session:</strong> {selectedStudent.session || "—"}</span>
                 <span><strong>Current Sem:</strong> Semester {selectedStudent.currentSemester || 1}</span>
@@ -3217,7 +3373,169 @@ function StatusAcademicActionsTab() {
                 <span>{saving ? "Processing Migration..." : "Confirm Migration & Issue Documents"}</span>
               </button>
             </>
+          ) : actionType === "QUIT" ? (
+            /* Quit / ADA / ADS 2-Year Exit Fields */
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Award Degree Equivalent To <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAdaDegreeType("ADS")}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                        adaDegreeType === "ADS"
+                          ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                      }`}
+                    >
+                      ADS (Science)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAdaDegreeType("ADA")}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                        adaDegreeType === "ADA"
+                          ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                      }`}
+                    >
+                      ADA (Arts)
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Exit Reason / Student Statement <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={adaReason}
+                    onChange={(e) => setAdaReason(e.target.value)}
+                    required
+                    placeholder="e.g. Compulsory Work / Employment / Financial Constraints"
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-400"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {["Compulsory Work", "Employment", "Financial Constraints", "Domestic Reasons"].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setAdaReason(preset)}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 font-medium transition-colors cursor-pointer"
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Meeting Date (Held On)
+                  </label>
+                  <input
+                    type="text"
+                    value={adaMeetingDate}
+                    onChange={(e) => setAdaMeetingDate(e.target.value)}
+                    placeholder="e.g. 22th of October, 2026"
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Meeting Venue
+                  </label>
+                  <input
+                    type="text"
+                    value={adaMeetingVenue}
+                    onChange={(e) => setAdaMeetingVenue(e.target.value)}
+                    placeholder="college conference hall"
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs bg-white focus:ring-2 focus:ring-blue-400 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Credit Hours (2 Years)
+                  </label>
+                  <input
+                    type="text"
+                    value={adaCreditHours}
+                    onChange={(e) => setAdaCreditHours(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-black bg-white focus:ring-2 focus:ring-blue-400 text-center"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    CGPA (2 Years)
+                  </label>
+                  <input
+                    type="text"
+                    value={adaCgpa}
+                    onChange={(e) => setAdaCgpa(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-black bg-white focus:ring-2 focus:ring-blue-400 text-center text-blue-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Liaison University
+                  </label>
+                  <input
+                    type="text"
+                    value={adaLiaisonUniv}
+                    onChange={(e) => setAdaLiaisonUniv(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-xs text-blue-900 flex items-start gap-2.5">
+                <span className="text-base">📜</span>
+                <p className="leading-relaxed">
+                  <strong>Automatic Minutes of Meeting Generation:</strong> Upon confirmation, student BS status is updated to Quit (2-Year Exit), and the official <strong>BS Examination Committee Minutes of Meeting</strong> (equivalent to ADA/ADS degree) will be generated for official University liaison and instant printing.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={saving || !selectedStudentId}
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <span>🎓</span>
+                  <span>{saving ? "Processing Quit / ADA-ADS..." : "Confirm QUIT / ADA-ADS & Issue Report"}</span>
+                </button>
+
+                {selectedStudent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdaStudent(selectedStudent);
+                      setAdaModalTab("minutes");
+                      setShowAdaModal(true);
+                    }}
+                    className="px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                    title="Preview or print the Minutes of Meeting without submitting"
+                  >
+                    <span>👁️</span>
+                    <span>Preview Report</span>
+                  </button>
+                )}
+              </div>
+            </>
           ) : (
+            /* Freeze Fields */
             <>
               <div>
                 <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
@@ -3228,7 +3546,7 @@ function StatusAcademicActionsTab() {
                   onChange={(e) => setReason(e.target.value)}
                   required
                   rows={3}
-                  placeholder={`Specify official reason for ${actionType.toLowerCase()}...`}
+                  placeholder={`Specify official reason for semester freeze...`}
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-400"
                 />
               </div>
@@ -3238,12 +3556,104 @@ function StatusAcademicActionsTab() {
                 disabled={saving || !selectedStudentId}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-sm transition-all shadow-md disabled:opacity-50 cursor-pointer"
               >
-                {saving ? "Updating..." : `Confirm ${actionType} Status Update`}
+                {saving ? "Updating..." : `Confirm FREEZE Status Update`}
               </button>
             </>
           )}
         </form>
       </div>
+
+      {/* Quit / ADA / ADS Students Directory & Instant Reprints */}
+      {actionType === "QUIT" && (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm print:hidden">
+          <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <h4 className="text-sm font-black text-gray-800 flex items-center gap-2">
+              <span>🎓 Quit / ADA / ADS Students Directory</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">
+                {quitStudentsList.length} Students
+              </span>
+            </h4>
+            <span className="text-xs text-gray-500">View or reprint issued ADA/ADS Minutes of Meeting reports & transcripts</span>
+          </div>
+
+          {quitStudentsList.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-xs font-semibold">
+              No students have quit for ADA/ADS yet. Use the form above to record a 2-Year Quit / ADA-ADS exit.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-b text-xs font-black text-gray-600 uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Roll Number</th>
+                    <th className="px-4 py-3">Student Name</th>
+                    <th className="px-4 py-3">Department & Session</th>
+                    <th className="px-4 py-3">Awarded Degree</th>
+                    <th className="px-4 py-3">Exit Reason</th>
+                    <th className="px-4 py-3 text-center">Issued Documents</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {quitStudentsList.map((st) => {
+                    const qStatus = st.statuses?.find(
+                      (s: any) => s.statusType === "QUIT" || s.statusType === "ADP"
+                    );
+                    const isAda = qStatus?.notes?.includes("ADA") || false;
+                    return (
+                      <tr key={st.id} className="hover:bg-blue-50/40 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-gray-800">{st.rollNumber}</td>
+                        <td className="px-4 py-3 font-black text-gray-900">
+                          <div>{st.user?.name || st.name}</div>
+                          <div className="text-[11px] font-normal text-gray-500">{st.fatherName || "—"}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-700">
+                          <span className="font-bold">{st.program?.name || "BS"}</span>
+                          <div className="text-[11px] text-gray-500">{st.session || "—"}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                            isAda ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
+                          }`}>
+                            {isAda ? "ADA (Arts)" : "ADS (Science)"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <div className="font-semibold text-gray-800">{qStatus?.reason || "Compulsory Work"}</div>
+                          <div className="text-[11px] font-mono text-gray-500">
+                            {qStatus?.notes ? qStatus.notes.slice(0, 45) + "..." : "Quit 2-Year Exit"}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openAdaMinutesForStudent(st, "minutes")}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                              title="Print / View Minutes of Meeting Report"
+                            >
+                              <span>📜</span>
+                              <span>Minutes Report</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openAdaMinutesForStudent(st, "transcript")}
+                              className="px-3 py-1 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                              title="Print / View Official Academic Transcript"
+                            >
+                              <span>🎓</span>
+                              <span>Transcript</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Migrated Students Directory & Instant Reprints */}
       {actionType === "MIGRATION" && (
@@ -3496,6 +3906,181 @@ function StatusAcademicActionsTab() {
                       universityName={universityName}
                       issueDate={docDetails.issueDate}
                       serialNumber={docDetails.relievingNo}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADA / ADS MINUTES OF MEETING & TRANSCRIPT MODAL */}
+      {showAdaModal && adaStudent && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+            {/* Modal Top Control Header (Always hidden in Print) */}
+            <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
+              <div>
+                <h3 className="text-base font-black flex items-center gap-2">
+                  <span>🎓 Award of Two Years Degree (ADA / ADS)</span>
+                  <span className="text-xs font-mono font-normal bg-slate-800 px-2 py-0.5 rounded text-blue-300">
+                    {adaStudent.rollNumber}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300">
+                  {adaStudent.user?.name || adaStudent.name} — {adaStudent.program?.name || "BS Program"} (Session: {adaStudent.session || "—"})
+                </p>
+              </div>
+
+              {/* Tab Selector & Print Button */}
+              <div className="flex items-center gap-2">
+                <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setAdaModalTab("minutes")}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                      adaModalTab === "minutes"
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    📜 1. Minutes of Meeting Report
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdaModalTab("transcript")}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                      adaModalTab === "transcript"
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "text-slate-300 hover:text-white"
+                    }`}
+                  >
+                    🎓 2. Academic Transcript (Sem 1-4)
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                  title="Print this document or Save as PDF"
+                >
+                  <span>🖨️</span>
+                  <span>Print {adaModalTab === "minutes" ? "Minutes Report" : "Transcript"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAdaModal(false)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
+                  title="Close modal"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body / Printable Document Container */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 print:bg-white print:p-0">
+              <div id="ada-print-container">
+                {adaModalTab === "minutes" ? (
+                  /* Printable Minutes of Meeting Report (Exact format of PDF) */
+                  <div className="bg-white border-2 border-slate-900 rounded-xl p-8 sm:p-12 max-w-4xl mx-auto shadow-md print:shadow-none print:border-none print:m-0 print:p-0 font-serif text-black leading-normal">
+                    {/* Top Logo / Emblem */}
+                    <div className="text-center space-y-2 mb-6">
+                      {collegeLogo ? (
+                        <img src={collegeLogo} alt="Logo" className="w-20 h-20 object-contain mx-auto" />
+                      ) : (
+                        <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain mx-auto" onError={(e: any) => { e.target.style.display = 'none'; }} />
+                      )}
+                      <h1 className="text-2xl font-bold uppercase tracking-tight text-black font-serif">
+                        {collegeName || "GOVERNMENT POSTGRADUATE COLLEGE QUETTA"}
+                      </h1>
+                      <div className="pt-2">
+                        <h2 className="text-base font-bold text-black font-serif uppercase tracking-normal underline underline-offset-4 decoration-1 inline-block">
+                          MINUTES OF MEETING HELD ON REGARDING AWARD OF TWO YEARS DEGREE EQUILANT TO {adaDegreeType === "ADA" ? "ADA" : adaDegreeType === "ADS" ? "ADS" : "ADA/ADS"}
+                        </h2>
+                      </div>
+                    </div>
+
+                    {/* Committee Narrative Paragraph */}
+                    <p className="text-sm sm:text-base font-serif text-black leading-relaxed text-justify mb-8 indent-8">
+                      The BS Examination committee meeting held on <strong className="font-bold">{adaMeetingDate}</strong> in the college conference hall regarding award of two years degree to the student who cannot continue his BS studies after completion of two years studies due to reasons specified in his application. The subject issue of the student is discussed in detail.
+                    </p>
+
+                    {/* Committee Decision Table */}
+                    <table className="w-full border-collapse border border-black font-serif text-xs sm:text-sm text-black mb-12">
+                      <thead>
+                        <tr className="border border-black">
+                          <th className="border border-black px-2 py-2.5 text-center w-12 font-bold align-middle">S. No</th>
+                          <th className="border border-black px-3 py-2.5 text-left w-56 font-bold align-middle">Name and Detail of Student</th>
+                          <th className="border border-black px-3 py-2.5 text-left font-bold align-middle">Remarks / Decision</th>
+                          <th className="border border-black px-2 py-2.5 text-center w-20 font-bold align-middle">Credit Hours</th>
+                          <th className="border border-black px-2 py-2.5 text-center w-16 font-bold align-middle">CGPA</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border border-black">
+                          <td className="border border-black px-2 py-3 text-center align-middle font-bold">1</td>
+                          <td className="border border-black px-3 py-3 align-top leading-relaxed">
+                            <div className="font-bold text-black">{adaStudent.user?.name || adaStudent.name}</div>
+                            <div className="text-black">S/O {adaStudent.fatherName || "—"}</div>
+                            <div className="mt-1 text-black">Roll No. {adaStudent.rollNumber}</div>
+                            <div className="text-black">Department : {adaStudent.program?.name || "BS Program"}</div>
+                            <div className="text-black">Session.{adaStudent.session || "—"}</div>
+                          </td>
+                          <td className="border border-black px-3 py-3 align-top leading-relaxed text-justify text-black">
+                            The students concerned has informed the committee that they cannot continue his BS studies after completion of two years studies due to {adaReason || "Compulsory Work"}. The Committee unanimously recommend award of two years degree to the concerned student due to tangible reason stipulated in their statement. The committee directed to the BS Coordinator to liaison with administration of {adaLiaisonUniv || universityName || "University of Baluchistan Quetta"} for award of two years degree to the concerned students.
+                          </td>
+                          <td className="border border-black px-2 py-3 text-center align-middle font-bold text-black">
+                            {adaCreditHours}
+                          </td>
+                          <td className="border border-black px-2 py-3 text-center align-middle font-bold text-black">
+                            {adaCgpa}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Signatures */}
+                    <div className="pt-4 grid grid-cols-2 gap-y-10 gap-x-8 text-xs sm:text-sm font-serif text-black">
+                      <div className="flex items-center">
+                        <span>Head of Department _______________________</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span>Vice Principal ________________________________</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span>Controller ________________________________</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span>BS Coordinator _______________________________</span>
+                      </div>
+                    </div>
+
+                    {/* Bottom Right Authority Sign-off */}
+                    <div className="pt-10 flex justify-end font-serif">
+                      <div className="text-right text-xs sm:text-sm font-bold text-black leading-snug">
+                        <div>Principal,</div>
+                        <div>{collegeName || "Govt. Postgraduate College"},</div>
+                        <div>{collegeAddress || "Sariab Road, Quetta."}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Official Academic Transcript up to Semester 4 */
+                  <div className="overflow-x-auto">
+                    <OfficialTranscriptDocument
+                      student={adaStudent}
+                      fromSemester={1}
+                      toSemester={4}
+                      collegeName={collegeName}
+                      collegeLogo={collegeLogo}
+                      collegeAddress={collegeAddress}
+                      universityName={universityName}
+                      issueDate={adaMeetingDate}
+                      serialNumber={`ADA-${adaStudent.rollNumber.replace(/[^a-zA-Z0-9]/g, "")}`}
                     />
                   </div>
                 )}

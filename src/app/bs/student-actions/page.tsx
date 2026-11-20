@@ -208,7 +208,7 @@ function StudentActionsContent() {
       <div className="flex flex-wrap bg-white p-2 rounded-2xl border border-gray-200 shadow-sm gap-1">
         {[
           { key: "FREEZE", label: "❄️ Freeze Status", desc: "Manual Freeze & Printable Form" },
-          { key: "QUIT", label: "🚪 Quit / ADP", desc: "Program & ADP Exit" },
+          { key: "QUIT", label: "🎓 Quit / ADA / ADS", desc: "2-Year Exit & ADA/ADS Award" },
           { key: "MIGRATION-IN", label: "➡️ Migration In", desc: "Auto Admitted Migrations" },
           { key: "MIGRATION-OUT", label: "⬅️ Migration Out", desc: "Relieving Certificate & NOC" },
           { key: "PROMOTED", label: "🏆 Promoted", desc: "Auto Result Promotions" },
@@ -328,16 +328,16 @@ function StudentActionsContent() {
         </div>
       )}
 
-      {/* TAB 2: QUIT / ADP EXIT */}
+      {/* TAB 2: QUIT / ADA / ADS EXIT */}
       {activeTab === "QUIT" && (
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
           <div className="border-b pb-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span>🚪 Program Quit / Associate Degree (ADP) Exit</span>
-              <span className="px-2.5 py-0.5 text-xs bg-gray-100 text-gray-800 rounded-full font-extrabold">Final Exit</span>
+              <span>🎓 Program Quit / Associate Degree (ADA / ADS) Exit</span>
+              <span className="px-2.5 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full font-extrabold">2-Year Degree Award</span>
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              Mark student program exit or 2-year Associate Degree Program (ADP) completion exit.
+              Mark student program exit or 2-year Associate Degree (ADA / ADS) completion exit with official BS Examination committee minutes of meeting.
             </p>
           </div>
 
@@ -347,7 +347,7 @@ function StudentActionsContent() {
               <select
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value)}
-                className="w-full px-4 py-2.5 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2.5 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-400 font-bold text-gray-800"
               >
                 {students.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -362,11 +362,13 @@ function StudentActionsContent() {
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full px-4 py-2 border rounded-xl text-sm bg-white"
+                className="w-full px-4 py-2 border rounded-xl text-sm bg-white font-semibold"
               >
+                <option value="Compulsory Work">Compulsory Work (ADA / ADS Exit)</option>
+                <option value="Employment Exit">Job / Employment Exit (ADA / ADS)</option>
+                <option value="Financial Constraints">Financial Constraints (ADA / ADS)</option>
+                <option value="Domestic Reasons">Domestic Reasons (ADA / ADS)</option>
                 <option value="Personal Quit">Voluntary Program Quit</option>
-                <option value="ADP Exit (2 Years)">Associate Degree (ADP) 2-Year Exit</option>
-                <option value="Employment Exit">Job / Employment Exit</option>
               </select>
             </div>
 
@@ -376,7 +378,7 @@ function StudentActionsContent() {
                 rows={3}
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Enter exit details, clearance status, or ADP certificate notes..."
+                placeholder="Enter exit details, tangible reason stipulated in statement, or minutes of meeting notes..."
                 className="w-full px-4 py-2 border rounded-xl text-sm bg-white"
               />
             </div>
@@ -384,9 +386,10 @@ function StudentActionsContent() {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white font-bold rounded-xl text-sm transition-all shadow-md"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-md flex items-center gap-2 cursor-pointer"
             >
-              🚪 Confirm Program Exit / ADP
+              <span>🎓</span>
+              <span>Confirm Quit / ADA-ADS Exit</span>
             </button>
           </form>
         </div>
