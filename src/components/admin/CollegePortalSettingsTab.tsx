@@ -91,6 +91,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     sidebarColor: "#090E24", // Sidebar ERP background color
     collegeNameColor: "#0f172a", // Custom College Name font color
     collegeHeaderBg: "#ffffff", // Custom College Header Box background color
+    portalSubtitle: "CAMPUS ERP PORTAL", // Subtitle under college name in sidebar
+    portalSubtitleColor: "#4338ca", // Font color of portal subtitle
     originalLogoUrl: "", // Preserves original unedited logo before background removal
     customColors: [] as string[], // User added custom color presets palette
 
@@ -463,6 +465,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           sidebarColor: data.sidebarColor || "#090E24",
           collegeNameColor: data.collegeNameColor || "#0f172a",
           collegeHeaderBg: data.collegeHeaderBg || "#ffffff",
+          portalSubtitle: data.portalSubtitle || "CAMPUS ERP PORTAL",
+          portalSubtitleColor: data.portalSubtitleColor || "#4338ca",
           originalLogoUrl: data.originalLogoUrl || "",
           customColors: Array.isArray(data.customColors) ? data.customColors : [],
 
@@ -537,6 +541,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       sidebarColor: formData.sidebarColor,
       collegeNameColor: formData.collegeNameColor,
       collegeHeaderBg: formData.collegeHeaderBg,
+      portalSubtitle: formData.portalSubtitle,
+      portalSubtitleColor: formData.portalSubtitleColor,
       originalLogoUrl: formData.originalLogoUrl,
       customColors: formData.customColors,
 
@@ -582,18 +588,27 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, formData.sidebarColor);
               localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, formData.collegeNameColor);
               localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, formData.collegeHeaderBg);
+              localStorage.setItem(`college_name_${selectedCollege.code.toLowerCase()}`, formData.collegeName);
+              localStorage.setItem(`college_subtitle_${selectedCollege.code.toLowerCase()}`, formData.portalSubtitle);
+              localStorage.setItem(`college_subtitle_color_${selectedCollege.code.toLowerCase()}`, formData.portalSubtitleColor);
             }
             if (selectedCollege.id) {
               localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, formData.ribbonColor);
               localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, formData.sidebarColor);
               localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, formData.collegeNameColor);
               localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, formData.collegeHeaderBg);
+              localStorage.setItem(`college_name_${selectedCollege.id.toLowerCase()}`, formData.collegeName);
+              localStorage.setItem(`college_subtitle_${selectedCollege.id.toLowerCase()}`, formData.portalSubtitle);
+              localStorage.setItem(`college_subtitle_color_${selectedCollege.id.toLowerCase()}`, formData.portalSubtitleColor);
             }
             window.dispatchEvent(new CustomEvent("college-theme-change", {
               detail: {
                 sidebarColor: formData.sidebarColor,
                 collegeNameColor: formData.collegeNameColor,
                 collegeHeaderBg: formData.collegeHeaderBg,
+                collegeName: formData.collegeName,
+                portalSubtitle: formData.portalSubtitle,
+                portalSubtitleColor: formData.portalSubtitleColor,
               }
             }));
           } catch { }
@@ -1410,6 +1425,82 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               )}
             </div>
 
+            {/* ── HEADER BRANDING & TITLES (کالج کا نام اور پورٹل عنوان ایڈٹ کریں) ── */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border border-indigo-100/90 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-2.5 border-b border-indigo-100/80">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                    <Building className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                      <span>Sidebar Header Titles & Branding</span>
+                      <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100/80 px-2 py-0.5 rounded-full">
+                        کالج کا نام اور پورٹل کا عنوان
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Edit the college name and subtitle displayed at the top of the campus sidebar.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* 1. College Full Name */}
+                <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800">
+                      College Full Name (کالج کا نام):
+                    </label>
+                    <span className="text-[10px] font-mono text-indigo-600 font-bold">Main Heading</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.collegeName}
+                    onChange={(e) => setFormData({ ...formData, collegeName: e.target.value })}
+                    placeholder="e.g. Govt. Post Graduate College Quetta"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-wide"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    Displayed in the sidebar header and across public student result slips.
+                  </p>
+                </div>
+
+                {/* 2. Campus ERP Portal Subtitle */}
+                <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800">
+                      Portal Subtitle (نیچے والا عنوان / لیبل):
+                    </label>
+                    <span className="text-[10px] font-mono text-emerald-600 font-bold">Sub-label</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={formData.portalSubtitle}
+                      onChange={(e) => setFormData({ ...formData, portalSubtitle: e.target.value })}
+                      placeholder="e.g. CAMPUS ERP PORTAL"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-wider"
+                    />
+                    {/* Subtitle color picker */}
+                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs" title="Subtitle Font Color">
+                      <input
+                        type="color"
+                        value={toSafeColor(formData.portalSubtitleColor, "#4338ca")}
+                        onChange={(e) => setFormData({ ...formData, portalSubtitleColor: e.target.value })}
+                        className="w-5 h-5 rounded cursor-pointer border border-slate-300 bg-transparent p-0 flex-shrink-0"
+                      />
+                      <span className="text-[10px] font-mono font-bold text-slate-600">Color</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Default is "CAMPUS ERP PORTAL". Customize to any text (e.g. "OFFICIAL STUDENT & CMS PORTAL").
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Live Interactive Sidebar Color & Header Preview */}
             <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
@@ -1444,8 +1535,16 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     >
                       {formData.collegeName || selectedCollege?.name || "Govt. Post Graduate College Quetta"}
                     </div>
-                    <div className="text-[9px] text-indigo-700 font-black uppercase tracking-wider mt-0.5">
-                      CAMPUS ERP PORTAL
+                    <div 
+                      className="text-[9px] font-black uppercase tracking-wider mt-0.5 flex items-center gap-1.5 transition-colors duration-200"
+                      style={{ color: toSafeColor(formData.portalSubtitleColor, "#4338ca") }}
+                    >
+                      <span>{formData.portalSubtitle || "CAMPUS ERP PORTAL"}</span>
+                      {selectedCollege?.code && (
+                        <span className="text-[8px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200/60 font-black">
+                          {selectedCollege.code}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

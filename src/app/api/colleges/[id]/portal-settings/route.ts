@@ -20,6 +20,8 @@ const DEFAULT_PORTAL_SETTINGS = {
   sidebarColor: "#090E24", // Sidebar background color for Campus ERP
   collegeNameColor: "#0f172a", // Custom College Name color in sidebar & header
   collegeHeaderBg: "#ffffff", // Custom College Logo & Name header card background in sidebar
+  portalSubtitle: "CAMPUS ERP PORTAL", // Subtitle under college name in sidebar (e.g. CAMPUS ERP PORTAL)
+  portalSubtitleColor: "#4338ca", // Font color of the subtitle
   originalLogoUrl: "", // Preserves original logo before background removal
   customColors: [] as string[], // User added custom color presets
   textColor: "#ffffff",
@@ -268,6 +270,14 @@ export async function POST(
         where: { key: sidebarKey },
         update: { value: body.sidebarColor, collegeId: college.id },
         create: { key: sidebarKey, value: body.sidebarColor, collegeId: college.id }
+      }).catch(() => {});
+    }
+
+    if (body.collegeName) {
+      await prisma.systemSetting.upsert({
+        where: { key: `COLLEGE_NAME_${college.id}` },
+        update: { value: body.collegeName.trim(), collegeId: college.id },
+        create: { key: `COLLEGE_NAME_${college.id}`, value: body.collegeName.trim(), collegeId: college.id }
       }).catch(() => {});
     }
 

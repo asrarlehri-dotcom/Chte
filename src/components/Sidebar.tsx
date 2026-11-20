@@ -122,6 +122,62 @@ export function Sidebar() {
     return "#ffffff";
   });
 
+  // Dynamic College Display Name (Theme Settings)
+  const [collegeDisplayName, setCollegeDisplayName] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
+        if (cCode) {
+          const cached = localStorage.getItem(`college_name_${cCode.toLowerCase()}`);
+          if (cached) return cached;
+        }
+        if (sessionUser?.collegeId) {
+          const cachedId = localStorage.getItem(`college_name_${sessionUser.collegeId.toLowerCase()}`);
+          if (cachedId) return cachedId;
+        }
+      } catch {}
+    }
+    return collegeName || "Govt. Degree College";
+  });
+
+  // Dynamic Campus Subtitle (e.g. CAMPUS ERP PORTAL)
+  const [portalSubtitle, setPortalSubtitle] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
+        if (cCode) {
+          const cached = localStorage.getItem(`college_subtitle_${cCode.toLowerCase()}`);
+          if (cached) return cached;
+        }
+        if (sessionUser?.collegeId) {
+          const cachedId = localStorage.getItem(`college_subtitle_${sessionUser.collegeId.toLowerCase()}`);
+          if (cachedId) return cachedId;
+        }
+      } catch {}
+    }
+    return "CAMPUS ERP PORTAL";
+  });
+
+  // Dynamic Subtitle Font Color
+  const [portalSubtitleColor, setPortalSubtitleColor] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
+        if (cCode) {
+          const cached = localStorage.getItem(`college_subtitle_color_${cCode.toLowerCase()}`);
+          if (cached) return cached;
+        }
+      } catch {}
+    }
+    return "#4338ca";
+  });
+
+  useEffect(() => {
+    if (collegeName) {
+      setCollegeDisplayName(collegeName);
+    }
+  }, [collegeName]);
+
   useEffect(() => {
     if (collegeSidebarBg && collegeSidebarBg !== "#090E24") {
       setSidebarBgColor(collegeSidebarBg);
@@ -185,6 +241,45 @@ export function Sidebar() {
               } catch {}
             }
           }
+          if (data?.collegeName) {
+            setCollegeDisplayName(data.collegeName);
+            if (typeof window !== "undefined") {
+              try {
+                if (sessionUser?.collegeCode) {
+                  localStorage.setItem(`college_name_${sessionUser.collegeCode.toLowerCase()}`, data.collegeName);
+                }
+                if (sessionUser?.collegeId) {
+                  localStorage.setItem(`college_name_${sessionUser.collegeId.toLowerCase()}`, data.collegeName);
+                }
+              } catch {}
+            }
+          }
+          if (data?.portalSubtitle) {
+            setPortalSubtitle(data.portalSubtitle);
+            if (typeof window !== "undefined") {
+              try {
+                if (sessionUser?.collegeCode) {
+                  localStorage.setItem(`college_subtitle_${sessionUser.collegeCode.toLowerCase()}`, data.portalSubtitle);
+                }
+                if (sessionUser?.collegeId) {
+                  localStorage.setItem(`college_subtitle_${sessionUser.collegeId.toLowerCase()}`, data.portalSubtitle);
+                }
+              } catch {}
+            }
+          }
+          if (data?.portalSubtitleColor) {
+            setPortalSubtitleColor(data.portalSubtitleColor);
+            if (typeof window !== "undefined") {
+              try {
+                if (sessionUser?.collegeCode) {
+                  localStorage.setItem(`college_subtitle_color_${sessionUser.collegeCode.toLowerCase()}`, data.portalSubtitleColor);
+                }
+                if (sessionUser?.collegeId) {
+                  localStorage.setItem(`college_subtitle_color_${sessionUser.collegeId.toLowerCase()}`, data.portalSubtitleColor);
+                }
+              } catch {}
+            }
+          }
         })
         .catch(() => {});
     }
@@ -198,6 +293,15 @@ export function Sidebar() {
       }
       if (e?.detail?.collegeHeaderBg) {
         setCollegeHeaderBg(e.detail.collegeHeaderBg);
+      }
+      if (e?.detail?.collegeName) {
+        setCollegeDisplayName(e.detail.collegeName);
+      }
+      if (e?.detail?.portalSubtitle) {
+        setPortalSubtitle(e.detail.portalSubtitle);
+      }
+      if (e?.detail?.portalSubtitleColor) {
+        setPortalSubtitleColor(e.detail.portalSubtitleColor);
       }
     };
     if (typeof window !== "undefined") {
@@ -501,12 +605,15 @@ export function Sidebar() {
             <div
               className="text-xs font-black tracking-wide leading-tight uppercase line-clamp-2 transition-colors duration-200"
               style={{ color: collegeNameColor || "#0f172a" }}
-              title={collegeName || "Govt. Degree College"}
+              title={collegeDisplayName || collegeName || "Govt. Degree College"}
             >
-              {collegeName || "Govt. Degree College"}
+              {collegeDisplayName || collegeName || "Govt. Degree College"}
             </div>
-            <div className="text-[9px] text-indigo-700 font-black uppercase tracking-wider mt-0.5 flex items-center gap-1.5">
-              <span>CAMPUS ERP PORTAL</span>
+            <div 
+              className="text-[9px] font-black uppercase tracking-wider mt-0.5 flex items-center gap-1.5 transition-colors duration-200"
+              style={{ color: portalSubtitleColor || "#4338ca" }}
+            >
+              <span>{portalSubtitle || "CAMPUS ERP PORTAL"}</span>
               {sessionUser?.collegeCode && (
                 <span className="text-[8px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200/60 font-black">
                   {sessionUser.collegeCode}

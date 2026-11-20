@@ -90,6 +90,8 @@ type PortalSettings = {
   sidebarBgColor?: string;
   collegeNameColor?: string;
   collegeHeaderBg?: string;
+  portalSubtitle?: string;
+  portalSubtitleColor?: string;
   originalLogoUrl?: string;
   customColors?: string[];
   textColor: string;
