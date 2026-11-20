@@ -123,6 +123,8 @@ export async function POST(req: NextRequest) {
       practicalMarks,
       midtermMarks,
       finalMarks,
+      thesisMarks,
+      vivaMarks,
       totalMarks,
       status,
       isLocked,
@@ -185,8 +187,8 @@ export async function POST(req: NextRequest) {
     const assignment = isAbsent ? 0 : parseFloat(assignmentMarks || 0);
     const quiz = isAbsent ? 0 : parseFloat(quizMarks || 0);
     const practical = isAbsent ? 0 : parseFloat(practicalMarks || 0);
-    const midterm = isAbsent ? 0 : parseFloat(midtermMarks || 0);
-    const final = isAbsent ? 0 : parseFloat(finalMarks || 0);
+    const midterm = isAbsent ? 0 : parseFloat(thesisMarks !== undefined ? thesisMarks : (midtermMarks || 0));
+    const final = isAbsent ? 0 : parseFloat(vivaMarks !== undefined ? vivaMarks : (finalMarks || 0));
     const obtained = isAbsent ? 0 : (assignment + quiz + practical + midterm + final);
     const total = parseFloat(totalMarks || 100);
 

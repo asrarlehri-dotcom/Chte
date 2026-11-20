@@ -160,6 +160,53 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     }));
   };
 
+  // Live real-time sync with Sidebar & Global Theme
+  const syncThemeField = (field: string, val: string) => {
+    const cleanVal = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeNameColor", "collegeHeaderBg", "portalSubtitleColor"].includes(field)
+      ? normalizeHex(val)
+      : val;
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: cleanVal };
+      if (typeof window !== "undefined") {
+        try {
+          if (field === "sidebarColor") localStorage.setItem("college_sidebar_active", cleanVal);
+          if (field === "collegeNameColor") localStorage.setItem("college_name_color_active", cleanVal);
+          if (field === "collegeHeaderBg") localStorage.setItem("college_header_bg_active", cleanVal);
+          if (field === "collegeName") localStorage.setItem("college_name_active", cleanVal);
+          if (field === "portalSubtitle") localStorage.setItem("college_subtitle_active", cleanVal);
+          if (field === "portalSubtitleColor") localStorage.setItem("college_subtitle_color_active", cleanVal);
+          if (field === "ribbonColor") localStorage.setItem("college_theme_active", cleanVal);
+
+          if (selectedCollege?.code) {
+            if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, cleanVal);
+            if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, cleanVal);
+            if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, cleanVal);
+            if (field === "collegeName") localStorage.setItem(`college_name_${selectedCollege.code.toLowerCase()}`, cleanVal);
+          }
+          if (selectedCollege?.id) {
+            if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, cleanVal);
+            if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, cleanVal);
+            if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, cleanVal);
+            if (field === "collegeName") localStorage.setItem(`college_name_${selectedCollege.id.toLowerCase()}`, cleanVal);
+          }
+
+          window.dispatchEvent(new CustomEvent("college-theme-change", {
+            detail: {
+              sidebarColor: updated.sidebarColor,
+              collegeNameColor: updated.collegeNameColor,
+              collegeHeaderBg: updated.collegeHeaderBg,
+              collegeName: updated.collegeName,
+              portalSubtitle: updated.portalSubtitle,
+              portalSubtitleColor: updated.portalSubtitleColor,
+              ribbonColor: updated.ribbonColor,
+            }
+          }));
+        } catch {}
+      }
+      return updated;
+    });
+  };
+
   // Logo Background Remover State (MS Word Style)
   const [showBgRemoverModal, setShowBgRemoverModal] = useState(false);
   const [bgRemoverProcessing, setBgRemoverProcessing] = useState(false);
@@ -1047,13 +1094,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <input
                       type="color"
                       value={toSafeColor(formData.sidebarColor, "#090E24")}
-                      onChange={(e) => setFormData({ ...formData, sidebarColor: e.target.value })}
+                      onChange={(e) => syncThemeField("sidebarColor", e.target.value)}
                       className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 bg-transparent p-0.5 flex-shrink-0"
                     />
                     <input
                       type="text"
                       value={formData.sidebarColor}
-                      onChange={(e) => setFormData({ ...formData, sidebarColor: normalizeHex(e.target.value) })}
+                      onChange={(e) => syncThemeField("sidebarColor", e.target.value)}
                       placeholder="#090E24"
                       className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800"
                     />
@@ -1085,7 +1132,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       <button
                         key={c.hex}
                         type="button"
-                        onClick={() => setFormData({ ...formData, sidebarColor: c.hex })}
+                        onClick={() => syncThemeField("sidebarColor", c.hex)}
                         className="px-2 py-1 rounded-md text-[10px] font-bold text-white shadow-xs hover:scale-105 transition-transform"
                         style={{ backgroundColor: c.hex }}
                       >
@@ -1102,7 +1149,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             key={hex}
                             type="button"
-                            onClick={() => setFormData({ ...formData, sidebarColor: hex })}
+                            onClick={() => syncThemeField("sidebarColor", hex)}
                             className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
                             style={{ backgroundColor: hex }}
                             title={`Apply ${hex} to Sidebar`}
@@ -1132,13 +1179,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <input
                       type="color"
                       value={toSafeColor(formData.collegeNameColor, "#0f172a")}
-                      onChange={(e) => setFormData({ ...formData, collegeNameColor: e.target.value })}
+                      onChange={(e) => syncThemeField("collegeNameColor", e.target.value)}
                       className="w-10 h-10 rounded-lg cursor-pointer border border-indigo-200 bg-transparent p-0.5 flex-shrink-0"
                     />
                     <input
                       type="text"
                       value={formData.collegeNameColor}
-                      onChange={(e) => setFormData({ ...formData, collegeNameColor: normalizeHex(e.target.value) })}
+                      onChange={(e) => syncThemeField("collegeNameColor", e.target.value)}
                       placeholder="#0f172a"
                       className="flex-1 bg-white border border-indigo-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-indigo-400"
                     />
@@ -1172,7 +1219,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       <button
                         key={c.hex}
                         type="button"
-                        onClick={() => setFormData({ ...formData, collegeNameColor: c.hex })}
+                        onClick={() => syncThemeField("collegeNameColor", c.hex)}
                         className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-xs hover:scale-105 transition-transform ${c.hex === "#ffffff" ? "text-slate-900 border border-slate-300" : "text-white"
                           }`}
                         style={{ backgroundColor: c.hex }}
@@ -1190,7 +1237,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             key={hex}
                             type="button"
-                            onClick={() => setFormData({ ...formData, collegeNameColor: hex })}
+                            onClick={() => syncThemeField("collegeNameColor", hex)}
                             className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
                             style={{ backgroundColor: hex }}
                             title={`Apply ${hex} to College Name`}
@@ -1220,13 +1267,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <input
                       type="color"
                       value={toSafeColor(formData.collegeHeaderBg, "#ffffff")}
-                      onChange={(e) => setFormData({ ...formData, collegeHeaderBg: e.target.value })}
+                      onChange={(e) => syncThemeField("collegeHeaderBg", e.target.value)}
                       className="w-10 h-10 rounded-lg cursor-pointer border border-amber-200 bg-transparent p-0.5 flex-shrink-0"
                     />
                     <input
                       type="text"
                       value={formData.collegeHeaderBg}
-                      onChange={(e) => setFormData({ ...formData, collegeHeaderBg: normalizeHex(e.target.value) })}
+                      onChange={(e) => syncThemeField("collegeHeaderBg", e.target.value)}
                       placeholder="#ffffff"
                       className="flex-1 bg-white border border-amber-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-amber-400"
                     />
@@ -1259,7 +1306,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       <button
                         key={c.name}
                         type="button"
-                        onClick={() => setFormData({ ...formData, collegeHeaderBg: c.hex })}
+                        onClick={() => syncThemeField("collegeHeaderBg", c.hex)}
                         className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-xs hover:scale-105 transition-transform ${c.hex === "#ffffff" || c.hex === "#f1f5f9" ? "text-slate-900 border border-slate-300 bg-white" : "text-white"
                           }`}
                         style={{ backgroundColor: c.hex }}
@@ -1277,10 +1324,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             key={hex}
                             type="button"
-                            onClick={() => setFormData({ ...formData, collegeHeaderBg: hex })}
+                            onClick={() => syncThemeField("collegeHeaderBg", hex)}
                             className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
                             style={{ backgroundColor: hex }}
-                            title={`Apply ${hex} to College Header Box`}
+                            title={`Apply ${hex} to College Header Bg`}
                           />
                         ))}
                       </div>

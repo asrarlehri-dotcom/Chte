@@ -81,11 +81,23 @@ export async function GET(request: Request) {
         try {
           const parsed = JSON.parse(portalRec.value);
           if (parsed.sidebarColor) config.COLLEGE_SIDEBAR_BG = parsed.sidebarColor;
+          if (parsed.collegeNameColor) config.COLLEGE_NAME_COLOR = parsed.collegeNameColor;
+          if (parsed.collegeHeaderBg) config.COLLEGE_HEADER_BG = parsed.collegeHeaderBg;
+          if (parsed.portalSubtitle) config.PORTAL_SUBTITLE = parsed.portalSubtitle;
+          if (parsed.portalSubtitleColor) config.PORTAL_SUBTITLE_COLOR = parsed.portalSubtitleColor;
         } catch {}
       }
       const customSidebarRec = collegeSettings.find((s) => s.key === `COLLEGE_SIDEBAR_BG_${college.id}` || s.key === "COLLEGE_SIDEBAR_BG");
       if (customSidebarRec?.value) {
         config.COLLEGE_SIDEBAR_BG = customSidebarRec.value;
+      }
+      const customNameColorRec = collegeSettings.find((s) => s.key === `COLLEGE_NAME_COLOR_${college.id}` || s.key === "COLLEGE_NAME_COLOR");
+      if (customNameColorRec?.value) {
+        config.COLLEGE_NAME_COLOR = customNameColorRec.value;
+      }
+      const customHeaderBgRec = collegeSettings.find((s) => s.key === `COLLEGE_HEADER_BG_${college.id}` || s.key === "COLLEGE_HEADER_BG");
+      if (customHeaderBgRec?.value) {
+        config.COLLEGE_HEADER_BG = customHeaderBgRec.value;
       }
       if (college.logoUrl) config.COLLEGE_LOGO = college.logoUrl;
       if (college.tagline) config.COLLEGE_TAGLINE = college.tagline;

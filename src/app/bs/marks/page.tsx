@@ -636,8 +636,22 @@ export default function AddResultPage() {
   };
 
   const currentSelectedCourse = courses.find(c => c.id === selectedCourse);
+  const isThesisOrProject = Boolean(
+    courseTotalMarks === 200 || (
+      currentSelectedCourse && (
+        currentSelectedCourse.creditHours === 6 ||
+        currentSelectedCourse.courseType === "CAPSTONE_THESIS" ||
+        (currentSelectedCourse.title && (
+          currentSelectedCourse.title.toLowerCase().includes("thesis") ||
+          currentSelectedCourse.title.toLowerCase().includes("project") ||
+          currentSelectedCourse.title.toLowerCase().includes("capstone") ||
+          currentSelectedCourse.title.toLowerCase().includes("dissertation")
+        ))
+      )
+    )
+  );
   const isPracticalCourse = Boolean(
-    currentSelectedCourse && (
+    !isThesisOrProject && currentSelectedCourse && (
       (currentSelectedCourse.creditHoursFormat && currentSelectedCourse.creditHoursFormat.includes("-1")) ||
       (currentSelectedCourse.labHours && currentSelectedCourse.labHours > 0) ||
       currentSelectedCourse.courseType === "LAB_PRACTICAL" ||
@@ -651,6 +665,32 @@ export default function AddResultPage() {
     const numValue = parseFloat(value) || 0;
     const student = students.find(s => s.id === id);
     if (!student || student.attendance === "ABSENT" || student.isDropout) return;
+
+    if (isThesisOrProject) {
+      if ((field === "thesis" || field === "mid") && numValue > 100) {
+        alert("Thesis marks cannot exceed 100!");
+        return;
+      }
+      if ((field === "viva" || field === "final") && numValue > 100) {
+        alert("Viva Voce marks cannot exceed 100!");
+        return;
+      }
+      setStudents(students.map(s => {
+        if (s.id !== id) return s;
+        const updated = { ...s };
+        if (field === "thesis" || field === "mid") {
+          updated.mid = numValue;
+          updated.thesis = numValue;
+        } else if (field === "viva" || field === "final") {
+          updated.final = numValue;
+          updated.viva = numValue;
+        } else {
+          (updated as any)[field] = numValue;
+        }
+        return updated;
+      }));
+      return;
+    }
 
     const totalQuizAssignLimit = examScheme === "TERMINAL"
       ? (isPracticalCourse ? 5 : 30)
@@ -732,11 +772,28 @@ export default function AddResultPage() {
     const student = students.find(s => s.id === id);
     if (!student || student.attendance === "ABSENT" || student.isDropout) return;
     const numValue = parseFloat(value) || 0;
-    if (numValue > courseTotalMarks) {
-      alert(`Total marks cannot exceed ${courseTotalMarks}!`);
+    const effectiveTotal = isThesisOrProject ? 200 : courseTotalMarks;
+    if (numValue > effectiveTotal) {
+      alert(`Total marks cannot exceed ${effectiveTotal}!`);
       return;
     }
-    setStudents(students.map(s => s.id === id ? { ...s, totalOnly: numValue } : s));
+    const dist = distributeTotalMarks(numValue, {
+      isPracticalCourse,
+      examScheme,
+      courseTotalMarks: effectiveTotal,
+      isThesisOrProject,
+    });
+    setStudents(students.map(s => s.id === id ? {
+      ...s,
+      totalOnly: numValue,
+      assignment: dist.assignment,
+      quiz: dist.quiz,
+      practical: dist.practical,
+      mid: dist.mid,
+      final: dist.final,
+      thesis: dist.mid,
+      viva: dist.final,
+    } : s));
   };
 
   const handleUpdateStatus = async (
@@ -751,6 +808,7 @@ export default function AddResultPage() {
     setErrorMsg("");
 
     const lockVal = lockTarget !== undefined ? lockTarget : (targetStatus === "APPROVED");
+    const effectiveTotalMarks = isThesisOrProject ? 200 : courseTotalMarks;
 
     let successCount = 0;
     let lastError = "";
@@ -765,18 +823,27 @@ export default function AddResultPage() {
       let midVal = examScheme === "TERMINAL" ? 0 : (s.mid || 0);
       let finalVal = s.final || 0;
 
-      // Auto-distribute if entered in Total mode or only Total is present
-      if (!isStudentAbsent && !isStudentDropout && (assignVal + quizVal + pracVal + midVal + finalVal === 0) && (s.totalOnly || 0) > 0) {
-        const distributed = distributeTotalMarks(s.totalOnly, {
-          isPracticalCourse,
-          examScheme,
-          courseTotalMarks,
-        });
-        assignVal = distributed.assignment;
-        quizVal = distributed.quiz;
-        pracVal = distributed.practical;
-        midVal = distributed.mid;
-        finalVal = distributed.final;
+      if (isThesisOrProject) {
+        assignVal = 0;
+        quizVal = 0;
+        pracVal = 0;
+        midVal = (isStudentAbsent || isStudentDropout) ? 0 : (s.thesis !== undefined ? s.thesis : (s.mid || 0));
+        finalVal = (isStudentAbsent || isStudentDropout) ? 0 : (s.viva !== undefined ? s.viva : (s.final || 0));
+      } else {
+        // Auto-distribute if entered in Total mode or only Total is present
+        if (!isStudentAbsent && !isStudentDropout && (assignVal + quizVal + pracVal + midVal + finalVal === 0) && (s.totalOnly || 0) > 0) {
+          const distributed = distributeTotalMarks(s.totalOnly, {
+            isPracticalCourse,
+            examScheme,
+            courseTotalMarks: effectiveTotalMarks,
+            isThesisOrProject,
+          });
+          assignVal = distributed.assignment;
+          quizVal = distributed.quiz;
+          pracVal = distributed.practical;
+          midVal = distributed.mid;
+          finalVal = distributed.final;
+        }
       }
 
       try {
@@ -791,7 +858,9 @@ export default function AddResultPage() {
             practicalMarks: (isStudentAbsent || isStudentDropout) ? 0 : pracVal,
             midtermMarks: (isStudentAbsent || isStudentDropout) ? 0 : midVal,
             finalMarks: (isStudentAbsent || isStudentDropout) ? 0 : finalVal,
-            totalMarks: courseTotalMarks,
+            thesisMarks: isThesisOrProject ? midVal : undefined,
+            vivaMarks: isThesisOrProject ? finalVal : undefined,
+            totalMarks: effectiveTotalMarks,
             status: studentStatus,
             isLocked: lockVal,
           })
@@ -1469,10 +1538,10 @@ export default function AddResultPage() {
                     </button>
                   </div>
                 </div>
-                {courseTotalMarks === 200 ? (
-                  <span className="px-3 py-1 text-xs font-extrabold bg-indigo-50 text-indigo-900 rounded-full border border-indigo-300 shadow-2xs flex items-center gap-1">
+                {isThesisOrProject ? (
+                  <span className="px-3 py-1 text-xs font-extrabold bg-indigo-50 text-indigo-900 rounded-full border border-indigo-300 shadow-2xs flex items-center gap-1.5">
                     <span>🎓 Project / Thesis (6 Cr • 200 Marks)</span>
-                    <span className="text-indigo-600 font-bold">• Pass: ≥100 (50%) • GP: Marks ÷ 2 for 3+3 Cr</span>
+                    <span className="text-indigo-700 font-bold">• 2 Columns: Thesis (Max 100) + Viva Voce (Max 100) • Pass: ≥100 (50%)</span>
                   </span>
                 ) : isPracticalCourse ? (
                   <span className="px-2.5 py-1 text-xs font-extrabold bg-blue-100 text-blue-800 rounded-full border border-blue-200">
@@ -1530,7 +1599,17 @@ export default function AddResultPage() {
                       <th className="p-3 w-10 text-center">#</th>
                       <th className="p-3">Roll No</th>
                       <th className="p-3">Student & Father Name</th>
-                      {entryType === "detailed" ? (
+                      {isThesisOrProject ? (
+                        <>
+                          <th className="p-3 bg-indigo-50/90 text-indigo-950 font-black border-x border-indigo-200 text-center">
+                            Thesis (Max 100)
+                          </th>
+                          <th className="p-3 bg-purple-50/90 text-purple-950 font-black border-x border-purple-200 text-center">
+                            Viva Voce (Max 100)
+                          </th>
+                          <th className="p-3 bg-slate-100 font-black text-center">Obtained Total (200)</th>
+                        </>
+                      ) : entryType === "detailed" ? (
                         <>
                           <th className="p-3">Assign (Limit {examScheme === "TERMINAL" ? (isPracticalCourse ? '5' : '30') : (isPracticalCourse ? '15' : '30')})</th>
                           <th className="p-3">Quiz (Limit {examScheme === "TERMINAL" ? (isPracticalCourse ? '5' : '30') : (isPracticalCourse ? '15' : '30')})</th>
@@ -1569,13 +1648,16 @@ export default function AddResultPage() {
                       const quizHasFullMarks = (st.quiz || 0) >= totalQuizAssignLimit;
                       const assignHasFullMarks = (st.assignment || 0) >= totalQuizAssignLimit;
 
+                      const effectiveTotalForGrade = isThesisOrProject ? 200 : courseTotalMarks;
                       const calculatedObtained = isBlocked
                         ? 0
-                        : (entryType === "detailed"
-                          ? (st.assignment + st.quiz + (isPracticalCourse ? (st.practical || 0) : 0) + (examScheme === "TERMINAL" ? 0 : st.mid) + st.final)
-                          : st.totalOnly);
-                      const gp = isBlocked ? 0.0 : getGP(calculatedObtained, courseTotalMarks);
-                      const grade = isDropout ? "-" : isAbsent ? "F (A)" : getGrade(calculatedObtained, courseTotalMarks);
+                        : isThesisOrProject
+                          ? ((st.thesis !== undefined ? st.thesis : (st.mid || 0)) + (st.viva !== undefined ? st.viva : (st.final || 0)))
+                          : (entryType === "detailed"
+                            ? (st.assignment + st.quiz + (isPracticalCourse ? (st.practical || 0) : 0) + (examScheme === "TERMINAL" ? 0 : st.mid) + st.final)
+                            : st.totalOnly);
+                      const gp = isBlocked ? 0.0 : getGP(calculatedObtained, effectiveTotalForGrade);
+                      const grade = isDropout ? "-" : isAbsent ? "F (A)" : getGrade(calculatedObtained, effectiveTotalForGrade);
                       const isPass = !isBlocked && gp >= 1.0;
                       const isTargetStudent = Boolean(
                         (targetStudentId && st.id === targetStudentId) ||
@@ -1622,7 +1704,59 @@ export default function AddResultPage() {
                             )}
                           </td>
 
-                          {entryType === "detailed" ? (
+                          {isThesisOrProject ? (
+                            <>
+                              <td className="p-3 bg-indigo-50/30 border-x border-indigo-100 text-center">
+                                <input
+                                  id={`input-thesis-${st.id}`}
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={isBlocked ? (isDropout ? "" : 0) : (st.thesis !== undefined ? st.thesis : (st.mid || ""))}
+                                  onChange={(e) => handleMarkChange(st.id, "thesis", e.target.value)}
+                                  disabled={isFacultyLocked || isBlocked}
+                                  placeholder={isDropout ? "-" : "0"}
+                                  title={isDropout ? "Student is Dropout. Marks Entry Blocked!" : isAbsent ? "Student is Absent. Cells locked!" : "Thesis Max 100"}
+                                  className={`w-20 px-2.5 py-1 border rounded-lg text-xs font-bold text-center ${isDropout
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : isAbsent
+                                      ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                      : "bg-white border-indigo-300 text-indigo-950 font-black focus:ring-2 focus:ring-indigo-400"
+                                    }`}
+                                />
+                              </td>
+                              <td className="p-3 bg-purple-50/30 border-x border-purple-100 text-center">
+                                <input
+                                  id={`input-viva-${st.id}`}
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={isBlocked ? (isDropout ? "" : 0) : (st.viva !== undefined ? st.viva : (st.final || ""))}
+                                  onChange={(e) => handleMarkChange(st.id, "viva", e.target.value)}
+                                  disabled={isFacultyLocked || isBlocked}
+                                  placeholder={isDropout ? "-" : "0"}
+                                  title={isDropout ? "Student is Dropout. Marks Entry Blocked!" : isAbsent ? "Student is Absent. Cells locked!" : "Viva Voce Max 100"}
+                                  className={`w-20 px-2.5 py-1 border rounded-lg text-xs font-bold text-center ${isDropout
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : isAbsent
+                                      ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                      : "bg-white border-purple-300 text-purple-950 font-black focus:ring-2 focus:ring-purple-400"
+                                    }`}
+                                />
+                              </td>
+                              <td className="p-3 font-black text-center">
+                                {isDropout ? (
+                                  <span className="text-gray-400 font-bold">-</span>
+                                ) : isAbsent ? (
+                                  <span className="px-2.5 py-1 bg-red-100 text-red-700 font-black rounded-lg text-xs border border-red-200 shadow-sm">
+                                    A (ABSENT)
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-900 font-mono text-sm">{calculatedObtained} / 200</span>
+                                )}
+                              </td>
+                            </>
+                          ) : entryType === "detailed" ? (
                             <>
                               <td className="p-3">
                                 <input
@@ -1689,6 +1823,8 @@ export default function AddResultPage() {
                                 <input
                                   id={`input-mid-${st.id}`}
                                   type="number"
+                                  min="0"
+                                  max={isPracticalCourse ? 20 : 30}
                                   value={isBlocked || examScheme === "TERMINAL" ? (isDropout ? "" : 0) : (st.mid || "")}
                                   onChange={(e) => handleMarkChange(st.id, "mid", e.target.value)}
                                   disabled={isFacultyLocked || examScheme === "TERMINAL" || isBlocked}

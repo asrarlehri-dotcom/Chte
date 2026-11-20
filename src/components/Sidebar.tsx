@@ -72,6 +72,8 @@ export function Sidebar() {
   const [sidebarBgColor, setSidebarBgColor] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
+        const active = localStorage.getItem("college_sidebar_active");
+        if (active) return active;
         const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
         if (cCode) {
           const cached = localStorage.getItem(`college_sidebar_${cCode.toLowerCase()}`);
@@ -90,6 +92,8 @@ export function Sidebar() {
   const [collegeNameColor, setCollegeNameColor] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
+        const active = localStorage.getItem("college_name_color_active");
+        if (active) return active;
         const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
         if (cCode) {
           const cached = localStorage.getItem(`college_name_color_${cCode.toLowerCase()}`);
@@ -108,6 +112,8 @@ export function Sidebar() {
   const [collegeHeaderBg, setCollegeHeaderBg] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
+        const active = localStorage.getItem("college_header_bg_active");
+        if (active) return active;
         const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
         if (cCode) {
           const cached = localStorage.getItem(`college_header_bg_${cCode.toLowerCase()}`);
@@ -126,6 +132,8 @@ export function Sidebar() {
   const [collegeDisplayName, setCollegeDisplayName] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
+        const active = localStorage.getItem("college_name_active");
+        if (active) return active;
         const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
         if (cCode) {
           const cached = localStorage.getItem(`college_name_${cCode.toLowerCase()}`);
@@ -144,6 +152,8 @@ export function Sidebar() {
   const [portalSubtitle, setPortalSubtitle] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
+        const active = localStorage.getItem("college_subtitle_active");
+        if (active) return active;
         const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
         if (cCode) {
           const cached = localStorage.getItem(`college_subtitle_${cCode.toLowerCase()}`);
@@ -162,10 +172,16 @@ export function Sidebar() {
   const [portalSubtitleColor, setPortalSubtitleColor] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
+        const active = localStorage.getItem("college_subtitle_color_active");
+        if (active) return active;
         const cCode = sessionUser?.collegeCode || (sessionUser?.email ? sessionUser.email.split("@")[1]?.split(".")[0] : "");
         if (cCode) {
           const cached = localStorage.getItem(`college_subtitle_color_${cCode.toLowerCase()}`);
           if (cached) return cached;
+        }
+        if (sessionUser?.collegeId) {
+          const cachedId = localStorage.getItem(`college_subtitle_color_${sessionUser.collegeId.toLowerCase()}`);
+          if (cachedId) return cachedId;
         }
       } catch {}
     }
@@ -580,7 +596,7 @@ export function Sidebar() {
       ) : (
         /* College Campus Header with Custom Background and Full Name */
         <div 
-          className="px-4 py-3.5 border-b border-slate-200/90 flex items-center gap-3 shadow-xs transition-colors duration-200"
+          className="px-4 py-3.5 border-b border-white/10 flex items-center gap-3 shadow-xs transition-colors duration-200"
           style={{ backgroundColor: collegeHeaderBg || "#ffffff" }}
         >
           {collegeLogo ? (
@@ -604,7 +620,13 @@ export function Sidebar() {
           <div className="min-w-0 flex-1">
             <div
               className="text-xs font-black tracking-wide leading-tight uppercase line-clamp-2 transition-colors duration-200"
-              style={{ color: collegeNameColor || "#0f172a" }}
+              style={{
+                color: collegeNameColor || (
+                  collegeHeaderBg && !["#ffffff", "#f8fafc", "#f1f5f9", "white"].includes(collegeHeaderBg.toLowerCase())
+                    ? "#ffffff"
+                    : "#0f172a"
+                )
+              }}
               title={collegeDisplayName || collegeName || "Govt. Degree College"}
             >
               {collegeDisplayName || collegeName || "Govt. Degree College"}

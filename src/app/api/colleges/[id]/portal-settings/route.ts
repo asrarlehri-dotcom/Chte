@@ -273,6 +273,33 @@ export async function POST(
       }).catch(() => {});
     }
 
+    if (body.collegeNameColor) {
+      const nameColorKey = `COLLEGE_NAME_COLOR_${college.id}`;
+      await prisma.systemSetting.upsert({
+        where: { key: nameColorKey },
+        update: { value: body.collegeNameColor, collegeId: college.id },
+        create: { key: nameColorKey, value: body.collegeNameColor, collegeId: college.id }
+      }).catch(() => {});
+    }
+
+    if (body.collegeHeaderBg) {
+      const headerBgKey = `COLLEGE_HEADER_BG_${college.id}`;
+      await prisma.systemSetting.upsert({
+        where: { key: headerBgKey },
+        update: { value: body.collegeHeaderBg, collegeId: college.id },
+        create: { key: headerBgKey, value: body.collegeHeaderBg, collegeId: college.id }
+      }).catch(() => {});
+    }
+
+    if (body.portalSubtitle) {
+      const subtitleKey = `COLLEGE_SUBTITLE_${college.id}`;
+      await prisma.systemSetting.upsert({
+        where: { key: subtitleKey },
+        update: { value: body.portalSubtitle, collegeId: college.id },
+        create: { key: subtitleKey, value: body.portalSubtitle, collegeId: college.id }
+      }).catch(() => {});
+    }
+
     if (body.collegeName) {
       await prisma.systemSetting.upsert({
         where: { key: `COLLEGE_NAME_${college.id}` },
