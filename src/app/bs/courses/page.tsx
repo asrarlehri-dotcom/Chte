@@ -415,20 +415,21 @@ export default function SyllabusCourseManagementPage() {
     facultyId: "",
   });
 
-  // Apply credit preset e.g. "4(3-1)", "4(4-0)", "3(3-0)", "2(2-0)"
+  // Apply credit preset e.g. "6(3-3)", "4(3-1)", "4(4-0)", "3(3-0)", "2(2-0)"
   const applyCreditPreset = (preset: string) => {
     const match = preset.match(/^(\d+)\s*\(\s*(\d+)\s*[\-\/]\s*(\d+)\s*\)$/);
     if (match) {
       const tot = match[1];
       const th = match[2];
       const lb = match[3];
+      const isProjectOrThesis = tot === "6";
       setForm(f => ({
         ...f,
         creditHoursFormat: preset,
         creditHours: tot,
         theoryHours: th,
         labHours: lb,
-        courseType: parseInt(lb) > 0 ? "LAB_PRACTICAL" : f.courseType
+        courseType: isProjectOrThesis ? "CAPSTONE_THESIS" : (parseInt(lb) > 0 ? "LAB_PRACTICAL" : f.courseType)
       }));
     }
   };
@@ -1866,9 +1867,26 @@ export default function SyllabusCourseManagementPage() {
                   <input
                     required
                     type="text"
-                    placeholder="e.g. Organic Chemistry I"
+                    placeholder="e.g. Organic Chemistry I or Final Year Project / Thesis"
                     value={form.title}
-                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const lower = val.toLowerCase();
+                      const isThesisOrProject = lower.includes("project") || lower.includes("thesis") || lower.includes("dissertation") || lower.includes("capstone");
+                      if (isThesisOrProject && form.creditHours !== "6") {
+                        setForm(f => ({
+                          ...f,
+                          title: val,
+                          courseType: "CAPSTONE_THESIS",
+                          creditHours: "6",
+                          creditHoursFormat: "6(3-3)",
+                          theoryHours: "3",
+                          labHours: "3"
+                        }));
+                      } else {
+                        setForm(f => ({ ...f, title: val }));
+                      }
+                    }}
                     className="w-full bg-slate-950 text-slate-100 text-xs rounded-xl p-3 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                   />
                 </div>
@@ -1893,7 +1911,22 @@ export default function SyllabusCourseManagementPage() {
                 <select
                   required
                   value={form.courseType}
-                  onChange={e => setForm(f => ({ ...f, courseType: e.target.value as CourseType }))}
+                  onChange={e => {
+                    const cType = e.target.value as CourseType;
+                    if (cType === "CAPSTONE_THESIS") {
+                      // Project / Thesis automatically gets 6 credit hours (3+3 scheme)
+                      setForm(f => ({
+                        ...f,
+                        courseType: cType,
+                        creditHours: "6",
+                        creditHoursFormat: "6(3-3)",
+                        theoryHours: "3",
+                        labHours: "3"
+                      }));
+                    } else {
+                      setForm(f => ({ ...f, courseType: cType }));
+                    }
+                  }}
                   className="w-full bg-slate-950 text-slate-100 text-xs rounded-xl p-3 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-400 font-bold"
                 >
                   <option value="CORE">CORE (Main Subjects)</option>
@@ -1903,7 +1936,7 @@ export default function SyllabusCourseManagementPage() {
                   <option value="ELECTIVE_OPEN">ELECTIVE OPEN (Free Elective)</option>
                   <option value="COMPULSORY_GENED">COMPULSORY GENED (English, Pak Studies, etc.)</option>
                   <option value="LAB_PRACTICAL">LAB / PRACTICAL (Hands-on Lab)</option>
-                  <option value="CAPSTONE_THESIS">CAPSTONE / THESIS (Graduation Project)</option>
+                  <option value="CAPSTONE_THESIS">CAPSTONE / THESIS (Graduation Project - 6 Cr • 200 Marks)</option>
                 </select>
               </div>
 
@@ -1911,12 +1944,13 @@ export default function SyllabusCourseManagementPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300">Credit Hours & Scheme *</label>
-                  <span className="text-[10px] text-cyan-400 font-mono">Format e.g. 4(3-1), 4(4-0), 3(3-0), 2(2-0)</span>
+                  <span className="text-[10px] text-cyan-400 font-mono">Format e.g. 6(3-3), 4(3-1), 4(4-0), 3(3-0), 2(2-0)</span>
                 </div>
 
                 {/* Quick Presets */}
                 <div className="flex gap-2 flex-wrap">
                   {[
+                    { code: "6(3-3)", label: "6(3-3) [Project / Thesis 6 Cr]" },
                     { code: "4(3-1)", label: "4(3-1) [Theory + Practical]" },
                     { code: "4(4-0)", label: "4(4-0) [Theory Only]" },
                     { code: "3(3-0)", label: "3(3-0) [Theory Only]" },
@@ -1991,6 +2025,21 @@ export default function SyllabusCourseManagementPage() {
                     />
                   </div>
                 </div>
+
+                {(form.creditHours === "6" || form.courseType === "CAPSTONE_THESIS") && (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/40 text-xs flex items-center gap-2.5 shadow-sm">
+                    <span className="text-xl">🎓</span>
+                    <div>
+                      <div className="text-indigo-200 font-extrabold flex items-center gap-1.5">
+                        <span>Project / Thesis Configured (6 Credit Hours • 200 Total Marks)</span>
+                        <span className="px-1.5 py-0.2 text-[9px] rounded bg-indigo-500/30 text-indigo-300 font-mono">3+3 Cr</span>
+                      </div>
+                      <div className="text-[11px] text-indigo-300/90 mt-0.5">
+                        Automatic 6 Credits (3+3 Scheme) • 200 Total Marks Base • Passing: ≥100 (50%) • GP calculated as 3+3 credits (Score ÷ 2 out of 100).
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Semester & Session */}
@@ -2109,7 +2158,24 @@ export default function SyllabusCourseManagementPage() {
                   <input
                     type="text"
                     value={editCourseItem.title}
-                    onChange={e => setEditCourseItem({ ...editCourseItem, title: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const lower = val.toLowerCase();
+                      const isThesisOrProject = lower.includes("project") || lower.includes("thesis") || lower.includes("dissertation") || lower.includes("capstone");
+                      if (isThesisOrProject && editCourseItem.creditHours !== 6) {
+                        setEditCourseItem({
+                          ...editCourseItem,
+                          title: val,
+                          courseType: "CAPSTONE_THESIS",
+                          creditHours: 6,
+                          creditHoursFormat: "6(3-3)",
+                          theoryHours: 3,
+                          labHours: 3
+                        });
+                      } else {
+                        setEditCourseItem({ ...editCourseItem, title: val });
+                      }
+                    }}
                     className="w-full bg-slate-950 text-slate-100 text-xs rounded-xl p-3 border border-slate-800 focus:ring-2 focus:ring-purple-400 mt-1"
                   />
                 </div>
@@ -2127,22 +2193,24 @@ export default function SyllabusCourseManagementPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300">Credit Hours & Scheme</label>
-                  <span className="text-[10px] text-cyan-400 font-mono">Format e.g. 4(3-1), 4(4-0), 3(3-0), 2(2-0)</span>
+                  <span className="text-[10px] text-cyan-400 font-mono">Format e.g. 6(3-3), 4(3-1), 4(4-0), 3(3-0), 2(2-0)</span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {["4(3-1)", "4(4-0)", "3(3-0)", "2(2-0)"].map(code => (
+                  {["6(3-3)", "4(3-1)", "4(4-0)", "3(3-0)", "2(2-0)"].map(code => (
                     <button
                       key={code}
                       type="button"
                       onClick={() => {
                         const m = code.match(/^(\d+)\s*\(\s*(\d+)\s*[\-\/]\s*(\d+)\s*\)$/);
                         if (m) {
+                          const isProject = m[1] === "6";
                           setEditCourseItem({
                             ...editCourseItem,
                             creditHoursFormat: code,
                             creditHours: Number(m[1]),
                             theoryHours: Number(m[2]),
                             labHours: Number(m[3]),
+                            courseType: isProject ? "CAPSTONE_THESIS" : editCourseItem.courseType
                           });
                         }
                       }}
@@ -2185,7 +2253,21 @@ export default function SyllabusCourseManagementPage() {
                     <label className="text-[10px] font-semibold text-slate-400">Category Type</label>
                     <select
                       value={editCourseItem.courseType}
-                      onChange={e => setEditCourseItem({ ...editCourseItem, courseType: e.target.value as CourseType })}
+                      onChange={e => {
+                        const cType = e.target.value as CourseType;
+                        if (cType === "CAPSTONE_THESIS") {
+                          setEditCourseItem({
+                            ...editCourseItem,
+                            courseType: cType,
+                            creditHours: 6,
+                            creditHoursFormat: "6(3-3)",
+                            theoryHours: 3,
+                            labHours: 3
+                          });
+                        } else {
+                          setEditCourseItem({ ...editCourseItem, courseType: cType });
+                        }
+                      }}
                       className="w-full bg-slate-950 text-slate-100 text-xs rounded-xl p-3 border border-slate-800 font-bold mt-1"
                     >
                       <option value="CORE">CORE</option>
@@ -2195,10 +2277,25 @@ export default function SyllabusCourseManagementPage() {
                       <option value="ELECTIVE_OPEN">ELECTIVE_OPEN</option>
                       <option value="COMPULSORY_GENED">COMPULSORY_GENED</option>
                       <option value="LAB_PRACTICAL">LAB_PRACTICAL</option>
-                      <option value="CAPSTONE_THESIS">CAPSTONE_THESIS</option>
+                      <option value="CAPSTONE_THESIS">CAPSTONE / THESIS (6 Cr • 200 Marks)</option>
                     </select>
                   </div>
                 </div>
+
+                {(editCourseItem.creditHours === 6 || editCourseItem.courseType === "CAPSTONE_THESIS") && (
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/40 text-xs flex items-center gap-2.5 shadow-sm">
+                    <span className="text-xl">🎓</span>
+                    <div>
+                      <div className="text-indigo-200 font-extrabold flex items-center gap-1.5">
+                        <span>Project / Thesis Configured (6 Credit Hours • 200 Total Marks)</span>
+                        <span className="px-1.5 py-0.2 text-[9px] rounded bg-indigo-500/30 text-indigo-300 font-mono">3+3 Cr</span>
+                      </div>
+                      <div className="text-[11px] text-indigo-300/90 mt-0.5">
+                        Automatic 6 Credits (3+3 Scheme) • 200 Total Marks Base • Passing: ≥100 (50%) • GP calculated as 3+3 credits (Score ÷ 2 out of 100).
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

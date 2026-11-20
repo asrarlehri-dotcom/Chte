@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { getGPValue, calculateStudentCGPA } from "@/lib/cgpa";
+import { getGPValue, getGrade, calculateStudentCGPA } from "@/lib/cgpa";
 import { TranscriptStudentData } from "@/components/OfficialTranscriptDocument";
 
 export interface OfficialDMCDocumentProps {
@@ -95,7 +95,7 @@ export default function OfficialDMCDocument({
     const obt = isAbsent ? 0 : m.obtainedMarks;
     const gp = isAbsent ? 0.0 : getGPValue(obt, max);
     const pct = max > 0 ? (obt / max) * 100 : 0;
-    const grade = isAbsent ? "F" : getGradeLetter(pct, true);
+    const grade = isAbsent ? "F" : getGrade(obt, max);
 
     if (isAbsent) absentCount++;
     totalCredits += credit;

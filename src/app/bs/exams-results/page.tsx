@@ -157,10 +157,15 @@ export default function ExamsResultsPage() {
 }
 
 // GP calculation (4.0 scale) based on linear grading policy:
-// 50% = 1.0, 51% = 1.1, ..., 79% = 3.9, 80%+ = 4.0
+// Linear HEC GP scale with Project / Thesis 200-marks rule (6 Credit Hours = 3+3 Cr)
 function getGP(obtained: number, total: number): number {
   if (total <= 0) return 0.00;
-  const pct = (obtained / total) * 100;
+  // Project / Thesis 200-marks rule: Strict Fail if less than 100 marks
+  if (total === 200 && obtained < 100) return 0.00;
+  if (obtained < total * 0.5) return 0.00;
+
+  // For 200-mark courses, score is evaluated by dividing by 2 (3+3 credits scheme)
+  const pct = total === 200 ? (obtained / 2) : ((obtained / total) * 100);
   const rounded = Math.round(pct);
 
   if (rounded < 50) return 0.00; // Fail
@@ -173,7 +178,10 @@ function getGP(obtained: number, total: number): number {
 // Grade letter calculation based on HEC range table from user screenshot
 function getGrade(obtained: number, total: number): string {
   if (total <= 0) return "F";
-  const pct = (obtained / total) * 100;
+  // Project / Thesis 200-marks rule: Strict Fail if less than 100 marks
+  if (total === 200 && obtained < 100) return "F";
+  if (obtained < total * 0.5) return "F";
+  const pct = total === 200 ? (obtained / 2) : ((obtained / total) * 100);
   const rounded = Math.round(pct);
 
   if (rounded >= 85) return "A+";
@@ -798,6 +806,19 @@ function MarksEntryTable({
   const [selectedCourse, setSelectedCourse] = useState(sharedFilters.courseId || "");
 
   const [courseTotalMarks, setCourseTotalMarks] = useState(100);
+
+  // Helper to determine default total marks based on course (Project / Thesis = 200, 6 cr = 200)
+  const getCourseDefaultTotalMarks = (c?: any): number => {
+    if (!c) return 100;
+    if (c.creditHours === 6) return 200;
+    if (c.courseType === "CAPSTONE_THESIS") return 200;
+    const t = (c.title || "").toLowerCase();
+    if (t.includes("project") || t.includes("thesis") || t.includes("dissertation") || t.includes("capstone")) {
+      return 200;
+    }
+    const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100, 6: 200 };
+    return totals[c.creditHours] ?? 100;
+  };
   const [students, setStudents] = useState<any[]>([]);
   const [targetStudentId, setTargetStudentId] = useState("");
   const [targetRollNumber, setTargetRollNumber] = useState("");
@@ -934,8 +955,7 @@ function MarksEntryTable({
           if (targetProgId || found.programId) setSelectedProgram(targetProgId || found.programId);
           if (targetSem || found.semester) setSelectedSemester((targetSem || found.semester).toString());
           setSelectedCourse(found.id);
-          const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-          setCourseTotalMarks(totals[found.creditHours] ?? 100);
+          setCourseTotalMarks(getCourseDefaultTotalMarks(found));
           return;
         }
       }
@@ -949,8 +969,7 @@ function MarksEntryTable({
         setSelectedProgram(facultyAssignedCourse.programId);
         setSelectedSemester(facultyAssignedCourse.semester?.toString() || "1");
         setSelectedCourse(facultyAssignedCourse.id);
-        const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-        setCourseTotalMarks(totals[facultyAssignedCourse.creditHours] ?? 100);
+        setCourseTotalMarks(getCourseDefaultTotalMarks(facultyAssignedCourse));
       } else if (validProgs.length > 0 && !selectedProgram) {
         const firstProgId = validProgs[0].id;
         setSelectedProgram(firstProgId);
@@ -984,8 +1003,7 @@ function MarksEntryTable({
     setErrorMsg("");
     const course = courses.find(c => c.id === courseId);
     if (course) {
-      const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-      setCourseTotalMarks(totals[course.creditHours] ?? 100);
+      setCourseTotalMarks(getCourseDefaultTotalMarks(course));
     }
   };
 
@@ -1869,19 +1887,52 @@ function MarksEntryTable({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 bg-blue-50 border border-blue-200 px-5 py-3 rounded-xl flex-wrap">
-            <span className="text-sm font-semibold text-blue-800">📊 Total Marks (out of):</span>
-            <input
-              type="number"
-              min="1"
-              max="200"
-              step="1"
-              disabled={isFacultyLocked}
-              value={courseTotalMarks}
-              onChange={e => setCourseTotalMarks(parseInt(e.target.value) || 100)}
-              className="w-24 px-3 py-1.5 border-2 border-blue-300 rounded-lg text-center font-bold text-blue-700 text-base focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed"
-            />
-            {isPracticalCourse ? (
+          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 px-5 py-3 rounded-xl flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-blue-800">📊 Total Marks:</span>
+              <input
+                type="number"
+                min="1"
+                max="200"
+                step="1"
+                disabled={isFacultyLocked}
+                value={courseTotalMarks}
+                onChange={e => setCourseTotalMarks(parseInt(e.target.value) || 100)}
+                className="w-20 px-2 py-1.5 border-2 border-blue-300 rounded-lg text-center font-bold text-blue-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono"
+              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCourseTotalMarks(100)}
+                  disabled={isFacultyLocked}
+                  className={`px-2 py-1 rounded text-xs font-bold border transition-all ${
+                    courseTotalMarks === 100
+                      ? "bg-purple-100 text-purple-900 border-purple-300 shadow-xs font-black"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  100
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCourseTotalMarks(200)}
+                  disabled={isFacultyLocked}
+                  className={`px-2.5 py-1 rounded text-xs font-bold border transition-all ${
+                    courseTotalMarks === 200
+                      ? "bg-indigo-600 text-white border-indigo-700 shadow-xs font-black"
+                      : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                  }`}
+                >
+                  🎓 200 (Project / Thesis)
+                </button>
+              </div>
+            </div>
+            {courseTotalMarks === 200 ? (
+              <span className="px-3 py-1 text-xs font-extrabold bg-indigo-100 text-indigo-900 rounded-full border border-indigo-300 shadow-2xs flex items-center gap-1">
+                <span>🎓 Project / Thesis (6 Cr • 200 Marks)</span>
+                <span className="text-indigo-700 font-bold">• Pass: ≥100 (50%) • GP: Marks ÷ 2 for 3+3 Cr</span>
+              </span>
+            ) : isPracticalCourse ? (
               <span className="px-2.5 py-1 text-xs font-extrabold bg-blue-100 text-blue-800 rounded-full border border-blue-200">
                 🔬 Practical Included — {examScheme === "TERMINAL" ? "Quiz+Assign: 5, Prac: 25, Terminal: 70" : "Quiz+Assign: 15, Prac: 25, Mid: 20, Final: 40"}
               </span>

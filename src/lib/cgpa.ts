@@ -1,12 +1,27 @@
 import { Student } from "@prisma/client";
 
 /**
- * linear HEC-compatible GP calculation (4.0 scale):
+ * Linear HEC-compatible GP calculation (4.0 scale):
  * 50% = 1.0, 51% = 1.1, ..., 79% = 3.9, 80%+ = 4.0
+ * 
+ * SPECIAL RULE FOR PROJECT / THESIS (6 Credit Hours • 200 Total Marks):
+ * - If total is 200 marks:
+ *   - Less than 100 marks is strict FAIL (GP = 0.00, Grade = F).
+ *   - 100 and above: Obtained score is divided by 2 (marks/2 out of 100),
+ *     giving the exact GP on a 3+3 credit hours basis.
+ *   - Example: 150 marks out of 200 -> 75 marks -> GP 3.50 for each 3 credits.
+ *   - Example: 160 marks out of 200 -> 80 marks -> GP 4.00 for each 3 credits.
  */
 export function getGPValue(obtained: number, total: number): number {
   if (total <= 0) return 0.00;
-  const pct = (obtained / total) * 100;
+
+  // Project / Thesis 200-marks rule: Strict Fail if less than 100 marks
+  if (total === 200 && obtained < 100) return 0.00;
+  // Strict fail if less than 50% for standard courses
+  if (obtained < total * 0.5) return 0.00;
+
+  // For 200-mark courses, score is evaluated by dividing by 2 (3+3 credits scheme)
+  const pct = total === 200 ? (obtained / 2) : ((obtained / total) * 100);
   const rounded = Math.round(pct);
 
   if (rounded < 50) return 0.00; // Fail
@@ -37,7 +52,10 @@ export function getGradeLetter(score: number, isPercent: boolean = true): string
  */
 export function getGrade(obtained: number, total: number): string {
   if (total <= 0) return "F";
-  const pct = (obtained / total) * 100;
+  // Project / Thesis 200-marks rule: Strict Fail if less than 100 marks
+  if (total === 200 && obtained < 100) return "F";
+  if (obtained < total * 0.5) return "F";
+  const pct = total === 200 ? (obtained / 2) : ((obtained / total) * 100);
   return getGradeLetter(pct, true);
 }
 

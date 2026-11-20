@@ -42,8 +42,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         };
       } else {
         const total = parseInt(data.creditHours) || 3;
-        const theory = data.theoryHours !== undefined && data.theoryHours !== null ? parseInt(data.theoryHours) : total;
-        const lab = data.labHours !== undefined && data.labHours !== null ? parseInt(data.labHours) : 0;
+        const defaultTheory = total === 6 || data.courseType === "CAPSTONE_THESIS" ? 3 : total;
+        const defaultLab = total === 6 || data.courseType === "CAPSTONE_THESIS" ? 3 : 0;
+        const theory = data.theoryHours !== undefined && data.theoryHours !== null ? parseInt(data.theoryHours) : defaultTheory;
+        const lab = data.labHours !== undefined && data.labHours !== null ? parseInt(data.labHours) : defaultLab;
         parsedCredits = {
           total,
           theory,

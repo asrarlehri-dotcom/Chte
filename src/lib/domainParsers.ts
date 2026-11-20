@@ -964,6 +964,29 @@ export function distributeTotalMarks(
     return { assignment: 0, quiz: 0, practical: 0, mid: 0, final: 0 };
   }
 
+  // Project / Thesis 200-marks course distribution (e.g. Sessional 60, Mid/Proposal 60, Final/Viva 80)
+  if (maxTotal === 200) {
+    const sessionalCap = 60;
+    const midCap = 60;
+    const finalCap = 80;
+    const ratio = clampedTotal / maxTotal;
+
+    let sessional = Math.round(sessionalCap * ratio);
+    let quiz = Math.round(sessional / 2);
+    let assignment = sessional - quiz;
+    let mid = Math.round(midCap * ratio);
+    let final = clampedTotal - (assignment + quiz + mid);
+    if (final > finalCap) {
+      const excess = final - finalCap;
+      final = finalCap;
+      mid = Math.min(midCap, mid + excess);
+    } else if (final < 0) {
+      mid = Math.max(0, mid + final);
+      final = 0;
+    }
+    return { assignment, quiz, practical: 0, mid, final: Math.max(0, final) };
+  }
+
   const isPractical = Boolean(options?.isPracticalCourse);
   const isTerminal = options?.examScheme === "TERMINAL";
 

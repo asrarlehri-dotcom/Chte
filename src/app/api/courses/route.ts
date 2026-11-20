@@ -23,7 +23,10 @@ function parseCreditHoursHelper(input: any, theoryInput?: any, labInput?: any, c
   let lab = labInput !== undefined && labInput !== null && labInput !== "" ? parseInt(String(labInput)) : NaN;
 
   if (isNaN(theory) || isNaN(lab)) {
-    if (courseType === "LAB_PRACTICAL" || courseType === "PRACTICAL") {
+    if (courseType === "CAPSTONE_THESIS" || total === 6) {
+      theory = 3;
+      lab = 3;
+    } else if (courseType === "LAB_PRACTICAL" || courseType === "PRACTICAL") {
       lab = 1;
       theory = Math.max(0, total - lab);
     } else {

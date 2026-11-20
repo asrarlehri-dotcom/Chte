@@ -7,10 +7,15 @@ import { parseGenericCSV, validateMarksBatch, getMarksSampleCSV, sortStudentsByR
 import UniversalImportModal from "@/components/UniversalImportModal";
 
 // GP calculation (4.0 scale) based on linear grading policy:
-// 50% = 1.0, 51% = 1.1, ..., 79% = 3.9, 80%+ = 4.0
+// Linear HEC GP scale with Project / Thesis 200-marks rule (6 Credit Hours = 3+3 Cr)
 function getGP(obtained: number, total: number): number {
   if (total <= 0) return 0.00;
-  const pct = (obtained / total) * 100;
+  // Project / Thesis 200-marks rule: Strict Fail if less than 100 marks
+  if (total === 200 && obtained < 100) return 0.00;
+  if (obtained < total * 0.5) return 0.00;
+
+  // For 200-mark courses, score is evaluated by dividing by 2 (3+3 credits scheme)
+  const pct = total === 200 ? (obtained / 2) : ((obtained / total) * 100);
   const rounded = Math.round(pct);
 
   if (rounded < 50) return 0.00; // Fail
@@ -22,7 +27,10 @@ function getGP(obtained: number, total: number): number {
 // Grade letter calculation based on HEC scale
 function getGrade(obtained: number, total: number): string {
   if (total <= 0) return "F";
-  const pct = (obtained / total) * 100;
+  // Project / Thesis 200-marks rule: Strict Fail if less than 100 marks
+  if (total === 200 && obtained < 100) return "F";
+  if (obtained < total * 0.5) return "F";
+  const pct = total === 200 ? (obtained / 2) : ((obtained / total) * 100);
   const rounded = Math.round(pct);
 
   if (rounded >= 85) return "A+";
@@ -38,6 +46,19 @@ function getGrade(obtained: number, total: number): string {
 
 export default function AddResultPage() {
   const { data: session } = useSession();
+
+  // Helper to determine default total marks based on course (Project / Thesis = 200, 6 cr = 200)
+  const getCourseDefaultTotalMarks = (c?: any): number => {
+    if (!c) return 100;
+    if (c.creditHours === 6) return 200;
+    if (c.courseType === "CAPSTONE_THESIS") return 200;
+    const t = (c.title || "").toLowerCase();
+    if (t.includes("project") || t.includes("thesis") || t.includes("dissertation") || t.includes("capstone")) {
+      return 200;
+    }
+    const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100, 6: 200 };
+    return totals[c.creditHours] ?? 100;
+  };
   const [activeTab, setActiveTab] = useState<"editor" | "history" | "unlocks">("editor");
   const [entryType, setEntryType] = useState<"detailed" | "total">("detailed");
 
@@ -257,8 +278,7 @@ export default function AddResultPage() {
 
           if (targetC) {
             setSelectedCourse(targetC.id);
-            const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-            setCourseTotalMarks(totals[targetC.creditHours] ?? 100);
+            setCourseTotalMarks(getCourseDefaultTotalMarks(targetC));
             return;
           } else if (paramProgramId || paramSemester) {
             const matchedFallback = validCourses.find(
@@ -268,8 +288,7 @@ export default function AddResultPage() {
             );
             if (matchedFallback) {
               setSelectedCourse(matchedFallback.id);
-              const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-              setCourseTotalMarks(totals[matchedFallback.creditHours] ?? 100);
+              setCourseTotalMarks(getCourseDefaultTotalMarks(matchedFallback));
             }
             return;
           }
@@ -294,8 +313,7 @@ export default function AddResultPage() {
         setSelectedSemester(firstAssigned.semester?.toString() || "1");
         if (firstAssigned.session) setSelectedSession(firstAssigned.session);
         setSelectedCourse(firstAssigned.id);
-        const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-        setCourseTotalMarks(totals[firstAssigned.creditHours] ?? 100);
+        setCourseTotalMarks(getCourseDefaultTotalMarks(firstAssigned));
       } else if (validProgs.length > 0) {
         const firstProgId = validProgs[0].id;
         setSelectedProgram(firstProgId);
@@ -332,8 +350,7 @@ export default function AddResultPage() {
       if (targetCourse.semester) setSelectedSemester(targetCourse.semester.toString());
       if (!selectedSession && targetCourse.session) setSelectedSession(targetCourse.session);
 
-      const totals: Record<number, number> = { 1: 33, 2: 67, 3: 100, 4: 100 };
-      setCourseTotalMarks(totals[targetCourse.creditHours] ?? 100);
+      setCourseTotalMarks(getCourseDefaultTotalMarks(targetCourse));
     }
   };
 
@@ -1413,16 +1430,51 @@ export default function AddResultPage() {
           {/* Marks Table */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 border-b bg-gray-50/50 flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-gray-700">📊 Total Marks (out of):</span>
-                <input
-                  type="number"
-                  value={courseTotalMarks}
-                  onChange={(e) => setCourseTotalMarks(parseInt(e.target.value) || 100)}
-                  disabled={isFacultyLocked}
-                  className="w-20 px-3 py-1 border rounded-lg text-xs font-bold bg-white text-center"
-                />
-                {isPracticalCourse ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-gray-700">📊 Total Marks:</span>
+                  <input
+                    type="number"
+                    value={courseTotalMarks}
+                    onChange={(e) => setCourseTotalMarks(parseInt(e.target.value) || 100)}
+                    disabled={isFacultyLocked}
+                    className="w-16 px-2 py-1 border rounded-lg text-xs font-bold bg-white text-center font-mono"
+                  />
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCourseTotalMarks(100)}
+                      disabled={isFacultyLocked}
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold border transition-all ${
+                        courseTotalMarks === 100
+                          ? "bg-purple-100 text-purple-900 border-purple-300 shadow-2xs font-black"
+                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                      }`}
+                      title="Standard 100 marks course"
+                    >
+                      100
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCourseTotalMarks(200)}
+                      disabled={isFacultyLocked}
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold border transition-all ${
+                        courseTotalMarks === 200
+                          ? "bg-indigo-600 text-white border-indigo-700 shadow-sm font-black"
+                          : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                      }`}
+                      title="Project / Thesis (6 Cr • 200 Total Marks)"
+                    >
+                      🎓 200 (Project / Thesis)
+                    </button>
+                  </div>
+                </div>
+                {courseTotalMarks === 200 ? (
+                  <span className="px-3 py-1 text-xs font-extrabold bg-indigo-50 text-indigo-900 rounded-full border border-indigo-300 shadow-2xs flex items-center gap-1">
+                    <span>🎓 Project / Thesis (6 Cr • 200 Marks)</span>
+                    <span className="text-indigo-600 font-bold">• Pass: ≥100 (50%) • GP: Marks ÷ 2 for 3+3 Cr</span>
+                  </span>
+                ) : isPracticalCourse ? (
                   <span className="px-2.5 py-1 text-xs font-extrabold bg-blue-100 text-blue-800 rounded-full border border-blue-200">
                     🔬 Practical Included — {examScheme === "TERMINAL" ? "Quiz+Assign: 5, Prac: 25, Terminal: 70" : "Quiz+Assign: 15, Prac: 25, Mid: 20, Final: 40"}
                   </span>
