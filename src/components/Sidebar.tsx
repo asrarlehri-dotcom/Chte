@@ -105,7 +105,7 @@ export function Sidebar() {
         }
       } catch {}
     }
-    return "#0f172a";
+    return "";
   });
 
   // Dynamic College Header Background Color (Theme Settings)
@@ -201,7 +201,7 @@ export function Sidebar() {
   }, [collegeSidebarBg]);
 
   useEffect(() => {
-    if (hookCollegeNameColor && hookCollegeNameColor !== "#0f172a") {
+    if (hookCollegeNameColor) {
       setCollegeNameColor(hookCollegeNameColor);
     }
   }, [hookCollegeNameColor]);

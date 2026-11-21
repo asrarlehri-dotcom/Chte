@@ -3020,11 +3020,65 @@ function StatusAcademicActionsTab() {
   const [actionType, setActionType] = useState<"FREEZE" | "QUIT" | "MIGRATION">("FREEZE");
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [destinationCollege, setDestinationCollege] = useState("");
-  const [relievingNo, setRelievingNo] = useState(`NOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
-  const [reason, setReason] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const collegeCodePrefix = (settings?.COLLEGE_CODE || "GPGCQ").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const currentYear = new Date().getFullYear();
+
+  const generateFreezeMemoNo = (code = collegeCodePrefix) => `${code || "GPGCQ"}/EXAM/FRZ/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`;
+  const generateAdaMemoNo = (code = collegeCodePrefix) => `${code || "GPGCQ"}/EXAM/ADA-ADS/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`;
+  const generateMigrationMemoNo = (code = collegeCodePrefix) => `${code || "GPGCQ"}/EXAM/MIG-NOC/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // Distinct Memo / Dispatch Numbers for each report
+  const [freezeMemoNo, setFreezeMemoNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/FRZ/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
+  const [adaMemoNo, setAdaMemoNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/ADA-ADS/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
+  const [migrationMemoNo, setMigrationMemoNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/MIG-NOC/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
+  const [reason, setReason] = useState("");
+
+  // Freeze Specific State
+  const [freezeFromSem, setFreezeFromSem] = useState("3");
+  const [freezeToSem, setFreezeToSem] = useState("4");
+  const [freezeSession, setFreezeSession] = useState("2024-2028");
+  const [freezeReason, setFreezeReason] = useState("Medical Grounds");
+  const [freezeRemarks, setFreezeRemarks] = useState("Sanctioned as per BS Semester Regulations. Dues cleared.");
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
+  const [freezeStudent, setFreezeStudent] = useState<any | null>(null);
+  const [freezeOrderDetails, setFreezeOrderDetails] = useState<{
+    memoNo: string;
+    issueDate: string;
+    fromSem: string;
+    toSem: string;
+    reason: string;
+    session: string;
+    remarks: string;
+  }>({
+    memoNo: "",
+    issueDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+    fromSem: "3",
+    toSem: "4",
+    reason: "Medical Grounds",
+    session: "2024-2028",
+    remarks: "",
+  });
+
+  // Saved Database Status Records
+  const [savedRecords, setSavedRecords] = useState<any[]>([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
+
+  const loadSavedRecords = () => {
+    setLoadingRecords(true);
+    fetch("/api/students/status-action")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.records && Array.isArray(data.records)) {
+          setSavedRecords(data.records);
+        }
+      })
+      .catch((e) => console.error("Error loading status records:", e))
+      .finally(() => setLoadingRecords(false));
+  };
 
   // Dual Document Modal state (Migration Certificate & Transcript)
   const [showDocModal, setShowDocModal] = useState(false);
@@ -3105,6 +3159,7 @@ function StatusAcademicActionsTab() {
 
   useEffect(() => {
     loadStudents();
+    loadSavedRecords();
   }, []);
 
   const activeCandidates = students.filter((s) => s.isActive !== false);
@@ -3120,6 +3175,13 @@ function StatusAcademicActionsTab() {
 
   useEffect(() => {
     if (selectedStudent) {
+      if (selectedStudent.currentSemester) {
+        setFreezeFromSem(String(selectedStudent.currentSemester));
+        setFreezeToSem(String(Math.min(8, Number(selectedStudent.currentSemester) + 1)));
+      }
+      if (selectedStudent.session) {
+        setFreezeSession(selectedStudent.session);
+      }
       const stats = computeStudentTwoYearStats(selectedStudent);
       setAdaCreditHours(String(stats.creditHours));
       setAdaCgpa(String(stats.cgpa));
@@ -3142,24 +3204,62 @@ function StatusAcademicActionsTab() {
     }
   }, [selectedStudentId, students]);
 
-  // List of students who have undergone migration
-  const migratedStudentsList = students.filter((s) =>
-    s.statuses?.some(
-      (st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT"
-    )
-  );
+  // Combined Saved Records Lists (From database + Student models)
+  const freezeSavedList = [
+    ...savedRecords.filter((r) => r.statusType === "FREEZE"),
+    ...students
+      .filter((s) => s.statuses?.some((st: any) => st.statusType === "FREEZE"))
+      .filter((s) => !savedRecords.some((r) => r.studentId === s.id && r.statusType === "FREEZE"))
+      .map((s) => ({
+        id: `st-${s.id}`,
+        studentId: s.id,
+        statusType: "FREEZE",
+        reason: s.statuses?.find((st: any) => st.statusType === "FREEZE")?.reason || "Medical Grounds",
+        notes: s.statuses?.find((st: any) => st.statusType === "FREEZE")?.notes || "",
+        createdAt: s.statuses?.find((st: any) => st.statusType === "FREEZE")?.createdAt || new Date().toISOString(),
+        student: s,
+      })),
+  ];
 
-  // List of students who have quit under ADA / ADS 2-Year exit
-  const quitStudentsList = students.filter((s) =>
-    s.statuses?.some(
-      (st: any) => st.statusType === "QUIT" || st.statusType === "ADP"
-    )
-  );
+  const quitSavedList = [
+    ...savedRecords.filter((r) => r.statusType === "QUIT" || r.statusType === "ADP"),
+    ...students
+      .filter((s) => s.statuses?.some((st: any) => st.statusType === "QUIT" || st.statusType === "ADP"))
+      .filter((s) => !savedRecords.some((r) => r.studentId === s.id && (r.statusType === "QUIT" || r.statusType === "ADP")))
+      .map((s) => ({
+        id: `st-${s.id}`,
+        studentId: s.id,
+        statusType: "QUIT",
+        reason: s.statuses?.find((st: any) => st.statusType === "QUIT" || st.statusType === "ADP")?.reason || "Compulsory Work",
+        notes: s.statuses?.find((st: any) => st.statusType === "QUIT" || st.statusType === "ADP")?.notes || "",
+        createdAt: s.statuses?.find((st: any) => st.statusType === "QUIT" || st.statusType === "ADP")?.createdAt || new Date().toISOString(),
+        student: s,
+      })),
+  ];
+
+  const migrationSavedList = [
+    ...savedRecords.filter((r) => r.statusType === "MIGRATION" || r.statusType === "MIGRATION_OUT"),
+    ...students
+      .filter((s) => s.statuses?.some((st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT"))
+      .filter((s) => !savedRecords.some((r) => r.studentId === s.id && (r.statusType === "MIGRATION" || r.statusType === "MIGRATION_OUT")))
+      .map((s) => ({
+        id: `st-${s.id}`,
+        studentId: s.id,
+        statusType: "MIGRATION",
+        reason: s.statuses?.find((st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT")?.reason || "Outward Migration",
+        notes: s.statuses?.find((st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT")?.notes || "",
+        createdAt: s.statuses?.find((st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT")?.createdAt || new Date().toISOString(),
+        student: s,
+      })),
+  ];
 
   const handleStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudentId || !selectedStudent) return;
     setSaving(true);
+
+    const activeMemo = actionType === "FREEZE" ? freezeMemoNo : actionType === "QUIT" ? adaMemoNo : migrationMemoNo;
+
     try {
       const res = await fetch("/api/students/status-action", {
         method: "POST",
@@ -3167,29 +3267,54 @@ function StatusAcademicActionsTab() {
         body: JSON.stringify({
           studentId: selectedStudentId,
           statusType: actionType,
+          memoNo: activeMemo,
+          relievingNo: actionType === "MIGRATION" ? activeMemo : undefined,
+          fromSem: actionType === "FREEZE" ? freezeFromSem : undefined,
+          toSem: actionType === "FREEZE" ? freezeToSem : undefined,
+          destinationCollege: actionType === "MIGRATION" ? destinationCollege : undefined,
+          adaDegreeType: actionType === "QUIT" ? adaDegreeType : undefined,
+          adaCreditHours: actionType === "QUIT" ? adaCreditHours : undefined,
+          adaCgpa: actionType === "QUIT" ? adaCgpa : undefined,
+          adaMeetingDate: actionType === "QUIT" ? adaMeetingDate : undefined,
+          adaMeetingVenue: actionType === "QUIT" ? adaMeetingVenue : undefined,
+          adaLiaisonUniv: actionType === "QUIT" ? adaLiaisonUniv : undefined,
           reason: actionType === "MIGRATION"
             ? (destinationCollege || "Outward Migration")
             : actionType === "QUIT"
             ? (adaReason || reason || "Compulsory Work")
-            : reason,
-          notes: actionType === "MIGRATION"
-            ? `Destination: ${destinationCollege}. NOC No: ${relievingNo}. Remarks: ${reason}`
-            : actionType === "QUIT"
-            ? `Degree: ${adaDegreeType}. Reason: ${adaReason || reason || "Compulsory Work"}. Credits: ${adaCreditHours}, CGPA: ${adaCgpa}. Meeting Date: ${adaMeetingDate}. Venue: ${adaMeetingVenue}`
-            : reason,
-          relievingNo: actionType === "MIGRATION" ? relievingNo : undefined,
+            : (freezeReason || reason || "Medical Grounds"),
+          notes: actionType === "FREEZE"
+            ? `Freeze Duration: Sem ${freezeFromSem} to Sem ${freezeToSem}. Remarks: ${freezeRemarks}`
+            : actionType === "MIGRATION"
+            ? `Destination: ${destinationCollege}. NOC No: ${activeMemo}. Remarks: ${reason}`
+            : `Degree: ${adaDegreeType}. Reason: ${adaReason || reason || "Compulsory Work"}. Credits: ${adaCreditHours}, CGPA: ${adaCgpa}. Meeting Date: ${adaMeetingDate}. Venue: ${adaMeetingVenue}`,
         }),
       });
 
       if (res.ok) {
-        setSuccess(`Academic action '${actionType === "QUIT" ? "Quit / ADA / ADS" : actionType}' recorded successfully!`);
+        setSuccess(`Academic action '${actionType === "QUIT" ? "Quit / ADA / ADS" : actionType}' recorded successfully with Memo No: ${activeMemo}!`);
 
-        if (actionType === "MIGRATION") {
+        if (actionType === "FREEZE") {
+          // Immediately open official Freeze Approval Notification Order
+          setFreezeStudent(selectedStudent);
+          setFreezeOrderDetails({
+            memoNo: freezeMemoNo,
+            issueDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+            fromSem: freezeFromSem,
+            toSem: freezeToSem,
+            reason: freezeReason || reason || "Medical Grounds",
+            session: freezeSession || selectedStudent.session || "2024-2028",
+            remarks: freezeRemarks,
+          });
+          setShowFreezeModal(true);
+          setReason("");
+          setFreezeMemoNo(generateFreezeMemoNo());
+        } else if (actionType === "MIGRATION") {
           // Immediately generate migration certificate and official transcript
           setMigratedStudent(selectedStudent);
           setDocDetails({
             destinationCollege: destinationCollege || "Destination Institution",
-            relievingNo: relievingNo || `NOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            relievingNo: migrationMemoNo,
             reason: reason || "Outward Migration",
             issueDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
           });
@@ -3198,7 +3323,7 @@ function StatusAcademicActionsTab() {
 
           setDestinationCollege("");
           setReason("");
-          setRelievingNo(`NOC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
+          setMigrationMemoNo(generateMigrationMemoNo());
         } else if (actionType === "QUIT") {
           // Immediately generate ADA / ADS Minutes of Meeting report
           setAdaStudent(selectedStudent);
@@ -3212,12 +3337,12 @@ function StatusAcademicActionsTab() {
           setAdaModalTab("minutes");
           setShowAdaModal(true);
           setReason("");
-        } else {
-          setReason("");
+          setAdaMemoNo(generateAdaMemoNo());
         }
 
         loadStudents();
-        setTimeout(() => setSuccess(""), 5000);
+        loadSavedRecords();
+        setTimeout(() => setSuccess(""), 6000);
       } else {
         const data = await res.json().catch(() => ({}));
         alert(data.error || "Action failed to execute.");
@@ -3228,33 +3353,96 @@ function StatusAcademicActionsTab() {
     setSaving(false);
   };
 
-  const openDocumentsForStudent = (student: any, tab: "report" | "transcript" = "report") => {
-    const migStatus = student.statuses?.find(
-      (st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT"
-    );
-    let dest = migStatus?.reason || "Destination Institution";
-    let certNo = `NOC-${new Date().getFullYear()}-${student.rollNumber.replace(/[^a-zA-Z0-9]/g, "")}`;
-    if (migStatus?.notes && migStatus.notes.includes("NOC No: ")) {
-      const parts = migStatus.notes.split("NOC No: ");
-      if (parts[1]) certNo = parts[1].split(".")[0].trim();
+  const openFreezeOrderForStudent = (recordOrStudent: any) => {
+    const student = recordOrStudent.student || recordOrStudent;
+    const statusObj = recordOrStudent.statusType 
+      ? recordOrStudent 
+      : student.statuses?.find((s: any) => s.statusType === "FREEZE");
+
+    let memoNo = generateFreezeMemoNo();
+    let fSem = student.currentSemester ? String(student.currentSemester) : "3";
+    let tSem = student.currentSemester ? String(Math.min(8, Number(student.currentSemester) + 1)) : "4";
+    let rsn = statusObj?.reason || "Medical Grounds";
+    let sess = student.session || "2024-2028";
+    let rmks = "Sanctioned as per BS Semester Regulations. Dues cleared.";
+    let iDate = statusObj?.createdAt
+      ? new Date(statusObj.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+      : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+    if (statusObj?.notes) {
+      if (statusObj.notes.includes("Memo No: ")) {
+        const m = statusObj.notes.match(/Memo No:\s*([^•\.\n]+)/);
+        if (m) memoNo = m[1].trim();
+      }
+      if (statusObj.notes.includes("Freeze Duration: Sem ")) {
+        const m = statusObj.notes.match(/Freeze Duration: Sem\s*(\d+)\s*to\s*Sem\s*(\d+)/i);
+        if (m) {
+          fSem = m[1];
+          tSem = m[2];
+        }
+      }
+      if (statusObj.notes.includes("Remarks: ")) {
+        const m = statusObj.notes.split("Remarks: ");
+        if (m[1]) rmks = m[1].trim();
+      }
     }
+
+    setFreezeStudent(student);
+    setFreezeOrderDetails({
+      memoNo,
+      issueDate: iDate,
+      fromSem: fSem,
+      toSem: tSem,
+      reason: rsn,
+      session: sess,
+      remarks: rmks,
+    });
+    setShowFreezeModal(true);
+  };
+
+  const openDocumentsForStudent = (recordOrStudent: any, tab: "report" | "transcript" = "report") => {
+    const student = recordOrStudent.student || recordOrStudent;
+    const migStatus = recordOrStudent.statusType 
+      ? recordOrStudent 
+      : student.statuses?.find((st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT");
+
+    let dest = migStatus?.reason || "Destination Institution";
+    let certNo = generateMigrationMemoNo();
+    let iDate = migStatus?.createdAt
+      ? new Date(migStatus.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+      : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+    if (migStatus?.notes) {
+      if (migStatus.notes.includes("Memo No: ")) {
+        const m = migStatus.notes.match(/Memo No:\s*([^•\.\n]+)/);
+        if (m) certNo = m[1].trim();
+      } else if (migStatus.notes.includes("NOC No: ")) {
+        const parts = migStatus.notes.split("NOC No: ");
+        if (parts[1]) certNo = parts[1].split(".")[0].trim();
+      }
+      if (migStatus.notes.includes("Destination: ")) {
+        const parts = migStatus.notes.split("Destination: ");
+        if (parts[1]) dest = parts[1].split(".")[0].trim();
+      }
+    }
+
     setMigratedStudent(student);
     setDocDetails({
       destinationCollege: dest,
       relievingNo: certNo,
       reason: migStatus?.notes || migStatus?.reason || "Outward Migration",
-      issueDate: migStatus?.createdAt
-        ? new Date(migStatus.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-        : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+      issueDate: iDate,
     });
     setDocModalTab(tab);
     setShowDocModal(true);
   };
 
-  const openAdaMinutesForStudent = (student: any, tab: "minutes" | "transcript" = "minutes") => {
-    const quitStatus = student.statuses?.find(
-      (st: any) => st.statusType === "QUIT" || st.statusType === "ADP"
-    );
+  const openAdaMinutesForStudent = (recordOrStudent: any, tab: "minutes" | "transcript" = "minutes") => {
+    const student = recordOrStudent.student || recordOrStudent;
+    const quitStatus = recordOrStudent.statusType 
+      ? recordOrStudent 
+      : student.statuses?.find((st: any) => st.statusType === "QUIT" || st.statusType === "ADP");
+
     const stats = computeStudentTwoYearStats(student);
     let rsn = quitStatus?.reason || "Compulsory Work";
     let cr = String(stats.creditHours);
@@ -3262,6 +3450,8 @@ function StatusAcademicActionsTab() {
     let mDate = adaMeetingDate;
     let venue = "college conference hall";
     let dType: "ADA" | "ADS" = "ADS";
+    let memoNo = generateAdaMemoNo();
+
     const prog = (student.program?.name || "").toLowerCase();
     if (
       prog.includes("arts") ||
@@ -3278,6 +3468,10 @@ function StatusAcademicActionsTab() {
     }
 
     if (quitStatus?.notes) {
+      if (quitStatus.notes.includes("Memo No: ")) {
+        const m = quitStatus.notes.match(/Memo No:\s*([^•\.\n]+)/);
+        if (m) memoNo = m[1].trim();
+      }
       if (quitStatus.notes.includes("Credits: ")) {
         const m = quitStatus.notes.match(/Credits:\s*([0-9.]+)/);
         if (m) cr = m[1];
@@ -3287,18 +3481,19 @@ function StatusAcademicActionsTab() {
         if (m) gpa = m[1];
       }
       if (quitStatus.notes.includes("Meeting Date: ")) {
-        const m = quitStatus.notes.match(/Meeting Date:\s*([^,\.]+)/);
+        const m = quitStatus.notes.match(/Meeting Date:\s*([^•,\.]+)/);
         if (m) mDate = m[1].trim();
       }
       if (quitStatus.notes.includes("Venue: ")) {
-        const m = quitStatus.notes.match(/Venue:\s*([^,\.]+)/);
+        const m = quitStatus.notes.match(/Venue:\s*([^•,\.]+)/);
         if (m) venue = m[1].trim();
       }
-      if (quitStatus.notes.includes("ADA")) dType = "ADA";
-      else if (quitStatus.notes.includes("ADS")) dType = "ADS";
+      if (quitStatus.notes.includes("Degree: ADA") || quitStatus.notes.includes("ADA")) dType = "ADA";
+      else if (quitStatus.notes.includes("Degree: ADS") || quitStatus.notes.includes("ADS")) dType = "ADS";
     }
 
     setAdaStudent(student);
+    setAdaMemoNo(memoNo);
     setAdaReason(rsn);
     setAdaCreditHours(cr);
     setAdaCgpa(gpa);
@@ -3313,17 +3508,18 @@ function StatusAcademicActionsTab() {
   return (
     <div className="space-y-6">
       {/* Print isolation style: when modal is active, hide everything else and print the document container */}
-      {(showDocModal || showAdaModal) && (
+      {(showDocModal || showAdaModal || showFreezeModal) && (
         <style>{`
           @media print {
             body * {
               visibility: hidden !important;
             }
+            #freeze-print-container, #freeze-print-container *,
             #migration-print-container, #migration-print-container *,
             #ada-print-container, #ada-print-container * {
               visibility: visible !important;
             }
-            #migration-print-container, #ada-print-container {
+            #freeze-print-container, #migration-print-container, #ada-print-container {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
@@ -3451,16 +3647,19 @@ function StatusAcademicActionsTab() {
 
               <div>
                 <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
-                  Relieving / NOC Certificate Serial No.
+                  Migration NOC / Relieving Memo Ref No. <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={relievingNo}
-                  onChange={(e) => setRelievingNo(e.target.value)}
+                  value={migrationMemoNo}
+                  onChange={(e) => setMigrationMemoNo(e.target.value)}
                   required
-                  placeholder="e.g. NOC-2026-4821"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-xs font-mono font-bold bg-white focus:ring-2 focus:ring-amber-400"
+                  placeholder={`e.g. ${collegeCodePrefix}/EXAM/MIG-NOC/${currentYear}/1024`}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-xs font-mono font-bold bg-white focus:ring-2 focus:ring-amber-400 text-amber-950"
                 />
+                <span className="text-[10px] text-gray-400 mt-0.5 block font-mono">
+                  Distinct Outward Migration NOC Dispatch Number
+                </span>
               </div>
 
               <div>
@@ -3479,7 +3678,7 @@ function StatusAcademicActionsTab() {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
                 <span className="text-base">📜</span>
                 <p className="leading-relaxed">
-                  <strong>Automatic Document Issuance:</strong> Upon confirmation, student will be relieved from the college, and both the <strong>Migration Report (NOC Certificate)</strong> and <strong>Official Academic Transcript</strong> will be instantly generated for viewing and printing.
+                  <strong>Automatic Document Issuance:</strong> Upon confirmation, student will be relieved from the college, and both the <strong>Migration Report (NOC Certificate)</strong> with Memo No (<code>{migrationMemoNo}</code>) and <strong>Official Academic Transcript</strong> will be instantly generated for viewing and printing.
                 </p>
               </div>
 
@@ -3496,6 +3695,23 @@ function StatusAcademicActionsTab() {
             /* Quit / ADA / ADS 2-Year Exit Fields */
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    ADA / ADS Memo / Dispatch Ref No. <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={adaMemoNo}
+                    onChange={(e) => setAdaMemoNo(e.target.value)}
+                    required
+                    placeholder={`e.g. ${collegeCodePrefix}/EXAM/ADA-ADS/${currentYear}/1024`}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-mono font-bold bg-white focus:ring-2 focus:ring-blue-400 text-blue-950"
+                  />
+                  <span className="text-[10px] text-gray-400 mt-0.5 block font-mono">
+                    Distinct ADA/ADS Minutes & Award Dispatch Number
+                  </span>
+                </div>
+
                 <div>
                   <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
                     Award Degree Equivalent To <span className="text-red-500">*</span>
@@ -3525,31 +3741,31 @@ function StatusAcademicActionsTab() {
                     </button>
                   </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
-                    Exit Reason / Student Statement <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={adaReason}
-                    onChange={(e) => setAdaReason(e.target.value)}
-                    required
-                    placeholder="e.g. Compulsory Work / Employment / Financial Constraints"
-                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-400"
-                  />
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {["Compulsory Work", "Employment", "Financial Constraints", "Domestic Reasons"].map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => setAdaReason(preset)}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 font-medium transition-colors cursor-pointer"
-                      >
-                        + {preset}
-                      </button>
-                    ))}
-                  </div>
+              <div>
+                <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                  Exit Reason / Student Statement <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={adaReason}
+                  onChange={(e) => setAdaReason(e.target.value)}
+                  required
+                  placeholder="e.g. Compulsory Work / Employment / Financial Constraints"
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-400"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {["Compulsory Work", "Employment", "Financial Constraints", "Domestic Reasons"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAdaReason(preset)}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 font-medium transition-colors cursor-pointer"
+                    >
+                      + {preset}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -3622,7 +3838,7 @@ function StatusAcademicActionsTab() {
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-xs text-blue-900 flex items-start gap-2.5">
                 <span className="text-base">📜</span>
                 <p className="leading-relaxed">
-                  <strong>Automatic Minutes of Meeting Generation:</strong> Upon confirmation, student BS status is updated to Quit (2-Year Exit), and the official <strong>BS Examination Committee Minutes of Meeting</strong> (equivalent to ADA/ADS degree) will be generated for official University liaison and instant printing.
+                  <strong>Automatic Minutes of Meeting Generation:</strong> Upon confirmation, student BS status is updated to Quit (2-Year Exit), and the official <strong>BS Examination Committee Minutes of Meeting</strong> with distinct Memo No (<code>{adaMemoNo}</code>) will be generated for official University liaison and instant printing.
                 </p>
               </div>
 
@@ -3656,46 +3872,274 @@ function StatusAcademicActionsTab() {
           ) : (
             /* Freeze Fields */
             <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Freeze Order Memo / Dispatch Ref No. <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={freezeMemoNo}
+                    onChange={(e) => setFreezeMemoNo(e.target.value)}
+                    required
+                    placeholder={`e.g. ${collegeCodePrefix}/EXAM/FRZ/${currentYear}/1024`}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-mono font-bold bg-white focus:ring-2 focus:ring-cyan-500 text-cyan-950"
+                  />
+                  <span className="text-[10px] text-gray-400 mt-0.5 block font-mono">
+                    Distinct Official Semester Freeze Dispatch Number
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Academic Session / Batch
+                  </label>
+                  <input
+                    type="text"
+                    value={freezeSession}
+                    onChange={(e) => setFreezeSession(e.target.value)}
+                    placeholder="e.g. 2024-2028"
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Freeze From Semester <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={freezeFromSem}
+                    onChange={(e) => {
+                      setFreezeFromSem(e.target.value);
+                      const next = Math.min(8, Number(e.target.value) + 1);
+                      setFreezeToSem(String(next));
+                    }}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-cyan-500"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                      <option key={s} value={s}>Semester {s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                    Resumption / Return In Semester <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={freezeToSem}
+                    onChange={(e) => setFreezeToSem(e.target.value)}
+                    className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-cyan-500"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                      <option key={s} value={s}>Semester {s} (Junior Batch)</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
-                  Reason / Institutional Notes <span className="text-red-500">*</span>
+                  Official Reason for Semester Freeze <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={freezeReason}
+                  onChange={(e) => setFreezeReason(e.target.value)}
+                  required
+                  placeholder="e.g. Medical Grounds / Financial Hardship / Family Circumstances"
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-cyan-500"
+                />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {["Medical Grounds", "Financial Hardship", "Family Emergency", "Employment / Job Transfer", "Personal Circumstances"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setFreezeReason(preset)}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-50 hover:bg-cyan-100 text-cyan-700 font-medium transition-colors cursor-pointer"
+                    >
+                      + {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-600 uppercase tracking-wider mb-1">
+                  Institutional Notes / Committee Remarks
                 </label>
                 <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  required
-                  rows={3}
-                  placeholder={`Specify official reason for semester freeze...`}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-400"
+                  value={freezeRemarks}
+                  onChange={(e) => setFreezeRemarks(e.target.value)}
+                  rows={2}
+                  placeholder="Sanctioned as per BS Semester Regulations. Dues cleared. Permitted to rejoin with junior batch..."
+                  className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-xs bg-white focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={saving || !selectedStudentId}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-sm transition-all shadow-md disabled:opacity-50 cursor-pointer"
-              >
-                {saving ? "Updating..." : `Confirm FREEZE Status Update`}
-              </button>
+              <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3.5 text-xs text-cyan-900 flex items-start gap-2.5">
+                <span className="text-base">❄️</span>
+                <p className="leading-relaxed">
+                  <strong>Automatic Semester Freeze Order Issuance:</strong> Upon confirmation, student status is deactivated as Frozen, and an official <strong>Semester Freeze Approval Notification Order</strong> with distinct Memo No (<code>{freezeMemoNo}</code>) and formal Directorate & University signature blocks is instantly generated for printing and archival.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={saving || !selectedStudentId}
+                  className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-black rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <span>❄️</span>
+                  <span>{saving ? "Processing Semester Freeze..." : "Confirm FREEZE & Issue Order"}</span>
+                </button>
+
+                {selectedStudent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFreezeStudent(selectedStudent);
+                      setFreezeOrderDetails({
+                        memoNo: freezeMemoNo,
+                        issueDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+                        fromSem: freezeFromSem,
+                        toSem: freezeToSem,
+                        reason: freezeReason || "Medical Grounds",
+                        session: freezeSession || selectedStudent.session || "2024-2028",
+                        remarks: freezeRemarks || "Previewing order",
+                      });
+                      setShowFreezeModal(true);
+                    }}
+                    className="px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                    title="Preview or print Freeze Order without submitting"
+                  >
+                    <span>👁️</span>
+                    <span>Preview Order</span>
+                  </button>
+                )}
+              </div>
             </>
           )}
         </form>
       </div>
+
+      {/* Freeze Students Directory & Instant Reprints */}
+      {actionType === "FREEZE" && (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm print:hidden">
+          <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+            <h4 className="text-sm font-black text-gray-800 flex items-center gap-2">
+              <span>❄️ Saved Semester Freeze Records Directory</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-cyan-100 text-cyan-800 font-bold">
+                {freezeSavedList.length} Students
+              </span>
+            </h4>
+            <span className="text-xs text-gray-500">View or reprint official Semester Freeze Approval Notification Orders</span>
+          </div>
+
+          {freezeSavedList.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-xs font-semibold">
+              No students have frozen semesters yet. Use the form above to record a semester freeze with an official order.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-b text-xs font-black text-gray-600 uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Memo / Order No</th>
+                    <th className="px-4 py-3">Roll Number</th>
+                    <th className="px-4 py-3">Student Name</th>
+                    <th className="px-4 py-3">Department & Session</th>
+                    <th className="px-4 py-3">Freeze Period</th>
+                    <th className="px-4 py-3">Reason & Date</th>
+                    <th className="px-4 py-3 text-center">Issued Order</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {freezeSavedList.map((rec) => {
+                    const st = rec.student || rec;
+                    const roll = st.rollNumber || rec.rollNumber;
+                    const name = st.user?.name || st.name || rec.studentName || "Student";
+                    const father = st.fatherName || "—";
+                    const progName = st.program?.name || "BS";
+                    const sess = st.session || "—";
+                    let memo = generateFreezeMemoNo();
+                    let fSem = "3";
+                    let tSem = "4";
+                    if (rec.notes) {
+                      if (rec.notes.includes("Memo No: ")) {
+                        const m = rec.notes.match(/Memo No:\s*([^•\.\n]+)/);
+                        if (m) memo = m[1].trim();
+                      }
+                      if (rec.notes.includes("Freeze Duration: Sem ")) {
+                        const m = rec.notes.match(/Freeze Duration: Sem\s*(\d+)\s*to\s*Sem\s*(\d+)/i);
+                        if (m) {
+                          fSem = m[1];
+                          tSem = m[2];
+                        }
+                      }
+                    }
+                    const dateStr = rec.createdAt
+                      ? new Date(rec.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                      : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+                    return (
+                      <tr key={rec.id} className="hover:bg-cyan-50/40 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-cyan-900">{memo}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-gray-800">{roll}</td>
+                        <td className="px-4 py-3 font-black text-gray-900">
+                          <div>{name}</div>
+                          <div className="text-[11px] font-normal text-gray-500">{father}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-700">
+                          <span className="font-bold">{progName}</span>
+                          <div className="text-[11px] text-gray-500">{sess}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <span className="px-2 py-0.5 rounded bg-cyan-100 text-cyan-900 font-bold text-[11px]">
+                            Sem {fSem} → Sem {tSem}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <div className="font-semibold text-gray-800">{rec.reason || "Medical Grounds"}</div>
+                          <div className="text-[11px] font-mono text-gray-500">{dateStr}</div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => openFreezeOrderForStudent(rec)}
+                            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                            title="Print / View Freeze Notification Order"
+                          >
+                            <span>🖨️</span>
+                            <span>Freeze Order</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quit / ADA / ADS Students Directory & Instant Reprints */}
       {actionType === "QUIT" && (
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm print:hidden">
           <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
             <h4 className="text-sm font-black text-gray-800 flex items-center gap-2">
-              <span>🎓 Quit / ADA / ADS Students Directory</span>
+              <span>🎓 Saved Quit / ADA / ADS Records Directory</span>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">
-                {quitStudentsList.length} Students
+                {quitSavedList.length} Students
               </span>
             </h4>
             <span className="text-xs text-gray-500">View or reprint issued ADA/ADS Minutes of Meeting reports & transcripts</span>
           </div>
 
-          {quitStudentsList.length === 0 ? (
+          {quitSavedList.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-xs font-semibold">
               No students have quit for ADA/ADS yet. Use the form above to record a 2-Year Quit / ADA-ADS exit.
             </div>
@@ -3704,6 +4148,7 @@ function StatusAcademicActionsTab() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b text-xs font-black text-gray-600 uppercase">
                   <tr>
+                    <th className="px-4 py-3">Memo No</th>
                     <th className="px-4 py-3">Roll Number</th>
                     <th className="px-4 py-3">Student Name</th>
                     <th className="px-4 py-3">Department & Session</th>
@@ -3713,21 +4158,31 @@ function StatusAcademicActionsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {quitStudentsList.map((st) => {
-                    const qStatus = st.statuses?.find(
-                      (s: any) => s.statusType === "QUIT" || s.statusType === "ADP"
-                    );
-                    const isAda = qStatus?.notes?.includes("ADA") || false;
+                  {quitSavedList.map((rec) => {
+                    const st = rec.student || rec;
+                    const roll = st.rollNumber || rec.rollNumber;
+                    const name = st.user?.name || st.name || rec.studentName || "Student";
+                    const father = st.fatherName || "—";
+                    const progName = st.program?.name || "BS";
+                    const sess = st.session || "—";
+                    const isAda = rec.notes?.includes("Degree: ADA") || rec.notes?.includes("ADA") || false;
+                    let memo = generateAdaMemoNo();
+                    if (rec.notes && rec.notes.includes("Memo No: ")) {
+                      const m = rec.notes.match(/Memo No:\s*([^•\.\n]+)/);
+                      if (m) memo = m[1].trim();
+                    }
+
                     return (
-                      <tr key={st.id} className="hover:bg-blue-50/40 transition-colors">
-                        <td className="px-4 py-3 font-mono font-bold text-xs text-gray-800">{st.rollNumber}</td>
+                      <tr key={rec.id} className="hover:bg-blue-50/40 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-blue-900">{memo}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-gray-800">{roll}</td>
                         <td className="px-4 py-3 font-black text-gray-900">
-                          <div>{st.user?.name || st.name}</div>
-                          <div className="text-[11px] font-normal text-gray-500">{st.fatherName || "—"}</div>
+                          <div>{name}</div>
+                          <div className="text-[11px] font-normal text-gray-500">{father}</div>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-700">
-                          <span className="font-bold">{st.program?.name || "BS"}</span>
-                          <div className="text-[11px] text-gray-500">{st.session || "—"}</div>
+                          <span className="font-bold">{progName}</span>
+                          <div className="text-[11px] text-gray-500">{sess}</div>
                         </td>
                         <td className="px-4 py-3 text-xs">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
@@ -3737,16 +4192,16 @@ function StatusAcademicActionsTab() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs">
-                          <div className="font-semibold text-gray-800">{qStatus?.reason || "Compulsory Work"}</div>
+                          <div className="font-semibold text-gray-800">{rec.reason || "Compulsory Work"}</div>
                           <div className="text-[11px] font-mono text-gray-500">
-                            {qStatus?.notes ? qStatus.notes.slice(0, 45) + "..." : "Quit 2-Year Exit"}
+                            {rec.notes ? rec.notes.slice(0, 45) + "..." : "Quit 2-Year Exit"}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
-                              onClick={() => openAdaMinutesForStudent(st, "minutes")}
+                              onClick={() => openAdaMinutesForStudent(rec, "minutes")}
                               className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                               title="Print / View Minutes of Meeting Report"
                             >
@@ -3755,7 +4210,7 @@ function StatusAcademicActionsTab() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => openAdaMinutesForStudent(st, "transcript")}
+                              onClick={() => openAdaMinutesForStudent(rec, "transcript")}
                               className="px-3 py-1 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                               title="Print / View Official Academic Transcript"
                             >
@@ -3779,15 +4234,15 @@ function StatusAcademicActionsTab() {
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm print:hidden">
           <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
             <h4 className="text-sm font-black text-gray-800 flex items-center gap-2">
-              <span>📜 Migrated Students Directory</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">
-                {migratedStudentsList.length} Students
+              <span>📜 Saved Outward Migration Records Directory</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
+                {migrationSavedList.length} Students
               </span>
             </h4>
             <span className="text-xs text-gray-500">View or reprint issued NOC reports & official transcripts</span>
           </div>
 
-          {migratedStudentsList.length === 0 ? (
+          {migrationSavedList.length === 0 ? (
             <div className="p-8 text-center text-gray-400 text-xs font-semibold">
               No students have been migrated yet. Use the form above to process a migration.
             </div>
@@ -3796,6 +4251,7 @@ function StatusAcademicActionsTab() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b text-xs font-black text-gray-600 uppercase">
                   <tr>
+                    <th className="px-4 py-3">NOC / Memo No</th>
                     <th className="px-4 py-3">Roll Number</th>
                     <th className="px-4 py-3">Student Name</th>
                     <th className="px-4 py-3">Program & Sem</th>
@@ -3804,34 +4260,54 @@ function StatusAcademicActionsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {migratedStudentsList.map((st) => {
-                    const migStatus = st.statuses?.find(
-                      (s: any) => s.statusType === "MIGRATION" || s.statusType === "MIGRATION_OUT"
-                    );
+                  {migrationSavedList.map((rec) => {
+                    const st = rec.student || rec;
+                    const roll = st.rollNumber || rec.rollNumber;
+                    const name = st.user?.name || st.name || rec.studentName || "Student";
+                    const father = st.fatherName || "—";
+                    const progName = st.program?.name || "BS";
+                    const sem = st.currentSemester || 1;
+                    let memo = generateMigrationMemoNo();
+                    let dest = rec.reason || "Destination Institution";
+                    if (rec.notes) {
+                      if (rec.notes.includes("Memo No: ")) {
+                        const m = rec.notes.match(/Memo No:\s*([^•\.\n]+)/);
+                        if (m) memo = m[1].trim();
+                      } else if (rec.notes.includes("NOC No: ")) {
+                        const parts = rec.notes.split("NOC No: ");
+                        if (parts[1]) memo = parts[1].split(".")[0].trim();
+                      }
+                      if (rec.notes.includes("Destination: ")) {
+                        const parts = rec.notes.split("Destination: ");
+                        if (parts[1]) dest = parts[1].split(".")[0].trim();
+                      }
+                    }
+
                     return (
-                      <tr key={st.id} className="hover:bg-amber-50/40 transition-colors">
-                        <td className="px-4 py-3 font-mono font-bold text-xs text-gray-800">{st.rollNumber}</td>
+                      <tr key={rec.id} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-amber-900">{memo}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-xs text-gray-800">{roll}</td>
                         <td className="px-4 py-3 font-black text-gray-900">
-                          <div>{st.user?.name}</div>
-                          <div className="text-[11px] font-normal text-gray-500">{st.fatherName || "—"}</div>
+                          <div>{name}</div>
+                          <div className="text-[11px] font-normal text-gray-500">{father}</div>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-700">
-                          <span className="font-bold">{st.program?.name || "BS"}</span>
+                          <span className="font-bold">{progName}</span>
                           <span className="ml-1.5 px-2 py-0.5 rounded bg-gray-100 text-[10px] font-bold text-gray-600">
-                            Sem {st.currentSemester || 1}
+                            Sem {sem}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs">
-                          <div className="font-semibold text-gray-800">{migStatus?.reason || "Outward Migration"}</div>
+                          <div className="font-semibold text-gray-800">{dest}</div>
                           <div className="text-[11px] font-mono text-gray-500">
-                            {migStatus?.notes || "NOC Issued"}
+                            {rec.notes ? rec.notes.slice(0, 45) + "..." : "NOC Issued"}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
-                              onClick={() => openDocumentsForStudent(st, "report")}
+                              onClick={() => openDocumentsForStudent(rec, "report")}
                               className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                               title="Print / View Migration Report (NOC)"
                             >
@@ -3840,7 +4316,7 @@ function StatusAcademicActionsTab() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => openDocumentsForStudent(st, "transcript")}
+                              onClick={() => openDocumentsForStudent(rec, "transcript")}
                               className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                               title="Print / View Official Academic Transcript"
                             >
@@ -4123,6 +4599,12 @@ function StatusAcademicActionsTab() {
                       </div>
                     </div>
 
+                    {/* Memo / Dispatch Ref No & Date Bar */}
+                    <div className="flex justify-between items-center text-xs font-mono font-bold text-black border-b border-black pb-2 mb-6">
+                      <span>Ref / Memo No: <strong className="text-sm">{adaMemoNo}</strong></span>
+                      <span>Date of Issue: <strong>{adaMeetingDate}</strong></span>
+                    </div>
+
                     {/* Committee Narrative Paragraph */}
                     <p className="text-sm sm:text-base font-serif text-black leading-relaxed text-justify mb-8 indent-8">
                       The BS Examination committee meeting held on <strong className="font-bold">{adaMeetingDate}</strong> in the college conference hall regarding award of two years degree to the student who cannot continue his BS studies after completion of two years studies due to reasons specified in his application. The subject issue of the student is discussed in detail.
@@ -4203,6 +4685,196 @@ function StatusAcademicActionsTab() {
                     />
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FREEZE APPROVAL NOTIFICATION ORDER MODAL */}
+      {showFreezeModal && freezeStudent && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+            {/* Modal Top Control Header (Always hidden in Print) */}
+            <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
+              <div>
+                <h3 className="text-base font-black flex items-center gap-2">
+                  <span>❄️ Semester Freeze Notification Order</span>
+                  <span className="text-xs font-mono font-normal bg-slate-800 px-2 py-0.5 rounded text-cyan-300">
+                    {freezeStudent.rollNumber}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-300">
+                  {freezeStudent.user?.name || freezeStudent.name} — {freezeStudent.program?.name || "BS Program"} (Session: {freezeOrderDetails.session})
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-black text-xs rounded-xl shadow flex items-center gap-1.5 cursor-pointer"
+                  title="Print this notification order or Save as PDF"
+                >
+                  <span>🖨️</span>
+                  <span>Print Freeze Notification Order</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFreezeModal(false)}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body / Printable Document Container */}
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-100 print:bg-white print:p-0">
+              <div id="freeze-print-container">
+                <div className="bg-white border-2 border-slate-900 rounded-xl p-8 sm:p-12 max-w-3xl mx-auto space-y-6 shadow-md print:shadow-none print:border-2 print:border-black print:m-0 print:p-8 font-serif text-slate-900">
+                  {/* College Official Letterhead */}
+                  <div className="text-center border-b-2 border-slate-900 pb-5 space-y-1">
+                    {collegeLogo ? (
+                      <img src={collegeLogo} alt="Logo" className="w-16 h-16 object-contain mx-auto" />
+                    ) : (
+                      <div className="text-3xl mx-auto">🏛️</div>
+                    )}
+                    <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight font-serif">
+                      {collegeName || "GOVT. POST GRADUATE COLLEGE QUETTA"}
+                    </h1>
+                    <p className="text-xs text-gray-700 font-semibold uppercase tracking-wider">
+                      {collegeAddress || "Sariab Road, Quetta, Balochistan"}
+                    </p>
+                    <p className="text-[11px] text-gray-600 font-medium">
+                      Directorate of Colleges & Higher Education • Government of Balochistan
+                    </p>
+                    <div className="pt-2">
+                      <span className="inline-block px-4 py-1.5 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded shadow-sm">
+                        OFFICIAL NOTIFICATION / ORDER: SEMESTER FREEZE
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Ref / Memo & Date Bar */}
+                  <div className="flex justify-between items-center text-xs font-mono font-bold text-gray-800 border-b pb-3">
+                    <span>
+                      Ref / Memo No: <strong className="text-slate-900 text-sm font-black">{freezeOrderDetails.memoNo}</strong>
+                    </span>
+                    <span>
+                      Dated: <strong className="text-slate-900">{freezeOrderDetails.issueDate}</strong>
+                    </span>
+                  </div>
+
+                  {/* Subject */}
+                  <div className="bg-slate-50 border border-slate-300 p-2.5 rounded text-xs font-bold uppercase tracking-wide text-slate-900">
+                    SUBJECT: SANCTION OF SEMESTER FREEZE UNDER 4-YEAR BS REGULATIONS
+                  </div>
+
+                  {/* Formal Narrative */}
+                  <div className="space-y-4 text-sm text-gray-800 leading-relaxed text-justify pt-1 font-serif">
+                    <p>
+                      In exercise of the powers conferred under the Semester Regulations governing the 4-Year Bachelor of Studies (BS) degree programs in Affiliated Colleges of Balochistan, and upon the formal application submitted by the student and recommendation of the Departmental Academic Committee, sanction is hereby accorded to freeze the academic semester of the following regular student:
+                    </p>
+
+                    {/* Student Particulars Table */}
+                    <table className="w-full border-collapse border border-slate-900 text-xs sm:text-sm font-serif my-3">
+                      <tbody>
+                        <tr className="border-b border-slate-300">
+                          <td className="w-44 bg-slate-100 font-bold p-2 border-r border-slate-300">Student Name:</td>
+                          <td className="p-2 font-bold text-slate-900">{freezeStudent.user?.name || freezeStudent.name}</td>
+                          <td className="w-36 bg-slate-100 font-bold p-2 border-r border-l border-slate-300">Father&apos;s Name:</td>
+                          <td className="p-2">{freezeStudent.fatherName || "—"}</td>
+                        </tr>
+                        <tr className="border-b border-slate-300">
+                          <td className="bg-slate-100 font-bold p-2 border-r border-slate-300">Roll Number:</td>
+                          <td className="p-2 font-mono font-bold">{freezeStudent.rollNumber}</td>
+                          <td className="bg-slate-100 font-bold p-2 border-r border-l border-slate-300">Registration No:</td>
+                          <td className="p-2 font-mono">{freezeStudent.registrationNo || "—"}</td>
+                        </tr>
+                        <tr className="border-b border-slate-300">
+                          <td className="bg-slate-100 font-bold p-2 border-r border-slate-300">Degree Program:</td>
+                          <td className="p-2 font-bold">{freezeStudent.program?.name || "BS Degree Program"}</td>
+                          <td className="bg-slate-100 font-bold p-2 border-r border-l border-slate-300">Academic Session:</td>
+                          <td className="p-2">{freezeOrderDetails.session || freezeStudent.session || "2024-2028"}</td>
+                        </tr>
+                        <tr>
+                          <td className="bg-slate-100 font-bold p-2 border-r border-slate-300">Frozen Duration:</td>
+                          <td className="p-2 font-bold text-cyan-900" colSpan={3}>
+                            From Semester {freezeOrderDetails.fromSem} to Semester {freezeOrderDetails.toSem} (Resumption in Sem {freezeOrderDetails.toSem})
+                          </td>
+                        </tr>
+                        <tr className="border-t border-slate-300">
+                          <td className="bg-slate-100 font-bold p-2 border-r border-slate-300">Sanctioned Reason:</td>
+                          <td className="p-2 italic text-gray-700" colSpan={3}>
+                            {freezeOrderDetails.reason || "Medical / Domestic Grounds"}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Terms & Regulations */}
+                    <div className="space-y-2 pt-2">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-900 underline">
+                        Terms & Institutional Regulations of Semester Freeze:
+                      </h4>
+                      <ol className="list-decimal pl-5 space-y-1 text-xs text-gray-700 leading-normal">
+                        <li>
+                          <strong>Maximum Allowable Duration:</strong> Semester freeze is permitted for a maximum limit of two (02) semesters across the entire 4-Year BS degree. Freezing beyond the approved period without prior authorization shall lead to automatic cancellation of enrollment.
+                        </li>
+                        <li>
+                          <strong>Resumption with Junior Batch:</strong> The student must resume coursework in <strong>Semester {freezeOrderDetails.toSem}</strong> with the immediate succeeding/junior academic batch, subject to seat availability, formal re-admission application, and payment of prescribed readmission dues.
+                        </li>
+                        <li>
+                          <strong>Curricular Scheme:</strong> The student shall be bound to follow the syllabus, scheme of study, and academic calendar in vogue for the batch they join upon resumption.
+                        </li>
+                        <li>
+                          <strong>Campus Privileges Suspension:</strong> Regular attendance, hostel accommodation, and college bus transport privileges remain suspended during the freeze period.
+                        </li>
+                        <li>
+                          <strong>Financial Clearance:</strong> All institutional dues up to the frozen semester have been verified and settled in full.
+                        </li>
+                      </ol>
+                    </div>
+
+                    {freezeOrderDetails.remarks && (
+                      <div className="p-2.5 bg-gray-50 border border-gray-300 rounded text-xs text-gray-700 italic">
+                        <strong>Institutional Remarks:</strong> {freezeOrderDetails.remarks}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Formal 4-Column Signature Block */}
+                  <div className="pt-12 grid grid-cols-4 gap-4 text-center text-xs font-serif text-slate-900">
+                    <div className="space-y-4">
+                      <div className="border-b border-slate-500 pt-6"></div>
+                      <div className="font-bold">In-Charge Admissions</div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="border-b border-slate-500 pt-6"></div>
+                      <div className="font-bold">Head of Department (HOD)</div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="border-b border-slate-500 pt-6"></div>
+                      <div className="font-bold">BS Coordinator / Controller</div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="border-b border-slate-500 pt-6"></div>
+                      <div className="font-bold">Principal (Official Seal)</div>
+                    </div>
+                  </div>
+
+                  {/* Dispatch Distribution (Copy Forwarded to) */}
+                  <div className="pt-4 border-t border-slate-300 text-[10px] text-gray-600 font-serif space-y-1">
+                    <div className="font-bold uppercase tracking-wider text-slate-800">Copy forwarded for information & record to:</div>
+                    <div className="grid grid-cols-2 gap-x-4">
+                      <div>1. The Director of Higher Education, Balochistan, Quetta.</div>
+                      <div>2. The Controller of Examinations, University of Balochistan.</div>
+                      <div>3. BS Academic Coordinator & In-Charge Examination Branch.</div>
+                      <div>4. Accounts Branch & Student Personal Dossier File.</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

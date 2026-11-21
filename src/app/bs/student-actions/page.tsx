@@ -19,21 +19,26 @@ type StudentData = {
 };
 
 function StudentActionsContent() {
-  const { collegeName, collegeLogo } = useSettings();
+  const { collegeName, collegeLogo, settings } = useSettings();
   const searchParams = useSearchParams();
   const initialAction = searchParams.get("action")?.toUpperCase() || "FREEZE";
+
+  const collegeCodePrefix = (settings?.COLLEGE_CODE || "GPGCQ").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const currentYear = new Date().getFullYear();
 
   const [students, setStudents] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [activeTab, setActiveTab] = useState(initialAction);
 
-  // Form input states
+  // Form input states with distinct institutional Memo Numbers
   const [reason, setReason] = useState("");
   const [remarks, setRemarks] = useState("");
   const [fromSem, setFromSem] = useState("3");
   const [toSem, setToSem] = useState("4");
-  const [relievingNo, setRelievingNo] = useState(`NOC-${Math.floor(100000 + Math.random() * 900000)}`);
+  const [freezeMemoNo, setFreezeMemoNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/FRZ/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
+  const [relievingNo, setRelievingNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/MIG-NOC/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
+  const [adaMemoNo, setAdaMemoNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/ADA-ADS/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
   
   // Feedback & Modal states
   const [saving, setSaving] = useState(false);
@@ -93,6 +98,9 @@ function StudentActionsContent() {
         body: JSON.stringify({
           studentId: selectedStudentId,
           statusType: "FREEZE",
+          memoNo: freezeMemoNo,
+          fromSem,
+          toSem,
           reason,
           notes: `Freeze Duration: Sem ${fromSem} to Sem ${toSem}. Remarks: ${remarks}`,
         }),
@@ -128,6 +136,7 @@ function StudentActionsContent() {
         body: JSON.stringify({
           studentId: selectedStudentId,
           statusType: "QUIT",
+          memoNo: adaMemoNo,
           reason,
           notes: `Program Quit / ADP Exit. Remarks: ${remarks}`,
         }),
@@ -164,7 +173,9 @@ function StudentActionsContent() {
           studentId: selectedStudentId,
           statusType: "MIGRATION_OUT",
           reason,
+          memoNo: relievingNo,
           relievingNo,
+          destinationCollege: reason,
           notes: `Relieving Certificate / NOC Issued: ${relievingNo}. Destination Institute: ${reason}`,
         }),
       });
@@ -598,7 +609,7 @@ function StudentActionsContent() {
               )}
               <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">{collegeName}</h2>
               <h3 className="text-sm font-bold text-cyan-800 uppercase">SEMESTER FREEZE APPLICATION & AGREEMENT FORM</h3>
-              <p className="text-xs text-gray-500">Academic Branch Reference: CMS-FRZ-{Math.floor(1000 + Math.random() * 9000)}</p>
+              <p className="text-xs text-gray-500 font-mono">Academic Order Ref: <strong className="text-slate-900">{freezeMemoNo}</strong></p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 p-4 rounded-xl border">

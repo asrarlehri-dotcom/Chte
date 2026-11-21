@@ -5,6 +5,58 @@ import { authOptions } from "@/lib/auth";
 
 const ALLOWED_STATUS_ROLES = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"];
 
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !ALLOWED_STATUS_ROLES.includes(sessionRole)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const statusType = searchParams.get("statusType");
+    const collegeId = searchParams.get("collegeId") || sessionCollegeId;
+
+    const where: any = {};
+    if (statusType) {
+      if (statusType === "MIGRATION") {
+        where.statusType = { in: ["MIGRATION", "MIGRATION_OUT"] };
+      } else if (statusType === "QUIT") {
+        where.statusType = { in: ["QUIT", "ADP"] };
+      } else if (statusType === "FREEZE") {
+        where.statusType = "FREEZE";
+      } else {
+        where.statusType = statusType;
+      }
+    }
+
+    if (collegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
+      where.student = { collegeId };
+    }
+
+    const records = await prisma.studentStatus.findMany({
+      where,
+      include: {
+        student: {
+          include: {
+            user: { select: { name: true, email: true } },
+            program: { select: { id: true, name: true, code: true } },
+            college: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ success: true, records });
+  } catch (error: any) {
+    console.error("Fetch status records error:", error);
+    return NextResponse.json({ error: error.message || "Failed to fetch status records" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,14 +67,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { studentId, statusType, reason, notes, relievingNo } = await req.json();
+    const body = await req.json();
+    const {
+      studentId,
+      statusType,
+      reason,
+      notes,
+      memoNo,
+      relievingNo,
+      fromSem,
+      toSem,
+      destinationCollege,
+      adaDegreeType,
+      adaCreditHours,
+      adaCgpa,
+      adaMeetingDate,
+      adaMeetingVenue,
+      adaLiaisonUniv,
+    } = body;
+
+    const effectiveMemoNo = memoNo || relievingNo || "";
 
     if (!studentId || !statusType) {
       return NextResponse.json({ error: "Student ID and Status Type are required" }, { status: 400 });
     }
 
     // Verify student exists and college scoping check
-    const student = await prisma.student.findUnique({ where: { id: studentId } });
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        program: true,
+        college: true,
+      },
+    });
     if (!student) {
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
@@ -33,13 +110,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Prepare rich formatted notes storing all institutional dispatch details
+    let compiledNotes = notes || "";
+    const metaParts: string[] = [];
+    if (effectiveMemoNo) metaParts.push(`Memo No: ${effectiveMemoNo}`);
+    if (fromSem && toSem) metaParts.push(`Freeze Duration: Sem ${fromSem} to Sem ${toSem}`);
+    if (destinationCollege) metaParts.push(`Destination: ${destinationCollege}`);
+    if (adaDegreeType) metaParts.push(`Degree: ${adaDegreeType}`);
+    if (adaCreditHours) metaParts.push(`Credits: ${adaCreditHours}`);
+    if (adaCgpa) metaParts.push(`CGPA: ${adaCgpa}`);
+    if (adaMeetingDate) metaParts.push(`Meeting Date: ${adaMeetingDate}`);
+    if (adaMeetingVenue) metaParts.push(`Venue: ${adaMeetingVenue}`);
+    if (adaLiaisonUniv) metaParts.push(`University: ${adaLiaisonUniv}`);
+
+    if (metaParts.length > 0) {
+      const headerStr = metaParts.join(" • ");
+      compiledNotes = compiledNotes ? `${headerStr}. Remarks: ${compiledNotes}` : headerStr;
+    }
+
     // 1. Create StudentStatus record
     const statusRecord = await prisma.studentStatus.create({
       data: {
         studentId,
         statusType,
-        reason: reason || null,
-        notes: notes || (relievingNo ? `NOC / Relieving Cert No: ${relievingNo}` : null),
+        reason: reason || destinationCollege || (adaDegreeType ? `Quit for ${adaDegreeType}` : null),
+        notes: compiledNotes || null,
         approvedBy: session.user?.name || session.user?.email || "Admin",
       },
     });
@@ -82,7 +177,7 @@ export async function POST(req: NextRequest) {
         action: "STATUS_CHANGE",
         entity: "Student",
         entityId: studentId,
-        description: `Student status updated to ${statusType} (${reason || 'No reason specified'})`,
+        description: `Student status updated to ${statusType} (Memo: ${effectiveMemoNo || 'N/A'}, Reason: ${reason || 'N/A'})`,
         collegeId: student.collegeId || null,
       },
     });
