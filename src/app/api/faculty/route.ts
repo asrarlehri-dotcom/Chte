@@ -60,6 +60,8 @@ export async function GET(req: NextRequest) {
         division: extra.division || null,
         district: extra.district || null,
         photo: extra.photo || null,
+        additionalCharge: extra.additionalCharge || null,
+        leaveDossier: extra.leaveDossier || null,
       };
     });
 
@@ -97,6 +99,8 @@ export async function POST(req: NextRequest) {
       division,
       district,
       photo,
+      additionalCharge,
+      leaveDossier,
     } = body;
 
     if (!name || !email || !password)
@@ -142,6 +146,8 @@ export async function POST(req: NextRequest) {
       division: division || "Quetta Division",
       district: district || "Quetta",
       photo: photo || "",
+      additionalCharge: additionalCharge || null,
+      leaveDossier: leaveDossier || null,
     };
 
     await prisma.systemSetting.upsert({

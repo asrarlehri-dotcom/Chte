@@ -42,6 +42,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       division,
       district,
       photo,
+      additionalCharge,
+      leaveDossier,
     } = body;
 
     // Update associated User model name if provided
@@ -84,6 +86,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(division !== undefined && { division }),
       ...(district !== undefined && { district }),
       ...(photo !== undefined && { photo }),
+      ...(additionalCharge !== undefined && { additionalCharge }),
+      ...(leaveDossier !== undefined && { leaveDossier }),
     };
 
     await prisma.systemSetting.upsert({

@@ -162,6 +162,12 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Update faculty isActive state in database (Relieved faculty is marked inactive)
+    await prisma.faculty.update({
+      where: { id: facultyId },
+      data: { isActive: actionType === "JOINING" },
+    });
+
     // Create Audit Log
     await prisma.auditLog.create({
       data: {

@@ -33,6 +33,17 @@ type FacultyRecord = {
   division?: string | null;
   district?: string | null;
   photo?: string | null;
+  additionalCharge?: string | null;
+  leaveDossier?: {
+    leaveType: string;
+    reason: string;
+    sanctionRef: string;
+    startDate: string;
+    endDate?: string;
+    documentUrl?: string;
+    documentName?: string;
+    createdAt?: string;
+  } | null;
 };
 
 type FacultyActionData = {
@@ -104,17 +115,86 @@ export default function BSFacultyPage() {
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("ALL");
   const [filterDesignation, setFilterDesignation] = useState("ALL");
+  const [statusTab, setStatusTab] = useState<"ACTIVE" | "INACTIVE" | "RELIEVED" | "ALL">("ACTIVE");
 
   // Modals
-  const [showAddModal, setShowAddModal] = useState(false);
   const [viewingFaculty, setViewingFaculty] = useState<FacultyRecord | null>(null);
   const [editingFaculty, setEditingFaculty] = useState<FacultyRecord | null>(null);
-  const [deletingFaculty, setDeletingFaculty] = useState<FacultyRecord | null>(null);
+
+  // Leave & Rejoin Modals (for Inactive Status with Reason & Documents)
+  const [leaveModalFaculty, setLeaveModalFaculty] = useState<FacultyRecord | null>(null);
+  const [rejoinModalFaculty, setRejoinModalFaculty] = useState<FacultyRecord | null>(null);
+  const [leaveForm, setLeaveForm] = useState({
+    leaveType: "STUDY_LEAVE",
+    sanctionRef: "",
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: "",
+    reason: "",
+    documentUrl: "",
+    documentName: "",
+  });
+  const [rejoinForm, setRejoinForm] = useState({
+    returnDate: new Date().toISOString().slice(0, 10),
+    remarks: "Resumed active teaching duties.",
+  });
+
+  const LEAVE_TYPES: Record<string, string> = {
+    STUDY_LEAVE: "Study Leave (Higher Studies / Ph.D.)",
+    HEALTH_LEAVE: "Medical / Health Leave",
+    LEAVE_WITHOUT_PAY: "Leave Without Pay / Salary (EOL)",
+    EX_PAKISTAN_LEAVE: "Ex-Pakistan Leave",
+    MATERNITY_PATERNITY: "Maternity / Paternity Leave",
+    DEPUTATION: "On Deputation / Attached to other Dept",
+    SUSPENSION: "Under Suspension",
+    OTHER: "Other Official Absence / Leave",
+  };
+
+  const getLeaveLabel = (type?: string) => {
+    if (!type) return "On Leave";
+    return LEAVE_TYPES[type] || type;
+  };
+
+  // Helper for Document Upload (PDF / Image) up to 5MB
+  const handleDocUpload = (file: File, callback: (base64: string, name: string) => void) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Document file size must be less than 5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        callback(reader.result as string, file.name);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // New Modals: Joining & Relieved Action Modals
   const [showJoiningModal, setShowJoiningModal] = useState(false);
   const [showRelievedModal, setShowRelievedModal] = useState(false);
   const [targetFaculty, setTargetFaculty] = useState<FacultyRecord | null>(null);
+  const [joiningMode, setJoiningMode] = useState<"EXISTING" | "NEW">("EXISTING");
+
+  // New Incoming Faculty Form State (within Joining Modal)
+  const blankJoiningNewForm = {
+    name: "",
+    fatherName: "",
+    cnic: "",
+    contactNumber: "",
+    email: "",
+    photo: "",
+    personalNo: "",
+    firstAppointmentDate: "",
+    previousCollege: "",
+    division: "Quetta",
+    district: "Quetta",
+    qualification: "Ph.D. Computer Science",
+    departmentId: "",
+    educationLevel: "BOTH",
+    additionalCharge: "",
+  };
+  const [joiningNewForm, setJoiningNewForm] = useState(blankJoiningNewForm);
 
   // Printable Official Report Modals (Word File Formats)
   const [showTriPrintModal, setShowTriPrintModal] = useState(false);
@@ -315,14 +395,27 @@ export default function BSFacultyPage() {
     }));
   };
 
-  // Filtered List
+  // Filtered List with Tab-Aware Status Filtering
   const filteredFaculty = facultyList.filter((f) => {
+    const act = facultyActions[f.id];
+    const isRelieved = act?.currentStatus === "RELIEVED";
+
+    // Tab Status Filtering: Relieved faculty is automatically moved out of active roster
+    if (statusTab === "ACTIVE") {
+      if (isRelieved || !f.isActive) return false;
+    } else if (statusTab === "INACTIVE") {
+      if (isRelieved || f.isActive) return false;
+    } else if (statusTab === "RELIEVED") {
+      if (!isRelieved) return false;
+    }
+
     const q = search.toLowerCase().trim();
     if (q) {
       const nameMatch = f.user?.name?.toLowerCase().includes(q);
       const emailMatch = f.user?.email?.toLowerCase().includes(q);
       const fatherMatch = f.fatherName?.toLowerCase().includes(q);
       const desigMatch = f.designation?.toLowerCase().includes(q);
+      const addlMatch = f.additionalCharge?.toLowerCase().includes(q);
       const qualMatch = f.qualification?.toLowerCase().includes(q);
       const cnicMatch = f.cnic?.toLowerCase().includes(q);
       const personalNoMatch = f.personalNo?.toLowerCase().includes(q);
@@ -334,6 +427,7 @@ export default function BSFacultyPage() {
         !emailMatch &&
         !fatherMatch &&
         !desigMatch &&
+        !addlMatch &&
         !qualMatch &&
         !cnicMatch &&
         !personalNoMatch &&
@@ -352,35 +446,6 @@ export default function BSFacultyPage() {
 
     return true;
   });
-
-  // Action: Add Faculty Member
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const res = await fetch("/api/faculty", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccess(`Faculty member "${data.user?.name || form.name}" registered successfully!`);
-        setForm({ ...blankForm, password: defaultPassword });
-        setShowAddModal(false);
-        fetchAll();
-      } else {
-        setError(data.error || "Failed to register faculty.");
-      }
-    } catch {
-      setError("Server connection failed.");
-    }
-    setSaving(false);
-  };
 
   // Action: Edit Faculty Details
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -410,6 +475,7 @@ export default function BSFacultyPage() {
           division: editingFaculty.division,
           district: editingFaculty.district,
           photo: editingFaculty.photo,
+          additionalCharge: editingFaculty.additionalCharge,
         }),
       });
 
@@ -427,42 +493,84 @@ export default function BSFacultyPage() {
     setSaving(false);
   };
 
-  // Action: Toggle Active Status
-  const handleToggleActive = async (f: FacultyRecord) => {
-    try {
-      const res = await fetch(`/api/faculty/${f.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !f.isActive }),
-      });
-      if (res.ok) fetchAll();
-    } catch {
-      alert("Failed to toggle status.");
-    }
+  // Open Leave Modal (to set inactive with reason & document)
+  const openLeaveModal = (f: FacultyRecord) => {
+    setLeaveModalFaculty(f);
+    setLeaveForm({
+      leaveType: "STUDY_LEAVE",
+      sanctionRef: "",
+      startDate: new Date().toISOString().slice(0, 10),
+      endDate: "",
+      reason: "",
+      documentUrl: "",
+      documentName: "",
+    });
   };
 
-  // Action: Delete Faculty Member
-  const handleConfirmDelete = async () => {
-    if (!deletingFaculty) return;
+  // Submit Leave Action
+  const handleSubmitLeave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leaveModalFaculty) return;
     setSaving(true);
-    setError("");
-    setSuccess("");
-
     try {
-      const res = await fetch(`/api/faculty/${deletingFaculty.id}`, {
-        method: "DELETE",
+      const res = await fetch(`/api/faculty/${leaveModalFaculty.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isActive: false,
+          leaveDossier: {
+            ...leaveForm,
+            createdAt: new Date().toISOString(),
+          },
+        }),
       });
-
       if (res.ok) {
-        setSuccess(`Faculty member "${deletingFaculty.user?.name}" deleted successfully.`);
-        setDeletingFaculty(null);
+        setSuccess(`Faculty member "${leaveModalFaculty.user?.name}" marked Inactive (${getLeaveLabel(leaveForm.leaveType)}).`);
+        setLeaveModalFaculty(null);
         fetchAll();
       } else {
-        const d = await res.json();
-        setError(d.error || "Delete failed.");
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || "Failed to record leave.");
       }
     } catch {
-      setError("Failed to delete faculty member.");
+      setError("Failed to record leave.");
+    }
+    setSaving(false);
+  };
+
+  // Open Rejoin Modal (to resume duty from leave)
+  const openRejoinModal = (f: FacultyRecord) => {
+    setRejoinModalFaculty(f);
+    setRejoinForm({
+      returnDate: new Date().toISOString().slice(0, 10),
+      remarks: "Resumed active teaching duties.",
+    });
+  };
+
+  // Submit Rejoin Action
+  const handleSubmitRejoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejoinModalFaculty) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/faculty/${rejoinModalFaculty.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isActive: true,
+          leaveDossier: null,
+        }),
+      });
+      if (res.ok) {
+        setSuccess(`Faculty member "${rejoinModalFaculty.user?.name}" has rejoined active duty successfully!`);
+        setRejoinModalFaculty(null);
+        fetchAll();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || "Failed to resume active status.");
+      }
+    } catch {
+      setError("Failed to resume active status.");
     }
     setSaving(false);
   };
@@ -567,19 +675,55 @@ export default function BSFacultyPage() {
   // Submit Joining Action & Issue Form T.R.I
   const handleSubmitJoining = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joiningForm.facultyId) {
-      alert("Please select a faculty member");
-      return;
-    }
     setSaving(true);
-    const sel = facultyList.find((f) => f.id === joiningForm.facultyId) || targetFaculty;
+    let resolvedFacultyId = joiningForm.facultyId;
+    let facultyDisplayName = "";
 
     try {
+      if (joiningMode === "NEW") {
+        if (!joiningNewForm.name) {
+          alert("Please enter full name of incoming faculty member.");
+          setSaving(false);
+          return;
+        }
+        const autoEmail = joiningNewForm.email || generateEmailFromName(joiningNewForm.name, emailDomain);
+        const facRes = await fetch("/api/faculty", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...joiningNewForm,
+            email: autoEmail,
+            password: defaultPassword,
+            designation: joiningForm.designation,
+            departmentId: joiningNewForm.departmentId || (departments[0]?.id || null),
+          }),
+        });
+
+        if (!facRes.ok) {
+          const d = await facRes.json().catch(() => ({}));
+          alert(d.error || "Failed to register incoming faculty member.");
+          setSaving(false);
+          return;
+        }
+        const createdFac = await facRes.json();
+        resolvedFacultyId = createdFac.id;
+        facultyDisplayName = createdFac.user?.name || joiningNewForm.name;
+      } else {
+        if (!joiningForm.facultyId) {
+          alert("Please select a faculty member");
+          setSaving(false);
+          return;
+        }
+        const sel = facultyList.find((f) => f.id === joiningForm.facultyId) || targetFaculty;
+        facultyDisplayName = sel?.user?.name || "MR. RAHIM BAKHSH";
+      }
+
       const res = await fetch("/api/faculty/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...joiningForm,
+          facultyId: resolvedFacultyId,
           actionType: "JOINING",
           collegeName: collegeDisplayName,
         }),
@@ -588,12 +732,14 @@ export default function BSFacultyPage() {
       if (res.ok) {
         const json = await res.json();
         setSuccess(`Faculty joining recorded successfully! Form T.R.I generated.`);
-        setFacultyActions((prev) => ({ ...prev, [joiningForm.facultyId]: json.data }));
+        setFacultyActions((prev) => ({ ...prev, [resolvedFacultyId]: json.data }));
         setShowJoiningModal(false);
+        setJoiningNewForm(blankJoiningNewForm);
+        fetchAll();
 
         // Open Form T.R.I Printable Report
         setTriReportData({
-          facultyName: sel?.user?.name ? `MR. ${sel.user.name.toUpperCase()}` : "MR. RAHIM BAKHSH",
+          facultyName: `MR. ${facultyDisplayName.toUpperCase()}`,
           designation: joiningForm.designation,
           bpsScale: joiningForm.bpsScale,
           subject: joiningForm.subject,
@@ -643,6 +789,7 @@ export default function BSFacultyPage() {
         setSuccess(`Faculty relieved status recorded successfully! Relieving Certificate generated.`);
         setFacultyActions((prev) => ({ ...prev, [relievedForm.facultyId]: json.data }));
         setShowRelievedModal(false);
+        fetchAll();
 
         // Open Form T.R.1 Printable Report
         setRelievingReportData({
@@ -745,10 +892,10 @@ export default function BSFacultyPage() {
           </div>
           <div>
             <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <span>BS Faculty Management</span>
+              <span>Faculty Members</span>
             </h1>
             <p className="text-gray-500 mt-0.5 text-sm font-medium">
-              Register, manage and track faculty members, joining, relieving and other details.
+              Official faculty roster, additional charges, leave tracking, joining, and relieving history.
             </p>
           </div>
         </div>
@@ -786,23 +933,70 @@ export default function BSFacultyPage() {
             <span>🖨️</span>
             <span>Print List</span>
           </button>
-
-          {/* Add Faculty */}
-          <button
-            onClick={() => {
-              setForm({ ...blankForm, password: defaultPassword });
-              setShowAddModal(true);
-            }}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>+</span>
-            <span>Add Faculty</span>
-          </button>
         </div>
       </div>
 
       {error && <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm font-bold border border-red-200">{error}</div>}
       {success && <div className="bg-emerald-50 text-emerald-800 p-4 rounded-xl text-sm font-bold border border-emerald-200">{success}</div>}
+
+      {/* Faculty Status Filter Tabs */}
+      <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+        <button
+          onClick={() => setStatusTab("ACTIVE")}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+            statusTab === "ACTIVE"
+              ? "bg-emerald-700 text-white shadow-md shadow-emerald-700/20"
+              : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200/70"
+          }`}
+        >
+          <span>✅ Active Faculty</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusTab === "ACTIVE" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"}`}>
+            {facultyList.filter((f) => facultyActions[f.id]?.currentStatus !== "RELIEVED" && f.isActive).length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusTab("INACTIVE")}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+            statusTab === "INACTIVE"
+              ? "bg-amber-600 text-white shadow-md shadow-amber-600/20"
+              : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200/70"
+          }`}
+        >
+          <span>🟡 On Leave / Inactive</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusTab === "INACTIVE" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"}`}>
+            {facultyList.filter((f) => facultyActions[f.id]?.currentStatus !== "RELIEVED" && !f.isActive).length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusTab("RELIEVED")}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+            statusTab === "RELIEVED"
+              ? "bg-teal-800 text-white shadow-md shadow-teal-800/20"
+              : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200/70"
+          }`}
+        >
+          <span>🚪 Relieved / Transfer History</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusTab === "RELIEVED" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"}`}>
+            {facultyList.filter((f) => facultyActions[f.id]?.currentStatus === "RELIEVED").length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusTab("ALL")}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+            statusTab === "ALL"
+              ? "bg-gray-800 text-white shadow-md"
+              : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200/70"
+          }`}
+        >
+          <span>📋 All Roster</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusTab === "ALL" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-700"}`}>
+            {facultyList.length}
+          </span>
+        </button>
+      </div>
 
       {/* Filter Bar */}
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
@@ -939,6 +1133,14 @@ export default function BSFacultyPage() {
                           <span className="px-2.5 py-0.5 text-xs font-black rounded-md bg-blue-50 text-blue-700 border border-blue-200 inline-block mb-1">
                             {f.designation || "Lecturer"}
                           </span>
+                          {f.additionalCharge && (
+                            <div className="mb-1">
+                              <span className="px-2 py-0.5 text-[11px] font-black rounded-md bg-amber-100 text-amber-950 border border-amber-300 inline-flex items-center gap-1 shadow-xs" title={`Special Additional Charge: ${f.additionalCharge}`}>
+                                <span>⚡</span>
+                                <span>Addl: {f.additionalCharge}</span>
+                              </span>
+                            </div>
+                          )}
                           <div className="text-xs font-semibold text-gray-700">{f.qualification || "M.Phil"}</div>
                           <span className={`inline-block mt-1 px-2 py-0.5 text-[10px] font-bold rounded-md ${
                             f.educationLevel === "INTERMEDIATE" ? "bg-amber-100 text-amber-800 border border-amber-200" :
@@ -959,12 +1161,12 @@ export default function BSFacultyPage() {
                           {isRelieved ? (
                             <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-black inline-flex items-center gap-1.5 shadow-sm">
                               <span>📅</span>
-                              <span>Relieved ({action.relievedDate || "15-06-2025"})</span>
+                              <span>Relieved ({action?.relievedDate || "N/A"})</span>
                             </span>
                           ) : isJoined ? (
                             <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-black inline-flex items-center gap-1.5 shadow-sm">
                               <span>📅</span>
-                              <span>Joined ({action.joiningDate || "01-09-2023"})</span>
+                              <span>Joined ({action?.joiningDate || "On Duty"})</span>
                             </span>
                           ) : (
                             <span className="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold inline-flex items-center gap-1.5">
@@ -974,18 +1176,30 @@ export default function BSFacultyPage() {
                           )}
                         </td>
 
-                        {/* Status */}
+                        {/* Status (Click to grant Leave or Resume Duty) */}
                         <td className="px-4 py-4 text-center">
-                          <button
-                            onClick={() => handleToggleActive(f)}
-                            className={`px-3 py-1 text-xs font-black rounded-full border transition-all cursor-pointer ${
-                              f.isActive
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
-                                : "bg-red-50 text-red-700 border-red-300 hover:bg-red-100"
-                            }`}
-                          >
-                            {f.isActive ? "✅ Active" : "🔴 Inactive"}
-                          </button>
+                          {isRelieved ? (
+                            <span className="px-3 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200 inline-block">
+                              🚪 Relieved
+                            </span>
+                          ) : f.isActive ? (
+                            <button
+                              onClick={() => openLeaveModal(f)}
+                              className="px-3 py-1 text-xs font-black rounded-full border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 cursor-pointer shadow-xs transition-all"
+                              title="Click to record leave / mark inactive"
+                            >
+                              ✅ Active
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openRejoinModal(f)}
+                              className="px-3 py-1 text-xs font-black rounded-full border bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 cursor-pointer shadow-xs transition-all flex items-center justify-center gap-1 mx-auto"
+                              title="Click to view leave dossier & resume duty"
+                            >
+                              <span>🟡</span>
+                              <span>{getLeaveLabel(f.leaveDossier?.leaveType)}</span>
+                            </button>
+                          )}
                         </td>
 
                         {/* Actions */}
@@ -995,48 +1209,31 @@ export default function BSFacultyPage() {
                             <button
                               onClick={() => setViewingFaculty(f)}
                               className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-sm cursor-pointer border border-emerald-200"
-                              title="View Faculty Profile"
+                              title="View Official Faculty Dossier"
                             >
                               👁️
                             </button>
 
-                            {/* Edit Details */}
+                            {/* Edit Details & Additional Charge */}
                             <button
                               onClick={() => setEditingFaculty(f)}
                               className="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 flex items-center justify-center shadow-sm cursor-pointer border border-blue-200"
-                              title="Edit Details"
+                              title="Edit Details & Additional Charge"
                             >
                               ✏️
                             </button>
 
-                            {/* Form T.R.I (Transfer of Charge / Joining Certificate) */}
-                            <button
-                              onClick={() => openTriForFaculty(f)}
-                              className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black shadow-sm flex items-center gap-1 cursor-pointer"
-                              title="Print / Generate Form T.R.I (Certificate of Transfer of Charge)"
-                            >
-                              <span>📜</span>
-                              <span>Form T.R.I</span>
-                            </button>
-
-                            {/* Form T.R.1 (Relieving Certificate) */}
-                            <button
-                              onClick={() => openRelievingForFaculty(f)}
-                              className="px-2 py-1 rounded-lg bg-teal-800 hover:bg-teal-900 text-white text-[11px] font-black shadow-sm flex items-center gap-1 cursor-pointer"
-                              title="Print / Generate Form T.R.1 (Relieving Certificate)"
-                            >
-                              <span>📄</span>
-                              <span>Form T.R.1</span>
-                            </button>
-
-                            {/* Delete Record */}
-                            <button
-                              onClick={() => setDeletingFaculty(f)}
-                              className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 flex items-center justify-center shadow-sm cursor-pointer border border-rose-200"
-                              title="Delete Faculty"
-                            >
-                              🗑️
-                            </button>
+                            {/* Relieving Certificate quick viewer if in history */}
+                            {isRelieved && (
+                              <button
+                                onClick={() => openRelievingForFaculty(f)}
+                                className="px-2 py-1 rounded-lg bg-teal-800 hover:bg-teal-900 text-white text-[11px] font-black shadow-sm flex items-center gap-1 cursor-pointer"
+                                title="View / Print Form T.R.1 Relieving Certificate"
+                              >
+                                <span>📄</span>
+                                <span>Relieving Certificate</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1068,43 +1265,234 @@ export default function BSFacultyPage() {
               <button onClick={() => setShowJoiningModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
             </div>
 
+            {/* Mode Switcher */}
+            <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setJoiningMode("EXISTING")}
+                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                  joiningMode === "EXISTING" ? "bg-white text-emerald-800 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <span>🏢 Transferred / Existing Faculty</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setJoiningMode("NEW")}
+                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                  joiningMode === "NEW" ? "bg-white text-emerald-800 shadow-sm" : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <span>👤+ Register Incoming Faculty Member</span>
+              </button>
+            </div>
+
             <form onSubmit={handleSubmitJoining} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black text-gray-600 uppercase mb-1">
-                  Select Faculty Member <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={joiningForm.facultyId}
-                  onChange={(e) => {
-                    const sel = facultyList.find((f) => f.id === e.target.value);
-                    setTargetFaculty(sel || null);
-                    setJoiningForm((prev) => ({
-                      ...prev,
-                      facultyId: e.target.value,
-                      designation: sel?.designation || prev.designation,
-                      subject: sel?.department?.name || prev.subject,
-                    }));
-                  }}
-                  className={INPUT_STYLE}
-                >
-                  <option value="">-- Choose Faculty Member --</option>
-                  {facultyList.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.user?.name} ({f.designation || "Lecturer"} - {f.department?.name || "BS"})
-                    </option>
-                  ))}
-                </select>
-                {targetFaculty && (
-                  <div className="mt-2 p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs flex flex-wrap gap-x-4 gap-y-1 text-emerald-950 font-medium">
-                    {targetFaculty.personalNo && <span><strong>SAP P#:</strong> {targetFaculty.personalNo}</span>}
-                    {targetFaculty.cnic && <span><strong>CNIC:</strong> {targetFaculty.cnic}</span>}
-                    {targetFaculty.firstAppointmentDate && <span><strong>1st Appt Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
-                    {targetFaculty.previousCollege && <span><strong>Prev Station:</strong> {targetFaculty.previousCollege}</span>}
-                    {targetFaculty.district && <span><strong>District:</strong> {targetFaculty.district}</span>}
+              {joiningMode === "EXISTING" ? (
+                <div>
+                  <label className="block text-xs font-black text-gray-600 uppercase mb-1">
+                    Select Faculty Member <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={joiningForm.facultyId}
+                    onChange={(e) => {
+                      const sel = facultyList.find((f) => f.id === e.target.value);
+                      setTargetFaculty(sel || null);
+                      setJoiningForm((prev) => ({
+                        ...prev,
+                        facultyId: e.target.value,
+                        designation: sel?.designation || prev.designation,
+                        subject: sel?.department?.name || prev.subject,
+                      }));
+                    }}
+                    className={INPUT_STYLE}
+                  >
+                    <option value="">-- Choose Faculty Member --</option>
+                    {facultyList.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.user?.name} ({f.designation || "Lecturer"} - {f.department?.name || "BS"})
+                      </option>
+                    ))}
+                  </select>
+                  {targetFaculty && (
+                    <div className="mt-2 p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs flex flex-wrap gap-x-4 gap-y-1 text-emerald-950 font-medium">
+                      {targetFaculty.personalNo && <span><strong>SAP P#:</strong> {targetFaculty.personalNo}</span>}
+                      {targetFaculty.cnic && <span><strong>CNIC:</strong> {targetFaculty.cnic}</span>}
+                      {targetFaculty.firstAppointmentDate && <span><strong>1st Appt Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
+                      {targetFaculty.previousCollege && <span><strong>Prev Station:</strong> {targetFaculty.previousCollege}</span>}
+                      {targetFaculty.district && <span><strong>District:</strong> {targetFaculty.district}</span>}
+                      {targetFaculty.additionalCharge && <span><strong>Addl Charge:</strong> {targetFaculty.additionalCharge}</span>}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3.5 p-4 bg-emerald-50/40 rounded-xl border border-emerald-100">
+                  <div className="text-xs font-black text-emerald-900 uppercase tracking-wide border-b pb-1">
+                    Incoming Faculty Dossier Details
                   </div>
-                )}
-              </div>
+
+                  {/* Photo Upload */}
+                  <div className="flex items-center gap-3">
+                    {joiningNewForm.photo ? (
+                      <img src={joiningNewForm.photo} alt="Incoming" className="w-14 h-14 rounded-xl object-cover border border-emerald-500 shadow-xs" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-gray-200 flex items-center justify-center text-xs text-gray-500 font-bold border">No Photo</div>
+                    )}
+                    <div>
+                      <label className="px-3 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-700 cursor-pointer hover:bg-gray-50 shadow-xs">
+                        <span>📁 Upload Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handlePhotoUpload(file, (b64) => setJoiningNewForm({ ...joiningNewForm, photo: b64 }));
+                          }}
+                        />
+                      </label>
+                      {joiningNewForm.photo && (
+                        <button type="button" onClick={() => setJoiningNewForm({ ...joiningNewForm, photo: "" })} className="text-xs text-red-600 font-bold ml-2">Remove</button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Full Name *</label>
+                      <input
+                        required
+                        type="text"
+                        className={INPUT_STYLE}
+                        placeholder="Prof. Dr. Javed Ahmed Baloch"
+                        value={joiningNewForm.name}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Father Name *</label>
+                      <input
+                        required
+                        type="text"
+                        className={INPUT_STYLE}
+                        placeholder="Father Name"
+                        value={joiningNewForm.fatherName}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, fatherName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP / Civil Service ID)</label>
+                      <input
+                        type="text"
+                        className={INPUT_STYLE}
+                        placeholder="e.g. 10845231"
+                        value={joiningNewForm.personalNo}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, personalNo: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">CNIC Number</label>
+                      <input
+                        type="text"
+                        className={INPUT_STYLE}
+                        placeholder="e.g. 54400-1234567-1"
+                        value={joiningNewForm.cnic}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, cnic: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Department *</label>
+                      <select
+                        required
+                        className={INPUT_STYLE}
+                        value={joiningNewForm.departmentId}
+                        onChange={(e) => {
+                          const d = departments.find((x) => x.id === e.target.value);
+                          setJoiningNewForm({ ...joiningNewForm, departmentId: e.target.value });
+                          if (d) setJoiningForm((prev) => ({ ...prev, subject: d.name }));
+                        }}
+                      >
+                        <option value="">-- Select Department --</option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Qualification</label>
+                      <input
+                        type="text"
+                        className={INPUT_STYLE}
+                        placeholder="Ph.D. / M.Phil"
+                        value={joiningNewForm.qualification}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, qualification: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Previous College / Station</label>
+                      <input
+                        type="text"
+                        className={INPUT_STYLE}
+                        placeholder="e.g. Govt Degree College Sariab Road"
+                        value={joiningNewForm.previousCollege}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, previousCollege: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Division</label>
+                      <select
+                        className={INPUT_STYLE}
+                        value={joiningNewForm.division}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, division: e.target.value })}
+                      >
+                        <option value="Quetta">Quetta Division</option>
+                        <option value="Kalat">Kalat Division</option>
+                        <option value="Makran">Makran Division</option>
+                        <option value="Nasirabad">Nasirabad Division</option>
+                        <option value="Sibi">Sibi Division</option>
+                        <option value="Zhob">Zhob Division</option>
+                        <option value="Rakhshan">Rakhshan Division</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">District</label>
+                      <input
+                        type="text"
+                        list="districts-list"
+                        className={INPUT_STYLE}
+                        placeholder="e.g. Quetta / Pishin"
+                        value={joiningNewForm.district}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, district: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-amber-900 uppercase mb-1 flex items-center gap-1">
+                      <span>⚡</span>
+                      <span>Additional Charge (Optional / اضافی چارج)</span>
+                    </label>
+                    <input
+                      type="text"
+                      list="additional-charges-list"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. Vice Principal, Controller Examinations, Incharge Principal"
+                      value={joiningNewForm.additionalCharge}
+                      onChange={(e) => setJoiningNewForm({ ...joiningNewForm, additionalCharge: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -1747,7 +2135,7 @@ export default function BSFacultyPage() {
       {/* VIEW FACULTY PROFILE MODAL */}
       {viewingFaculty && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl space-y-6 max-h-[92vh] overflow-y-auto border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl space-y-5 max-h-[92vh] overflow-y-auto border border-gray-100">
             {/* Header with Photo */}
             <div className="flex justify-between items-start border-b pb-4">
               <div className="flex items-center gap-4">
@@ -1764,8 +2152,8 @@ export default function BSFacultyPage() {
                 )}
                 <div>
                   <h2 className="text-xl font-black text-gray-900">{viewingFaculty.user?.name}</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
                       {viewingFaculty.designation || "Faculty Member"}
                     </span>
                     {viewingFaculty.personalNo && (
@@ -1773,11 +2161,48 @@ export default function BSFacultyPage() {
                         SAP P#: {viewingFaculty.personalNo}
                       </span>
                     )}
+                    {viewingFaculty.additionalCharge && (
+                      <span className="text-xs font-black text-amber-950 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1 shadow-xs">
+                        <span>⚡</span>
+                        <span>Addl: {viewingFaculty.additionalCharge}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
               <button onClick={() => setViewingFaculty(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">✕</button>
             </div>
+
+            {/* Leave / Inactivity Alert Banner if currently on leave */}
+            {!viewingFaculty.isActive && viewingFaculty.leaveDossier && (
+              <div className="p-3.5 bg-amber-50/90 border border-amber-200 rounded-xl text-xs space-y-1.5 shadow-xs">
+                <div className="font-black text-amber-950 flex items-center gap-1.5 text-sm">
+                  <span>⚠️</span>
+                  <span>Currently Inactive on {getLeaveLabel(viewingFaculty.leaveDossier.leaveType)}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-800">
+                  <div><strong>Sanction Ref:</strong> {viewingFaculty.leaveDossier.sanctionRef || "N/A"}</div>
+                  <div><strong>Duration:</strong> {viewingFaculty.leaveDossier.startDate} to {viewingFaculty.leaveDossier.endDate || "Indefinite"}</div>
+                </div>
+                {viewingFaculty.leaveDossier.reason && (
+                  <div className="text-gray-700"><strong>Notes / Remarks:</strong> {viewingFaculty.leaveDossier.reason}</div>
+                )}
+                {viewingFaculty.leaveDossier.documentUrl && (
+                  <div className="pt-1 border-t border-amber-200/60 mt-1">
+                    <a
+                      href={viewingFaculty.leaveDossier.documentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={viewingFaculty.leaveDossier.documentName || "Leave_Document"}
+                      className="inline-flex items-center gap-1.5 text-emerald-800 hover:text-emerald-950 font-bold underline text-xs"
+                    >
+                      <span>📎</span>
+                      <span>Download Attached Sanction Document ({viewingFaculty.leaveDossier.documentName || "Attachment"})</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Section 1: Civil Service & Govt Posting Dossier */}
             <div>
@@ -1877,7 +2302,7 @@ export default function BSFacultyPage() {
                   <span>Edit Faculty Profile & Dossier</span>
                 </h2>
                 <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  Update personal, government service, posting station, and academic details.
+                  Update personal, government service, additional charge, and academic details.
                 </p>
               </div>
               <button onClick={() => setEditingFaculty(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
@@ -1981,6 +2406,30 @@ export default function BSFacultyPage() {
                       onChange={(e) => setEditingFaculty({ ...editingFaculty, contactNumber: e.target.value })}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Special Assignment / Additional Charge */}
+              <div className="space-y-3">
+                <div className="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
+                  <span>⚡</span>
+                  <span>Special Designation / Additional Charge (اضافی چارج)</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
+                    Special Additional Charge / Office
+                  </label>
+                  <input
+                    type="text"
+                    list="additional-charges-list"
+                    className={INPUT_STYLE}
+                    placeholder="e.g. Vice Principal, Controller Examinations, Incharge Principal, Chief Proctor"
+                    value={editingFaculty.additionalCharge || ""}
+                    onChange={(e) => setEditingFaculty({ ...editingFaculty, additionalCharge: e.target.value })}
+                  />
+                  <span className="text-[11px] text-gray-400 mt-1 block">
+                    e.g. Prof. Dr. Javed Ahmed Baloch (Professor B-20 Chemistry) with Additional Charge: Vice Principal
+                  </span>
                 </div>
               </div>
 
@@ -2127,322 +2576,144 @@ export default function BSFacultyPage() {
         </div>
       )}
 
-      {/* DELETE FACULTY CONFIRMATION MODAL */}
-      {deletingFaculty && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md space-y-4 text-center border border-red-200">
-            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-2xl">
-              🗑️
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Deactivate Faculty Member?</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Are you sure you want to deactivate <strong className="text-gray-900">"{deletingFaculty.user?.name}"</strong>?
-              </p>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button onClick={handleConfirmDelete} disabled={saving} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm transition-all shadow-sm cursor-pointer">
-                {saving ? "Deactivating..." : "Confirm Deactivate"}
-              </button>
-              <button onClick={() => setDeletingFaculty(null)} className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm cursor-pointer">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ADD NEW FACULTY MODAL */}
-      {showAddModal && (
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          MODAL: MARK FACULTY INACTIVE / RECORD OFFICIAL LEAVE (Requirement 6)
+      ────────────────────────────────────────────────────────────────────────────── */}
+      {leaveModalFaculty && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl space-y-5 border border-gray-100 max-h-[92vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b pb-3">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-lg space-y-5 border border-amber-200 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b pb-3">
               <div>
                 <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
-                  <span>👤+</span>
-                  <span>Register New Faculty Member</span>
+                  <span>🟡</span>
+                  <span>Mark Faculty Inactive / Record Leave</span>
                 </h2>
                 <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  Complete official faculty dossier with personal, government service, and posting details.
+                  Recording official leave for <strong>{leaveModalFaculty.user?.name}</strong> ({leaveModalFaculty.designation || "Faculty"})
                 </p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
+              <button onClick={() => setLeaveModalFaculty(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="space-y-5">
-              {/* Photo Upload Section */}
-              <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 flex items-center gap-4">
-                {form.photo ? (
-                  <img
-                    src={form.photo}
-                    alt="Preview"
-                    className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500 shadow-sm flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold border flex-shrink-0">
-                    No Photo
-                  </div>
-                )}
-                <div className="flex-1">
+            <form onSubmit={handleSubmitLeave} className="space-y-4">
+              {/* Leave Type */}
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                  Official Leave Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  className={INPUT_STYLE}
+                  value={leaveForm.leaveType}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
+                >
+                  <option value="STUDY_LEAVE">🎓 Study Leave (Ph.D. / M.Phil / Higher Studies)</option>
+                  <option value="HEALTH_LEAVE">🏥 Medical / Health Leave</option>
+                  <option value="LEAVE_WITHOUT_PAY">⛔ Leave Without Pay / Salary (EOL - Extra Ordinary Leave)</option>
+                  <option value="EX_PAKISTAN_LEAVE">✈️ Ex-Pakistan Leave</option>
+                  <option value="MATERNITY_PATERNITY">👶 Maternity / Paternity Leave</option>
+                  <option value="DEPUTATION">🏛️ On Deputation / Attached to other Dept</option>
+                  <option value="SUSPENSION">⚠️ Under Suspension</option>
+                  <option value="OTHER">📋 Other Official Absence / Leave</option>
+                </select>
+              </div>
+
+              {/* Sanction Ref No */}
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                  Sanction / Notification Reference No. <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  type="text"
+                  className={INPUT_STYLE}
+                  placeholder="e.g. SO(HE)4-12/2026/Study-Leave"
+                  value={leaveForm.sanctionRef}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, sanctionRef: e.target.value })}
+                />
+              </div>
+
+              {/* Date From & Date To */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
                   <label className="block text-xs font-black text-gray-700 uppercase mb-1">
-                    Profile Photo
+                    Leave Start Date <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-2">
-                    <label className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-xs font-bold text-gray-700 cursor-pointer shadow-sm">
-                      <span>📁 Select Image</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handlePhotoUpload(file, (base64) => {
-                              setForm((prev) => ({ ...prev, photo: base64 }));
-                            });
-                          }
-                        }}
-                      />
-                    </label>
-                    {form.photo && (
-                      <button
-                        type="button"
-                        onClick={() => setForm((prev) => ({ ...prev, photo: "" }))}
-                        className="px-2.5 py-1.5 text-xs text-red-600 hover:text-red-800 font-bold cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-gray-400 mt-0.5 block">JPG, PNG, WEBP (Max 2MB)</span>
+                  <input
+                    required
+                    type="date"
+                    className={INPUT_STYLE}
+                    value={leaveForm.startDate}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                    Expected Return Date
+                  </label>
+                  <input
+                    type="date"
+                    className={INPUT_STYLE}
+                    value={leaveForm.endDate}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
+                  />
                 </div>
               </div>
 
-              {/* SECTION 1: Personal Information */}
-              <div className="space-y-3">
-                <div className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-                  <span>👤</span>
-                  <span>Personal Details</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Full Name *</label>
-                    <input
-                      required
-                      type="text"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. Prof. Imran Zubair"
-                      value={form.name}
-                      onChange={(e) => handleNameChange(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Father Name *</label>
-                    <input
-                      required
-                      type="text"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. Muhammad Zubair"
-                      value={form.fatherName}
-                      onChange={(e) => setForm({ ...form, fatherName: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">CNIC Number</label>
-                    <input
-                      type="text"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. 54400-1234567-1"
-                      value={form.cnic}
-                      onChange={(e) => setForm({ ...form, cnic: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Contact Number</label>
-                    <input
-                      type="text"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. 0300-1234567"
-                      value={form.contactNumber}
-                      onChange={(e) => setForm({ ...form, contactNumber: e.target.value })}
-                    />
-                  </div>
-                </div>
+              {/* Remarks / Reason */}
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                  Reason & Institutional Notes <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  className={INPUT_STYLE}
+                  placeholder="Specify official reasons, university details for study leave, or medical hospital grounds..."
+                  value={leaveForm.reason}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                />
               </div>
 
-              {/* SECTION 2: Government Service & Posting Dossier */}
-              <div className="space-y-3">
-                <div className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-                  <span>🏛️</span>
-                  <span>Government Service & Posting Dossier</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP / Civil Service ID)</label>
+              {/* Supporting Document Attachment */}
+              <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200">
+                <label className="block text-xs font-black text-gray-800 uppercase mb-1.5 flex items-center gap-1.5">
+                  <span>📎</span>
+                  <span>Supporting Document / Sanction Order</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-xs font-bold text-gray-700 cursor-pointer shadow-xs">
+                    <span>Choose File (PDF/Image)</span>
                     <input
-                      type="text"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. 10845231"
-                      value={form.personalNo}
-                      onChange={(e) => setForm({ ...form, personalNo: e.target.value })}
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleDocUpload(file, (base64, name) => {
+                            setLeaveForm({ ...leaveForm, documentUrl: base64, documentName: name });
+                          });
+                        }
+                      }}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">First Appointment Date in Govt Service</label>
-                    <input
-                      type="date"
-                      className={INPUT_STYLE}
-                      value={form.firstAppointmentDate}
-                      onChange={(e) => setForm({ ...form, firstAppointmentDate: e.target.value })}
-                    />
-                  </div>
+                  </label>
+                  {leaveForm.documentName && (
+                    <span className="text-xs text-emerald-800 font-bold truncate max-w-[220px]">
+                      ✓ {leaveForm.documentName}
+                    </span>
+                  )}
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Previous College / Station</label>
-                    <input
-                      type="text"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. Govt Degree College Sariab Road"
-                      value={form.previousCollege}
-                      onChange={(e) => setForm({ ...form, previousCollege: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Division</label>
-                    <select
-                      className={INPUT_STYLE}
-                      value={form.division}
-                      onChange={(e) => setForm({ ...form, division: e.target.value })}
-                    >
-                      <option value="Quetta">Quetta Division</option>
-                      <option value="Kalat">Kalat Division</option>
-                      <option value="Makran">Makran Division</option>
-                      <option value="Nasirabad">Nasirabad Division</option>
-                      <option value="Sibi">Sibi Division</option>
-                      <option value="Zhob">Zhob Division</option>
-                      <option value="Rakhshan">Rakhshan Division</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">District</label>
-                    <input
-                      type="text"
-                      list="districts-list"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. Quetta / Pishin"
-                      value={form.district}
-                      onChange={(e) => setForm({ ...form, district: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 3: Academic Setup & Portal Credentials */}
-              <div className="space-y-3">
-                <div className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-                  <span>🎓</span>
-                  <span>Academic & Portal Setup</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Designation *</label>
-                    <select
-                      className={INPUT_STYLE}
-                      value={form.designation}
-                      onChange={(e) => setForm({ ...form, designation: e.target.value })}
-                    >
-                      <option value="Professor">Professor</option>
-                      <option value="Associate Professor">Associate Professor</option>
-                      <option value="Assistant Professor">Assistant Professor</option>
-                      <option value="Lecturer">Lecturer</option>
-                      <option value="Visiting Faculty">Visiting Faculty</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Qualification *</label>
-                    <input
-                      required
-                      type="text"
-                      className={INPUT_STYLE}
-                      placeholder="e.g. Ph.D. Computer Science / M.Phil"
-                      value={form.qualification}
-                      onChange={(e) => setForm({ ...form, qualification: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Department *</label>
-                    <select
-                      required
-                      className={INPUT_STYLE}
-                      value={form.departmentId}
-                      onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
-                    >
-                      <option value="">-- Select Department --</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Faculty Type *</label>
-                    <select
-                      required
-                      className={INPUT_STYLE}
-                      value={form.educationLevel}
-                      onChange={(e) => setForm({ ...form, educationLevel: e.target.value })}
-                    >
-                      <option value="BS">🎓 BS Faculty</option>
-                      <option value="INTERMEDIATE">🏫 Inter Faculty</option>
-                      <option value="BOTH">🎓 Both (BS & Inter)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-xs font-bold text-gray-600 uppercase">Email Address *</label>
-                      <span className="text-[10px] text-blue-600 font-semibold">✨ Auto-generated</span>
-                    </div>
-                    <input
-                      required
-                      type="email"
-                      className={`${INPUT_STYLE} font-medium text-blue-900 bg-blue-50/50`}
-                      placeholder={`imran.zubair${emailDomain}`}
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-xs font-bold text-gray-600 uppercase">Default Password *</label>
-                      <span className="text-[10px] text-emerald-600 font-semibold">🔑 System Default</span>
-                    </div>
-                    <input
-                      required
-                      type="text"
-                      className={`${INPUT_STYLE} font-mono font-bold text-emerald-800 bg-emerald-50/50`}
-                      placeholder="gpgcq123"
-                      value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    />
-                  </div>
-                </div>
+                <span className="text-[10px] text-gray-500 mt-1 block">
+                  Official sanction notification copy, medical certificate, or university admission letter (Max 5MB).
+                </span>
               </div>
 
               <div className="flex gap-3 pt-3 border-t">
-                <button type="submit" disabled={saving} className={`flex-1 ${BTN_PRIMARY} justify-center`}>
-                  {saving ? "Registering..." : "Register Faculty"}
+                <button type="submit" disabled={saving} className={`flex-1 ${BTN_PRIMARY} justify-center bg-amber-600 hover:bg-amber-700`}>
+                  {saving ? "Processing..." : "Confirm & Mark Inactive"}
                 </button>
-                <button type="button" onClick={() => setShowAddModal(false)} className={`flex-1 ${BTN_SECONDARY} justify-center`}>
+                <button type="button" onClick={() => setLeaveModalFaculty(null)} className={`flex-1 ${BTN_SECONDARY} justify-center`}>
                   Cancel
                 </button>
               </div>
@@ -2450,6 +2721,92 @@ export default function BSFacultyPage() {
           </div>
         </div>
       )}
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          MODAL: RESUME DUTY / END LEAVE
+      ────────────────────────────────────────────────────────────────────────────── */}
+      {rejoinModalFaculty && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md space-y-4 border border-emerald-200 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                  <span>✅</span>
+                  <span>Resume Duty / End Leave</span>
+                </h2>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                  Reactivate <strong>{rejoinModalFaculty.user?.name}</strong> to active teaching status
+                </p>
+              </div>
+              <button onClick={() => setRejoinModalFaculty(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
+            </div>
+
+            {/* Current Leave Summary */}
+            {rejoinModalFaculty.leaveDossier && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs space-y-1">
+                <div className="font-bold text-amber-950">
+                  Current Status: {getLeaveLabel(rejoinModalFaculty.leaveDossier.leaveType)}
+                </div>
+                <div className="text-gray-700">Ref: {rejoinModalFaculty.leaveDossier.sanctionRef || "N/A"}</div>
+                <div className="text-gray-600">Since: {rejoinModalFaculty.leaveDossier.startDate}</div>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitRejoin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                  Resumed Active Duty Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  type="date"
+                  className={INPUT_STYLE}
+                  value={rejoinForm.returnDate}
+                  onChange={(e) => setRejoinForm({ ...rejoinForm, returnDate: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                  Rejoining Remarks / Charge Report Memo
+                </label>
+                <input
+                  type="text"
+                  className={INPUT_STYLE}
+                  placeholder="e.g. Resumed duty after completion of study leave."
+                  value={rejoinForm.remarks}
+                  onChange={(e) => setRejoinForm({ ...rejoinForm, remarks: e.target.value })}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t">
+                <button type="submit" disabled={saving} className={`flex-1 ${BTN_PRIMARY} justify-center`}>
+                  {saving ? "Processing..." : "Confirm Rejoin & Activate"}
+                </button>
+                <button type="button" onClick={() => setRejoinModalFaculty(null)} className={`flex-1 ${BTN_SECONDARY} justify-center`}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Datalist for Special Additional Charges */}
+      <datalist id="additional-charges-list">
+        <option value="Vice Principal" />
+        <option value="Incharge Principal" />
+        <option value="Director Academics" />
+        <option value="Controller of Examinations" />
+        <option value="Chief Proctor" />
+        <option value="Hostel Warden" />
+        <option value="Head of Department (HOD)" />
+        <option value="Drawing & Disbursing Officer (DDO)" />
+        <option value="Staff Secretary" />
+        <option value="Focal Person (HEC / HEMIS)" />
+        <option value="Focal Person (BS Admissions)" />
+        <option value="Director Physical Education (DPE)" />
+      </datalist>
 
       {/* Datalist for District Auto-suggestions */}
       <datalist id="districts-list">
