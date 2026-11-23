@@ -25,7 +25,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    const { name, fatherName, designation, qualification, contactNumber, departmentId, educationLevel, isActive } = await req.json();
+    const body = await req.json();
+    const {
+      name,
+      fatherName,
+      designation,
+      qualification,
+      contactNumber,
+      departmentId,
+      educationLevel,
+      isActive,
+      cnic,
+      personalNo,
+      firstAppointmentDate,
+      previousCollege,
+      division,
+      district,
+      photo,
+    } = body;
 
     // Update associated User model name if provided
     if (name && facultyRecord.userId) {
@@ -48,7 +65,37 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       } as any,
       include: { user: true, department: true },
     });
-    return NextResponse.json(faculty);
+
+    // Update extended dossier profile fields if any supplied
+    let existingExtra: any = {};
+    const settingRec = await prisma.systemSetting.findUnique({ where: { key: `FACULTY_EXTRA_${id}` } });
+    if (settingRec?.value) {
+      try {
+        existingExtra = JSON.parse(settingRec.value);
+      } catch {}
+    }
+
+    const updatedExtra = {
+      ...existingExtra,
+      ...(cnic !== undefined && { cnic }),
+      ...(personalNo !== undefined && { personalNo }),
+      ...(firstAppointmentDate !== undefined && { firstAppointmentDate }),
+      ...(previousCollege !== undefined && { previousCollege }),
+      ...(division !== undefined && { division }),
+      ...(district !== undefined && { district }),
+      ...(photo !== undefined && { photo }),
+    };
+
+    await prisma.systemSetting.upsert({
+      where: { key: `FACULTY_EXTRA_${id}` },
+      update: { value: JSON.stringify(updatedExtra) },
+      create: { key: `FACULTY_EXTRA_${id}`, value: JSON.stringify(updatedExtra), collegeId: facultyRecord.collegeId },
+    });
+
+    return NextResponse.json({
+      ...faculty,
+      ...updatedExtra,
+    });
   } catch (error: any) {
     console.error("Update faculty error:", error);
     return NextResponse.json({ error: "Failed to update faculty details" }, { status: 500 });

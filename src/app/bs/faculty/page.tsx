@@ -26,6 +26,13 @@ type FacultyRecord = {
     name: string;
     code: string;
   } | null;
+  cnic?: string | null;
+  personalNo?: string | null;
+  firstAppointmentDate?: string | null;
+  previousCollege?: string | null;
+  division?: string | null;
+  district?: string | null;
+  photo?: string | null;
 };
 
 type FacultyActionData = {
@@ -207,15 +214,42 @@ export default function BSFacultyPage() {
   const blankForm = {
     name: "",
     fatherName: "",
+    cnic: "",
+    contactNumber: "",
     email: "",
     password: "gpgcq123",
+    photo: "",
+    personalNo: "",
+    firstAppointmentDate: "",
+    previousCollege: "",
+    division: "Quetta",
+    district: "Quetta",
     designation: "Assistant Professor",
     qualification: "Ph.D. Computer Science",
-    contactNumber: "",
     departmentId: "",
     educationLevel: "BOTH",
   };
   const [form, setForm] = useState(blankForm);
+
+  // Helper for image upload to base64
+  const handlePhotoUpload = (file: File, callback: (base64: string) => void) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image file (PNG, JPG, WEBP).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image file size should be less than 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        callback(reader.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     fetchAll();
@@ -290,7 +324,24 @@ export default function BSFacultyPage() {
       const fatherMatch = f.fatherName?.toLowerCase().includes(q);
       const desigMatch = f.designation?.toLowerCase().includes(q);
       const qualMatch = f.qualification?.toLowerCase().includes(q);
-      if (!nameMatch && !emailMatch && !fatherMatch && !desigMatch && !qualMatch) return false;
+      const cnicMatch = f.cnic?.toLowerCase().includes(q);
+      const personalNoMatch = f.personalNo?.toLowerCase().includes(q);
+      const prevCollegeMatch = f.previousCollege?.toLowerCase().includes(q);
+      const divisionMatch = f.division?.toLowerCase().includes(q);
+      const districtMatch = f.district?.toLowerCase().includes(q);
+      if (
+        !nameMatch &&
+        !emailMatch &&
+        !fatherMatch &&
+        !desigMatch &&
+        !qualMatch &&
+        !cnicMatch &&
+        !personalNoMatch &&
+        !prevCollegeMatch &&
+        !divisionMatch &&
+        !districtMatch
+      )
+        return false;
     }
 
     if (filterDept !== "ALL" && f.departmentId !== filterDept) return false;
@@ -352,6 +403,13 @@ export default function BSFacultyPage() {
           departmentId: editingFaculty.departmentId,
           educationLevel: editingFaculty.educationLevel,
           isActive: editingFaculty.isActive,
+          cnic: editingFaculty.cnic,
+          personalNo: editingFaculty.personalNo,
+          firstAppointmentDate: editingFaculty.firstAppointmentDate,
+          previousCollege: editingFaculty.previousCollege,
+          division: editingFaculty.division,
+          district: editingFaculty.district,
+          photo: editingFaculty.photo,
         }),
       });
 
@@ -852,14 +910,26 @@ export default function BSFacultyPage() {
                         {/* Faculty Info */}
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-sm flex items-center justify-center flex-shrink-0 shadow-sm">
-                              {f.user?.name ? f.user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "FC"}
-                            </div>
+                            {f.photo ? (
+                              <img
+                                src={f.photo}
+                                alt={f.user?.name || "Faculty"}
+                                className="w-12 h-12 rounded-xl object-cover border border-emerald-200 shadow-sm flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-sm flex items-center justify-center flex-shrink-0 shadow-sm">
+                                {f.user?.name ? f.user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "FC"}
+                              </div>
+                            )}
                             <div>
                               <div className="font-black text-gray-900 text-sm">{f.user?.name}</div>
                               <div className="text-xs text-gray-500 font-medium">S/O: {f.fatherName || "N/A"}</div>
                               <div className="text-[11px] text-gray-400">{f.user?.email}</div>
-                              {f.contactNumber && <div className="text-[11px] text-gray-400">📞 {f.contactNumber}</div>}
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-500 mt-0.5">
+                                {f.personalNo && <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100">P#: {f.personalNo}</span>}
+                                {f.cnic && <span className="text-gray-500">CNIC: {f.cnic}</span>}
+                                {f.contactNumber && <span>📞 {f.contactNumber}</span>}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -1025,6 +1095,15 @@ export default function BSFacultyPage() {
                     </option>
                   ))}
                 </select>
+                {targetFaculty && (
+                  <div className="mt-2 p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs flex flex-wrap gap-x-4 gap-y-1 text-emerald-950 font-medium">
+                    {targetFaculty.personalNo && <span><strong>SAP P#:</strong> {targetFaculty.personalNo}</span>}
+                    {targetFaculty.cnic && <span><strong>CNIC:</strong> {targetFaculty.cnic}</span>}
+                    {targetFaculty.firstAppointmentDate && <span><strong>1st Appt Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
+                    {targetFaculty.previousCollege && <span><strong>Prev Station:</strong> {targetFaculty.previousCollege}</span>}
+                    {targetFaculty.district && <span><strong>District:</strong> {targetFaculty.district}</span>}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1231,6 +1310,15 @@ export default function BSFacultyPage() {
                     </option>
                   ))}
                 </select>
+                {targetFaculty && (
+                  <div className="mt-2 p-2.5 bg-teal-50/80 border border-teal-200 rounded-xl text-xs flex flex-wrap gap-x-4 gap-y-1 text-teal-950 font-medium">
+                    {targetFaculty.personalNo && <span><strong>SAP P#:</strong> {targetFaculty.personalNo}</span>}
+                    {targetFaculty.cnic && <span><strong>CNIC:</strong> {targetFaculty.cnic}</span>}
+                    {targetFaculty.firstAppointmentDate && <span><strong>1st Appt Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
+                    {targetFaculty.previousCollege && <span><strong>Current Station:</strong> {targetFaculty.previousCollege}</span>}
+                    {targetFaculty.district && <span><strong>District:</strong> {targetFaculty.district}</span>}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1658,45 +1746,119 @@ export default function BSFacultyPage() {
 
       {/* VIEW FACULTY PROFILE MODAL */}
       {viewingFaculty && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-lg space-y-6">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl space-y-6 max-h-[92vh] overflow-y-auto border border-gray-100">
+            {/* Header with Photo */}
             <div className="flex justify-between items-start border-b pb-4">
-              <div>
-                <h2 className="text-xl font-black text-gray-900">{viewingFaculty.user?.name}</h2>
-                <p className="text-xs text-emerald-700 font-bold mt-0.5">{viewingFaculty.designation || "Faculty Member"}</p>
+              <div className="flex items-center gap-4">
+                {viewingFaculty.photo ? (
+                  <img
+                    src={viewingFaculty.photo}
+                    alt={viewingFaculty.user?.name || "Faculty Photo"}
+                    className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-md flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                    {viewingFaculty.user?.name ? viewingFaculty.user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "FC"}
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-xl font-black text-gray-900">{viewingFaculty.user?.name}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      {viewingFaculty.designation || "Faculty Member"}
+                    </span>
+                    {viewingFaculty.personalNo && (
+                      <span className="text-xs font-mono font-bold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">
+                        SAP P#: {viewingFaculty.personalNo}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <button onClick={() => setViewingFaculty(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+              <button onClick={() => setViewingFaculty(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer">✕</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="bg-gray-50 p-3 rounded-xl border">
-                <span className="block text-xs font-bold text-gray-400 uppercase">Father Name</span>
-                <span className="font-semibold text-gray-800">{viewingFaculty.fatherName || "N/A"}</span>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-xl border">
-                <span className="block text-xs font-bold text-gray-400 uppercase">Email Address</span>
-                <span className="font-semibold text-gray-800 text-xs truncate block">{viewingFaculty.user?.email}</span>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-xl border">
-                <span className="block text-xs font-bold text-gray-400 uppercase">Qualification</span>
-                <span className="font-semibold text-gray-800">{viewingFaculty.qualification || "N/A"}</span>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-xl border">
-                <span className="block text-xs font-bold text-gray-400 uppercase">Department</span>
-                <span className="font-semibold text-gray-800">{viewingFaculty.department?.name || "Unassigned"}</span>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-xl border">
-                <span className="block text-xs font-bold text-gray-400 uppercase">Contact Number</span>
-                <span className="font-semibold text-gray-800">{viewingFaculty.contactNumber || "N/A"}</span>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-xl border">
-                <span className="block text-xs font-bold text-gray-400 uppercase">Status</span>
-                <span className="font-bold text-emerald-700">{viewingFaculty.isActive ? "Active" : "Inactive"}</span>
+            {/* Section 1: Civil Service & Govt Posting Dossier */}
+            <div>
+              <h3 className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                <span>🏛️</span>
+                <span>Government Service & Posting Dossier</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Personal No. (SAP / Personnel ID)</span>
+                  <span className="font-mono font-bold text-emerald-900">{viewingFaculty.personalNo || "Not Recorded"}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">First Appointment in Govt Service</span>
+                  <span className="font-semibold text-gray-800">{viewingFaculty.firstAppointmentDate || "Not Recorded"}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Previous College / Station</span>
+                  <span className="font-semibold text-gray-800">{viewingFaculty.previousCollege || "N/A"}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Division & District</span>
+                  <span className="font-semibold text-gray-800">
+                    {viewingFaculty.division || "Balochistan"} {viewingFaculty.district ? `(${viewingFaculty.district})` : ""}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button onClick={() => setViewingFaculty(null)} className="px-6 py-2 bg-gray-100 text-gray-700 font-bold rounded-xl text-sm">
+            {/* Section 2: Personal & Identity Information */}
+            <div>
+              <h3 className="text-xs font-black text-gray-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                <span>👤</span>
+                <span>Personal & Identity Information</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="bg-gray-50 p-3 rounded-xl border">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Father Name</span>
+                  <span className="font-semibold text-gray-800">{viewingFaculty.fatherName || "N/A"}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">CNIC Number</span>
+                  <span className="font-mono font-bold text-gray-900">{viewingFaculty.cnic || "Not Recorded"}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Contact Number</span>
+                  <span className="font-semibold text-gray-800">{viewingFaculty.contactNumber || "N/A"}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Official Email</span>
+                  <span className="font-semibold text-gray-800 text-xs truncate block">{viewingFaculty.user?.email}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Academic Setup */}
+            <div>
+              <h3 className="text-xs font-black text-gray-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                <span>🎓</span>
+                <span>Academic & Faculty Placement</span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="bg-gray-50 p-3 rounded-xl border">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Department</span>
+                  <span className="font-semibold text-gray-800">{viewingFaculty.department?.name || "Unassigned"}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Qualification</span>
+                  <span className="font-semibold text-gray-800">{viewingFaculty.qualification || "N/A"}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Faculty Type</span>
+                  <span className="font-semibold text-gray-800">
+                    {viewingFaculty.educationLevel === "INTERMEDIATE" ? "Intermediate" : viewingFaculty.educationLevel === "BOTH" ? "Both (BS & Inter)" : "BS Faculty"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t">
+              <button onClick={() => setViewingFaculty(null)} className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all cursor-pointer">
                 Close
               </button>
             </div>
@@ -1706,101 +1868,253 @@ export default function BSFacultyPage() {
 
       {/* EDIT FACULTY MODAL */}
       {editingFaculty && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-lg space-y-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl space-y-5 border border-gray-100 max-h-[92vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b pb-3">
-              <h2 className="text-lg font-black text-gray-900">Edit Faculty Details</h2>
-              <button onClick={() => setEditingFaculty(null)} className="text-gray-400 font-bold">✕</button>
+              <div>
+                <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                  <span>✏️</span>
+                  <span>Edit Faculty Profile & Dossier</span>
+                </h2>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                  Update personal, government service, posting station, and academic details.
+                </p>
+              </div>
+              <button onClick={() => setEditingFaculty(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name *</label>
-                  <input
-                    required
-                    type="text"
-                    className={INPUT_STYLE}
-                    value={editingFaculty.user?.name || ""}
-                    onChange={(e) => setEditingFaculty({ ...editingFaculty, user: { ...editingFaculty.user, name: e.target.value } })}
+            <form onSubmit={handleEditSubmit} className="space-y-5">
+              {/* Photo Upload Section */}
+              <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 flex items-center gap-4">
+                {editingFaculty.photo ? (
+                  <img
+                    src={editingFaculty.photo}
+                    alt="Preview"
+                    className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500 shadow-sm flex-shrink-0"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Father Name *</label>
-                  <input
-                    type="text"
-                    className={INPUT_STYLE}
-                    value={editingFaculty.fatherName || ""}
-                    onChange={(e) => setEditingFaculty({ ...editingFaculty, fatherName: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Designation *</label>
-                  <select
-                    className={INPUT_STYLE}
-                    value={editingFaculty.designation || "Lecturer"}
-                    onChange={(e) => setEditingFaculty({ ...editingFaculty, designation: e.target.value })}
-                  >
-                    <option value="Professor">Professor</option>
-                    <option value="Associate Professor">Associate Professor</option>
-                    <option value="Assistant Professor">Assistant Professor</option>
-                    <option value="Lecturer">Lecturer</option>
-                    <option value="Visiting Faculty">Visiting Faculty</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Qualification *</label>
-                  <input
-                    type="text"
-                    className={INPUT_STYLE}
-                    value={editingFaculty.qualification || ""}
-                    onChange={(e) => setEditingFaculty({ ...editingFaculty, qualification: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Department *</label>
-                  <select
-                    className={INPUT_STYLE}
-                    value={editingFaculty.departmentId || ""}
-                    onChange={(e) => setEditingFaculty({ ...editingFaculty, departmentId: e.target.value })}
-                  >
-                    <option value="">-- Select Department --</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Faculty Type *</label>
-                  <select
-                    className={INPUT_STYLE}
-                    value={editingFaculty.educationLevel || "BOTH"}
-                    onChange={(e) => setEditingFaculty({ ...editingFaculty, educationLevel: e.target.value })}
-                  >
-                    <option value="BS">🎓 BS Faculty</option>
-                    <option value="INTERMEDIATE">🏫 Inter Faculty</option>
-                    <option value="BOTH">🎓 Both (BS & Inter)</option>
-                  </select>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold border flex-shrink-0">
+                    No Photo
+                  </div>
+                )}
+                <div className="flex-1">
+                  <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                    Profile Photo
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-xs font-bold text-gray-700 cursor-pointer shadow-sm">
+                      <span>📁 Change Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handlePhotoUpload(file, (base64) => {
+                              setEditingFaculty({ ...editingFaculty, photo: base64 });
+                            });
+                          }
+                        }}
+                      />
+                    </label>
+                    {editingFaculty.photo && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingFaculty({ ...editingFaculty, photo: null })}
+                        className="px-2.5 py-1.5 text-xs text-red-600 hover:text-red-800 font-bold cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-gray-400 mt-0.5 block">JPG, PNG, WEBP (Max 2MB)</span>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contact Number</label>
-                <input
-                  type="text"
-                  className={INPUT_STYLE}
-                  value={editingFaculty.contactNumber || ""}
-                  onChange={(e) => setEditingFaculty({ ...editingFaculty, contactNumber: e.target.value })}
-                />
+              {/* SECTION 1: Personal Details */}
+              <div className="space-y-3">
+                <div className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
+                  <span>👤</span>
+                  <span>Personal Details</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Full Name *</label>
+                    <input
+                      required
+                      type="text"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.user?.name || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, user: { ...editingFaculty.user, name: e.target.value } })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Father Name *</label>
+                    <input
+                      type="text"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.fatherName || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, fatherName: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">CNIC Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 54400-1234567-1"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.cnic || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, cnic: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Contact Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 0300-1234567"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.contactNumber || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, contactNumber: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex gap-3 pt-3">
+              {/* SECTION 2: Government Service & Posting Dossier */}
+              <div className="space-y-3">
+                <div className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
+                  <span>🏛️</span>
+                  <span>Government Service & Posting Dossier</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP / Civil Service ID)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 10845231"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.personalNo || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, personalNo: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">First Appointment Date in Govt Service</label>
+                    <input
+                      type="date"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.firstAppointmentDate || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, firstAppointmentDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Previous College / Station</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Govt Degree College Sariab Road"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.previousCollege || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, previousCollege: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Division</label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={editingFaculty.division || "Quetta"}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, division: e.target.value })}
+                    >
+                      <option value="Quetta">Quetta Division</option>
+                      <option value="Kalat">Kalat Division</option>
+                      <option value="Makran">Makran Division</option>
+                      <option value="Nasirabad">Nasirabad Division</option>
+                      <option value="Sibi">Sibi Division</option>
+                      <option value="Zhob">Zhob Division</option>
+                      <option value="Rakhshan">Rakhshan Division</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">District</label>
+                    <input
+                      type="text"
+                      list="districts-list"
+                      placeholder="e.g. Quetta / Pishin"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.district || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, district: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: Academic Setup */}
+              <div className="space-y-3">
+                <div className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
+                  <span>🎓</span>
+                  <span>Academic & Department Setup</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Designation *</label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={editingFaculty.designation || "Lecturer"}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, designation: e.target.value })}
+                    >
+                      <option value="Professor">Professor</option>
+                      <option value="Associate Professor">Associate Professor</option>
+                      <option value="Assistant Professor">Assistant Professor</option>
+                      <option value="Lecturer">Lecturer</option>
+                      <option value="Visiting Faculty">Visiting Faculty</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Qualification *</label>
+                    <input
+                      type="text"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.qualification || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, qualification: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Department *</label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={editingFaculty.departmentId || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, departmentId: e.target.value })}
+                    >
+                      <option value="">-- Select Department --</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Faculty Type *</label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={editingFaculty.educationLevel || "BOTH"}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, educationLevel: e.target.value })}
+                    >
+                      <option value="BS">🎓 BS Faculty</option>
+                      <option value="INTERMEDIATE">🏫 Inter Faculty</option>
+                      <option value="BOTH">🎓 Both (BS & Inter)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t">
                 <button type="submit" disabled={saving} className={`flex-1 ${BTN_PRIMARY} justify-center`}>
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
@@ -1840,140 +2154,291 @@ export default function BSFacultyPage() {
 
       {/* ADD NEW FACULTY MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-lg space-y-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl space-y-5 border border-gray-100 max-h-[92vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b pb-3">
-              <h2 className="text-lg font-black text-gray-900">Register New Faculty Member</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 font-bold cursor-pointer">✕</button>
+              <div>
+                <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                  <span>👤+</span>
+                  <span>Register New Faculty Member</span>
+                </h2>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                  Complete official faculty dossier with personal, government service, and posting details.
+                </p>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name *</label>
-                  <input
-                    required
-                    type="text"
-                    className={INPUT_STYLE}
-                    placeholder="Prof. Imran Zubair"
-                    value={form.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
+            <form onSubmit={handleAddSubmit} className="space-y-5">
+              {/* Photo Upload Section */}
+              <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 flex items-center gap-4">
+                {form.photo ? (
+                  <img
+                    src={form.photo}
+                    alt="Preview"
+                    className="w-16 h-16 rounded-xl object-cover border-2 border-emerald-500 shadow-sm flex-shrink-0"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Father Name *</label>
-                  <input
-                    required
-                    type="text"
-                    className={INPUT_STYLE}
-                    placeholder="Muhammad Zubair"
-                    value={form.fatherName}
-                    onChange={(e) => setForm({ ...form, fatherName: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Designation *</label>
-                  <select
-                    className={INPUT_STYLE}
-                    value={form.designation}
-                    onChange={(e) => setForm({ ...form, designation: e.target.value })}
-                  >
-                    <option value="Professor">Professor</option>
-                    <option value="Associate Professor">Associate Professor</option>
-                    <option value="Assistant Professor">Assistant Professor</option>
-                    <option value="Lecturer">Lecturer</option>
-                    <option value="Visiting Faculty">Visiting Faculty</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Qualification *</label>
-                  <input
-                    required
-                    type="text"
-                    className={INPUT_STYLE}
-                    placeholder="Ph.D. Computer Science"
-                    value={form.qualification}
-                    onChange={(e) => setForm({ ...form, qualification: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Email Address *</label>
-                    <span className="text-[10px] text-blue-600 font-semibold">✨ Auto-generated</span>
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold border flex-shrink-0">
+                    No Photo
                   </div>
-                  <input
-                    required
-                    type="email"
-                    className={`${INPUT_STYLE} font-medium text-blue-900 bg-blue-50/50`}
-                    placeholder={`imran.zubair${emailDomain}`}
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-bold text-gray-500 uppercase">Password *</label>
-                    <span className="text-[10px] text-emerald-600 font-semibold">🔑 System Default</span>
+                )}
+                <div className="flex-1">
+                  <label className="block text-xs font-black text-gray-700 uppercase mb-1">
+                    Profile Photo
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg text-xs font-bold text-gray-700 cursor-pointer shadow-sm">
+                      <span>📁 Select Image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handlePhotoUpload(file, (base64) => {
+                              setForm((prev) => ({ ...prev, photo: base64 }));
+                            });
+                          }
+                        }}
+                      />
+                    </label>
+                    {form.photo && (
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, photo: "" }))}
+                        className="px-2.5 py-1.5 text-xs text-red-600 hover:text-red-800 font-bold cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
-                  <input
-                    required
-                    type="text"
-                    className={`${INPUT_STYLE} font-mono font-bold text-emerald-800 bg-emerald-50/50`}
-                    placeholder="gpgcq123"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  />
+                  <span className="text-[10px] text-gray-400 mt-0.5 block">JPG, PNG, WEBP (Max 2MB)</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Department *</label>
-                  <select
-                    required
-                    className={INPUT_STYLE}
-                    value={form.departmentId}
-                    onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
-                  >
-                    <option value="">-- Select Department --</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
+              {/* SECTION 1: Personal Information */}
+              <div className="space-y-3">
+                <div className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
+                  <span>👤</span>
+                  <span>Personal Details</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Faculty Type *</label>
-                  <select
-                    required
-                    className={INPUT_STYLE}
-                    value={form.educationLevel}
-                    onChange={(e) => setForm({ ...form, educationLevel: e.target.value })}
-                  >
-                    <option value="BS">🎓 BS Faculty</option>
-                    <option value="INTERMEDIATE">🏫 Inter Faculty</option>
-                    <option value="BOTH">🎓 Both (BS & Inter)</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Full Name *</label>
+                    <input
+                      required
+                      type="text"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. Prof. Imran Zubair"
+                      value={form.name}
+                      onChange={(e) => handleNameChange(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Father Name *</label>
+                    <input
+                      required
+                      type="text"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. Muhammad Zubair"
+                      value={form.fatherName}
+                      onChange={(e) => setForm({ ...form, fatherName: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">CNIC Number</label>
+                    <input
+                      type="text"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. 54400-1234567-1"
+                      value={form.cnic}
+                      onChange={(e) => setForm({ ...form, cnic: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Contact Number</label>
+                    <input
+                      type="text"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. 0300-1234567"
+                      value={form.contactNumber}
+                      onChange={(e) => setForm({ ...form, contactNumber: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contact Number</label>
-                <input
-                  type="text"
-                  className={INPUT_STYLE}
-                  placeholder="0300-1234567"
-                  value={form.contactNumber}
-                  onChange={(e) => setForm({ ...form, contactNumber: e.target.value })}
-                />
+              {/* SECTION 2: Government Service & Posting Dossier */}
+              <div className="space-y-3">
+                <div className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
+                  <span>🏛️</span>
+                  <span>Government Service & Posting Dossier</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP / Civil Service ID)</label>
+                    <input
+                      type="text"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. 10845231"
+                      value={form.personalNo}
+                      onChange={(e) => setForm({ ...form, personalNo: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">First Appointment Date in Govt Service</label>
+                    <input
+                      type="date"
+                      className={INPUT_STYLE}
+                      value={form.firstAppointmentDate}
+                      onChange={(e) => setForm({ ...form, firstAppointmentDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Previous College / Station</label>
+                    <input
+                      type="text"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. Govt Degree College Sariab Road"
+                      value={form.previousCollege}
+                      onChange={(e) => setForm({ ...form, previousCollege: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Division</label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={form.division}
+                      onChange={(e) => setForm({ ...form, division: e.target.value })}
+                    >
+                      <option value="Quetta">Quetta Division</option>
+                      <option value="Kalat">Kalat Division</option>
+                      <option value="Makran">Makran Division</option>
+                      <option value="Nasirabad">Nasirabad Division</option>
+                      <option value="Sibi">Sibi Division</option>
+                      <option value="Zhob">Zhob Division</option>
+                      <option value="Rakhshan">Rakhshan Division</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">District</label>
+                    <input
+                      type="text"
+                      list="districts-list"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. Quetta / Pishin"
+                      value={form.district}
+                      onChange={(e) => setForm({ ...form, district: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex gap-3 pt-3">
+              {/* SECTION 3: Academic Setup & Portal Credentials */}
+              <div className="space-y-3">
+                <div className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
+                  <span>🎓</span>
+                  <span>Academic & Portal Setup</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Designation *</label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={form.designation}
+                      onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                    >
+                      <option value="Professor">Professor</option>
+                      <option value="Associate Professor">Associate Professor</option>
+                      <option value="Assistant Professor">Assistant Professor</option>
+                      <option value="Lecturer">Lecturer</option>
+                      <option value="Visiting Faculty">Visiting Faculty</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Qualification *</label>
+                    <input
+                      required
+                      type="text"
+                      className={INPUT_STYLE}
+                      placeholder="e.g. Ph.D. Computer Science / M.Phil"
+                      value={form.qualification}
+                      onChange={(e) => setForm({ ...form, qualification: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Department *</label>
+                    <select
+                      required
+                      className={INPUT_STYLE}
+                      value={form.departmentId}
+                      onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+                    >
+                      <option value="">-- Select Department --</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Faculty Type *</label>
+                    <select
+                      required
+                      className={INPUT_STYLE}
+                      value={form.educationLevel}
+                      onChange={(e) => setForm({ ...form, educationLevel: e.target.value })}
+                    >
+                      <option value="BS">🎓 BS Faculty</option>
+                      <option value="INTERMEDIATE">🏫 Inter Faculty</option>
+                      <option value="BOTH">🎓 Both (BS & Inter)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-gray-600 uppercase">Email Address *</label>
+                      <span className="text-[10px] text-blue-600 font-semibold">✨ Auto-generated</span>
+                    </div>
+                    <input
+                      required
+                      type="email"
+                      className={`${INPUT_STYLE} font-medium text-blue-900 bg-blue-50/50`}
+                      placeholder={`imran.zubair${emailDomain}`}
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-gray-600 uppercase">Default Password *</label>
+                      <span className="text-[10px] text-emerald-600 font-semibold">🔑 System Default</span>
+                    </div>
+                    <input
+                      required
+                      type="text"
+                      className={`${INPUT_STYLE} font-mono font-bold text-emerald-800 bg-emerald-50/50`}
+                      placeholder="gpgcq123"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t">
                 <button type="submit" disabled={saving} className={`flex-1 ${BTN_PRIMARY} justify-center`}>
                   {saving ? "Registering..." : "Register Faculty"}
                 </button>
@@ -1985,6 +2450,31 @@ export default function BSFacultyPage() {
           </div>
         </div>
       )}
+
+      {/* Datalist for District Auto-suggestions */}
+      <datalist id="districts-list">
+        <option value="Quetta" />
+        <option value="Pishin" />
+        <option value="Killa Abdullah" />
+        <option value="Chaman" />
+        <option value="Killa Saifullah" />
+        <option value="Mastung" />
+        <option value="Kalat" />
+        <option value="Khuzdar" />
+        <option value="Loralai" />
+        <option value="Zhob" />
+        <option value="Sibi" />
+        <option value="Kech (Turbat)" />
+        <option value="Gwadar" />
+        <option value="Hub" />
+        <option value="Lasbela" />
+        <option value="Jafarabad" />
+        <option value="Nasirabad" />
+        <option value="Usta Muhammad" />
+        <option value="Ziarat" />
+        <option value="Nushki" />
+        <option value="Chagai" />
+      </datalist>
     </div>
   );
 }
