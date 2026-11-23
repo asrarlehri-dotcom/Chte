@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const ALLOWED_STATUS_ROLES = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL"];
+const ALLOWED_STATUS_ROLES = ["CHTE_ADMIN", "COLLEGE_ADMIN", "SUPER_ADMIN", "ADMIN", "BS_CONTROLLER", "PRINCIPAL", "HOD", "EXAM_CONTROLLER"];
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,7 +33,12 @@ export async function GET(req: NextRequest) {
     }
 
     if (collegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
-      where.student = { collegeId };
+      where.student = {
+        OR: [
+          { collegeId },
+          { collegeId: null }
+        ]
+      };
     }
 
     const records = await prisma.studentStatus.findMany({
@@ -110,8 +115,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const isUnfreezing = ["ACTIVE", "UNFREEZE", "REACTIVATE"].includes(statusType.toUpperCase());
+
     // Prepare rich formatted notes storing all institutional dispatch details
-    let compiledNotes = notes || "";
     const metaParts: string[] = [];
     if (effectiveMemoNo) metaParts.push(`Memo No: ${effectiveMemoNo}`);
     if (fromSem && toSem) metaParts.push(`Freeze Duration: Sem ${fromSem} to Sem ${toSem}`);
@@ -123,24 +129,38 @@ export async function POST(req: NextRequest) {
     if (adaMeetingVenue) metaParts.push(`Venue: ${adaMeetingVenue}`);
     if (adaLiaisonUniv) metaParts.push(`University: ${adaLiaisonUniv}`);
 
+    let compiledNotes = notes || reason || "";
     if (metaParts.length > 0) {
       const headerStr = metaParts.join(" • ");
-      compiledNotes = compiledNotes ? `${headerStr}. Remarks: ${compiledNotes}` : headerStr;
+      if (notes && !notes.includes(effectiveMemoNo)) {
+        compiledNotes = `${headerStr} • Remarks: ${notes}`;
+      } else {
+        compiledNotes = headerStr;
+      }
     }
 
     // 1. Create StudentStatus record
     const statusRecord = await prisma.studentStatus.create({
       data: {
         studentId,
-        statusType,
-        reason: reason || destinationCollege || (adaDegreeType ? `Quit for ${adaDegreeType}` : null),
+        statusType: isUnfreezing ? "ACTIVE" : statusType,
+        reason: reason || destinationCollege || (adaDegreeType ? `Quit for ${adaDegreeType}` : isUnfreezing ? "Resumed semester studies" : null),
         notes: compiledNotes || null,
         approvedBy: session.user?.name || session.user?.email || "Admin",
+      },
+      include: {
+        student: {
+          include: {
+            user: { select: { name: true, email: true } },
+            program: { select: { id: true, name: true, code: true } },
+            college: { select: { id: true, name: true, code: true } },
+          },
+        },
       },
     });
 
     // 2. Update Student model activity status
-    const shouldDeactivate = ["FREEZE", "QUIT", "ADP", "DROPOUT", "MIGRATION_OUT", "MIGRATION"].includes(statusType.toUpperCase());
+    const shouldDeactivate = !isUnfreezing && ["FREEZE", "QUIT", "ADP", "DROPOUT", "MIGRATION_OUT", "MIGRATION"].includes(statusType.toUpperCase());
     
     await prisma.student.update({
       where: { id: studentId },
@@ -177,7 +197,9 @@ export async function POST(req: NextRequest) {
         action: "STATUS_CHANGE",
         entity: "Student",
         entityId: studentId,
-        description: `Student status updated to ${statusType} (Memo: ${effectiveMemoNo || 'N/A'}, Reason: ${reason || 'N/A'})`,
+        description: isUnfreezing
+          ? `Student ${student.rollNumber} status restored to ACTIVE (Unfrozen / resumed studies)`
+          : `Student ${student.rollNumber} status updated to ${statusType} (Memo: ${effectiveMemoNo || 'N/A'}, Reason: ${reason || 'N/A'})`,
         collegeId: student.collegeId || null,
       },
     });
@@ -186,5 +208,69 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Status action error:", error);
     return NextResponse.json({ error: error.message || "Failed to update status" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const sessionRole = (session?.user as any)?.role;
+    const sessionCollegeId = (session?.user as any)?.collegeId;
+
+    if (!session || !ALLOWED_STATUS_ROLES.includes(sessionRole)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Record ID is required" }, { status: 400 });
+    }
+
+    const record = await prisma.studentStatus.findUnique({
+      where: { id },
+      include: { student: true },
+    });
+
+    if (!record) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 });
+    }
+
+    if (sessionCollegeId && sessionRole !== "SUPER_ADMIN" && sessionRole !== "CHTE_ADMIN") {
+      if (record.student?.collegeId && record.student.collegeId !== sessionCollegeId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
+    // Delete the status record
+    await prisma.studentStatus.delete({ where: { id } });
+
+    // Check if the student has any other active freeze/quit/migration records
+    const remainingActive = await prisma.studentStatus.findFirst({
+      where: {
+        studentId: record.studentId,
+        statusType: { in: ["FREEZE", "QUIT", "ADP", "DROPOUT", "MIGRATION_OUT", "MIGRATION"] },
+        isActive: true,
+      },
+    });
+
+    if (!remainingActive) {
+      await prisma.student.update({
+        where: { id: record.studentId },
+        data: { isActive: true },
+      });
+      if (record.student?.userId) {
+        await prisma.user.update({
+          where: { id: record.student.userId },
+          data: { isActive: true },
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, message: "Status record removed and student status recalculated" });
+  } catch (error: any) {
+    console.error("Delete status record error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete record" }, { status: 500 });
   }
 }

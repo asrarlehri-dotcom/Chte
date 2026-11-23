@@ -3147,10 +3147,6 @@ function StatusAcademicActionsTab() {
         if (Array.isArray(data)) {
           const bsOnly = sortStudentsByRoll(data.filter((s: any) => s.educationLevel === "BS"));
           setStudents(bsOnly);
-          const activeOnly = bsOnly.filter((s: any) => s.isActive !== false);
-          if (activeOnly.length > 0 && !selectedStudentId) {
-            setSelectedStudentId(activeOnly[0].id);
-          }
         }
       })
       .catch((err) => console.error("Error fetching students:", err))
@@ -3171,7 +3167,21 @@ function StatusAcademicActionsTab() {
     return name.includes(q) || roll.includes(q);
   });
 
-  const selectedStudent = students.find((s) => s.id === selectedStudentId);
+  // Guarantee selectedStudentId is always valid within filteredActiveCandidates
+  useEffect(() => {
+    if (filteredActiveCandidates.length > 0) {
+      const match = filteredActiveCandidates.find((s) => s.id === selectedStudentId);
+      if (!match) {
+        setSelectedStudentId(filteredActiveCandidates[0].id);
+      }
+    } else {
+      if (selectedStudentId) {
+        setSelectedStudentId("");
+      }
+    }
+  }, [filteredActiveCandidates, selectedStudentId]);
+
+  const selectedStudent = filteredActiveCandidates.find((s) => s.id === selectedStudentId) || null;
 
   useEffect(() => {
     if (selectedStudent) {
@@ -3202,7 +3212,7 @@ function StatusAcademicActionsTab() {
         setAdaDegreeType("ADS");
       }
     }
-  }, [selectedStudentId, students]);
+  }, [selectedStudent]);
 
   // Combined Saved Records Lists (From database + Student models)
   const freezeSavedList = [
@@ -3284,10 +3294,10 @@ function StatusAcademicActionsTab() {
             ? (adaReason || reason || "Compulsory Work")
             : (freezeReason || reason || "Medical Grounds"),
           notes: actionType === "FREEZE"
-            ? `Freeze Duration: Sem ${freezeFromSem} to Sem ${freezeToSem}. Remarks: ${freezeRemarks}`
+            ? freezeRemarks
             : actionType === "MIGRATION"
-            ? `Destination: ${destinationCollege}. NOC No: ${activeMemo}. Remarks: ${reason}`
-            : `Degree: ${adaDegreeType}. Reason: ${adaReason || reason || "Compulsory Work"}. Credits: ${adaCreditHours}, CGPA: ${adaCgpa}. Meeting Date: ${adaMeetingDate}. Venue: ${adaMeetingVenue}`,
+            ? reason
+            : (adaReason || "Compulsory Work"),
         }),
       });
 
@@ -3505,6 +3515,52 @@ function StatusAcademicActionsTab() {
     setShowAdaModal(true);
   };
 
+  const handleUnfreezeStudent = async (studentId: string, studentName: string) => {
+    if (!confirm(`Are you sure you want to unfreeze ${studentName} and reactivate them for normal semester studies?`)) return;
+    try {
+      const res = await fetch("/api/students/status-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          statusType: "ACTIVE",
+          reason: "Semester freeze completed. Resumed regular semester studies.",
+        }),
+      });
+      if (res.ok) {
+        setSuccess(`Student ${studentName} has been unfrozen and restored to active enrollment!`);
+        loadStudents();
+        loadSavedRecords();
+        setTimeout(() => setSuccess(""), 5000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to unfreeze student.");
+      }
+    } catch {
+      alert("Failed to unfreeze student.");
+    }
+  };
+
+  const handleDeleteStatusRecord = async (recordId: string, studentName: string) => {
+    if (!confirm(`Are you sure you want to remove this record for ${studentName}? If this was their only inactive status, their enrollment will be restored to active.`)) return;
+    try {
+      const res = await fetch(`/api/students/status-action?id=${encodeURIComponent(recordId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setSuccess(`Status record removed successfully for ${studentName}!`);
+        loadStudents();
+        loadSavedRecords();
+        setTimeout(() => setSuccess(""), 5000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to remove status record.");
+      }
+    } catch {
+      alert("Failed to remove status record.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Print isolation style: when modal is active, hide everything else and print the document container */}
@@ -3609,21 +3665,31 @@ function StatusAcademicActionsTab() {
                 value={selectedStudentId}
                 onChange={(e) => setSelectedStudentId(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-bold text-gray-800 focus:ring-2 focus:ring-blue-400 shadow-sm"
+                disabled={filteredActiveCandidates.length === 0}
+                className="w-full px-4 py-2.5 border rounded-xl text-sm bg-white font-bold text-gray-800 focus:ring-2 focus:ring-blue-400 shadow-sm disabled:bg-gray-100 disabled:text-gray-400"
               >
-                {filteredActiveCandidates.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.rollNumber} — {s.user?.name} ({s.program?.name || "BS Degree"}) [Sem {s.currentSemester || 1}]
-                  </option>
-                ))}
+                {filteredActiveCandidates.length === 0 ? (
+                  <option value="">No eligible active BS students found</option>
+                ) : (
+                  filteredActiveCandidates.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.rollNumber} — {s.user?.name} ({s.program?.name || "BS Degree"}) [Sem {s.currentSemester || 1}]
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
-            {selectedStudent && (
+            {selectedStudent ? (
               <div className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex flex-wrap items-center justify-between gap-2 text-slate-700">
+                <span><strong>Roll No:</strong> <span className="font-mono font-bold text-blue-700">{selectedStudent.rollNumber}</span></span>
                 <span><strong>Father Name:</strong> {selectedStudent.fatherName || "—"}</span>
                 <span><strong>Session:</strong> {selectedStudent.session || "—"}</span>
                 <span><strong>Current Sem:</strong> Semester {selectedStudent.currentSemester || 1}</span>
+              </div>
+            ) : (
+              <div className="mt-2 text-xs bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-amber-800">
+                No active student selected or matching filter.
               </div>
             )}
           </div>
@@ -4053,7 +4119,8 @@ function StatusAcademicActionsTab() {
                     <th className="px-4 py-3">Department & Session</th>
                     <th className="px-4 py-3">Freeze Period</th>
                     <th className="px-4 py-3">Reason & Date</th>
-                    <th className="px-4 py-3 text-center">Issued Order</th>
+                    <th className="px-4 py-3 text-center">Current Status</th>
+                    <th className="px-4 py-3 text-center">Actions & Order</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -4064,6 +4131,7 @@ function StatusAcademicActionsTab() {
                     const father = st.fatherName || "—";
                     const progName = st.program?.name || "BS";
                     const sess = st.session || "—";
+                    const isFrozenNow = st.isActive === false;
                     let memo = generateFreezeMemoNo();
                     let fSem = "3";
                     let tSem = "4";
@@ -4081,8 +4149,8 @@ function StatusAcademicActionsTab() {
                       }
                     }
                     const dateStr = rec.createdAt
-                      ? new Date(rec.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-                      : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+                        ? new Date(rec.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                        : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
                     return (
                       <tr key={rec.id} className="hover:bg-cyan-50/40 transition-colors">
@@ -4106,15 +4174,51 @@ function StatusAcademicActionsTab() {
                           <div className="text-[11px] font-mono text-gray-500">{dateStr}</div>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => openFreezeOrderForStudent(rec)}
-                            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                            title="Print / View Freeze Notification Order"
-                          >
-                            <span>🖨️</span>
-                            <span>Freeze Order</span>
-                          </button>
+                          {isFrozenNow ? (
+                            <span className="px-2.5 py-1 rounded-full bg-cyan-100 text-cyan-900 font-black text-[10px] inline-flex items-center gap-1 border border-cyan-200">
+                              <span>❄️</span>
+                              <span>Frozen</span>
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px] inline-flex items-center gap-1 border border-emerald-200">
+                              <span>✅</span>
+                              <span>Active</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => openFreezeOrderForStudent(rec)}
+                              className="px-2.5 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+                              title="Print / View Freeze Notification Order"
+                            >
+                              <span>🖨️</span>
+                              <span>Freeze Order</span>
+                            </button>
+                            {isFrozenNow && (
+                              <button
+                                type="button"
+                                onClick={() => handleUnfreezeStudent(st.id || rec.studentId, name)}
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+                                title="Unfreeze and restore student to active enrollment"
+                              >
+                                <span>🔓</span>
+                                <span>Unfreeze</span>
+                              </button>
+                            )}
+                            {rec.id && !rec.id.startsWith("st-") && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStatusRecord(rec.id, name)}
+                                className="px-2 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                title="Delete status record"
+                              >
+                                <span>🗑️</span>
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -4198,7 +4302,7 @@ function StatusAcademicActionsTab() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
                             <button
                               type="button"
                               onClick={() => openAdaMinutesForStudent(rec, "minutes")}
@@ -4217,6 +4321,16 @@ function StatusAcademicActionsTab() {
                               <span>🎓</span>
                               <span>Transcript</span>
                             </button>
+                            {rec.id && !rec.id.startsWith("st-") && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStatusRecord(rec.id, name)}
+                                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                title="Delete status record"
+                              >
+                                <span>🗑️</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -4304,7 +4418,7 @@ function StatusAcademicActionsTab() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
                             <button
                               type="button"
                               onClick={() => openDocumentsForStudent(rec, "report")}
@@ -4323,6 +4437,16 @@ function StatusAcademicActionsTab() {
                               <span>🎓</span>
                               <span>Transcript</span>
                             </button>
+                            {rec.id && !rec.id.startsWith("st-") && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStatusRecord(rec.id, name)}
+                                className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                title="Delete status record"
+                              >
+                                <span>🗑️</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
