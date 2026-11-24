@@ -10,7 +10,10 @@ import {
   ImagePosition,
   normalizeFillConfig,
   compileFillToStyle,
+  compileFillToTextStyle,
   generatePatternSvg,
+  COREL_SAMPLE_PICTURES,
+  SamplePicture,
 } from "@/lib/theme-fill-compiler";
 import {
   Palette,
@@ -24,6 +27,7 @@ import {
   Image as ImageIcon,
   Compass,
   Check,
+  Disc,
 } from "lucide-react";
 
 // Interactive Circular Angle Dial (360° Rotary Wheel)
@@ -181,6 +185,7 @@ export default function CorelFillPickerCard({
   const handleGradientTypeChange = (type: "linear" | "radial" | "conic") => {
     onChange({
       ...conf,
+      mode: "gradient",
       gradient: {
         ...conf.gradient,
         type,
@@ -268,7 +273,7 @@ export default function CorelFillPickerCard({
       ...conf,
       mode: "gradient",
       gradient: {
-        type: "linear",
+        type: conf.gradient.type || "linear",
         angle: p.angle,
         stops: p.stops,
       },
@@ -417,6 +422,7 @@ export default function CorelFillPickerCard({
 
   // Live CSS style compiled for current card
   const liveCardStyle = compileFillToStyle(conf, defaultColor);
+  const liveTextStyle = compileFillToTextStyle(conf, defaultColor);
 
   // Built-in presets for gradient row
   const activeGradientPresets =
@@ -450,6 +456,20 @@ export default function CorelFillPickerCard({
       },
     ];
 
+  // 10 CorelDRAW Texture Presets
+  const ALL_TEXTURE_PRESETS: { id: TextureType; name: string; nameUrdu: string }[] = [
+    { id: "carbon", name: "Carbon Fiber", nameUrdu: "کاربن فائبر" },
+    { id: "mesh", name: "Dark Mesh", nameUrdu: "ہیکس میش" },
+    { id: "guilloche", name: "Guilloche Wave", nameUrdu: "سیکیورٹی ویو" },
+    { id: "islamic", name: "Islamic Star", nameUrdu: "اسلامی جیومیٹری" },
+    { id: "golddust", name: "Gold Dust", nameUrdu: "گولڈ ڈسٹ گرین" },
+    { id: "canvas", name: "Fine Canvas", nameUrdu: "کینوس فیبرک" },
+    { id: "grid", name: "Blueprint Grid", nameUrdu: "اکیڈمک گرڈ" },
+    { id: "stripes", name: "Tech Stripes", nameUrdu: "ڈائیگنل اسٹرائپس" },
+    { id: "dots", name: "Subtle Dots", nameUrdu: "ماڈرن ڈاٹس" },
+    { id: "marble", name: "Marble Vein", nameUrdu: "ماربل گرینائٹ" },
+  ];
+
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-[#0c1220]/90 border border-slate-800/90 shadow-xl transition-all space-y-3 relative overflow-hidden">
       {/* Optional Top Ribbon Accent Bar (as shown in user screenshot for Top Accent Ribbon) */}
@@ -465,6 +485,11 @@ export default function CorelFillPickerCard({
         <div>
           <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2 tracking-wide">
             <span>{title}</span>
+            {isTextColorOnly && (
+              <span className="text-[10px] bg-amber-500/10 border border-amber-500/40 text-amber-300 font-mono px-2 py-0.5 rounded-full">
+                Text Clip Engine
+              </span>
+            )}
           </h4>
           {subtitleUrdu && (
             <span className="text-[11px] text-slate-400 font-medium block leading-tight">
@@ -474,84 +499,86 @@ export default function CorelFillPickerCard({
         </div>
 
         {/* 4-Mode Switcher in Bracket Format [ Solid ] [ Gradient (Corel-style) ] [ Texture ] [ Image ] */}
-        {!isTextColorOnly ? (
-          <div className="flex items-center gap-2 sm:gap-3 text-xs font-mono select-none">
-            {/* Mode A: Solid */}
-            <button
-              type="button"
-              onClick={() => setMode("solid")}
-              className={`transition-all cursor-pointer ${
-                conf.mode === "solid"
-                  ? "text-amber-400 font-black drop-shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 font-medium"
-              }`}
-            >
-              [ Solid ]
-            </button>
+        <div className="flex items-center gap-2 sm:gap-3 text-xs font-mono select-none flex-wrap">
+          {/* Mode A: Solid */}
+          <button
+            type="button"
+            onClick={() => setMode("solid")}
+            className={`transition-all cursor-pointer ${
+              conf.mode === "solid"
+                ? "text-amber-400 font-black drop-shadow-xs"
+                : "text-slate-400 hover:text-slate-200 font-medium"
+            }`}
+          >
+            [ Solid ]
+          </button>
 
-            {/* Mode B: Gradient */}
-            <button
-              type="button"
-              onClick={() => setMode("gradient")}
-              className={`transition-all cursor-pointer ${
-                conf.mode === "gradient"
-                  ? "text-amber-400 font-black drop-shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 font-medium"
-              }`}
-            >
-              [ Gradient (Corel-style) ]
-            </button>
+          {/* Mode B: Gradient */}
+          <button
+            type="button"
+            onClick={() => setMode("gradient")}
+            className={`transition-all cursor-pointer ${
+              conf.mode === "gradient"
+                ? "text-amber-400 font-black drop-shadow-xs"
+                : "text-slate-400 hover:text-slate-200 font-medium"
+            }`}
+          >
+            [ Gradient (Corel-style) ]
+          </button>
 
-            {/* Mode C: Texture */}
-            <button
-              type="button"
-              onClick={() => setMode("texture")}
-              className={`transition-all cursor-pointer ${
-                conf.mode === "texture"
-                  ? "text-amber-400 font-black drop-shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 font-medium"
-              }`}
-            >
-              [ Texture ]
-            </button>
+          {/* Mode C: Texture */}
+          <button
+            type="button"
+            onClick={() => setMode("texture")}
+            className={`transition-all cursor-pointer ${
+              conf.mode === "texture"
+                ? "text-amber-400 font-black drop-shadow-xs"
+                : "text-slate-400 hover:text-slate-200 font-medium"
+            }`}
+          >
+            [ Texture ]
+          </button>
 
-            {/* Mode D: Image */}
-            <button
-              type="button"
-              onClick={() => setMode("image")}
-              className={`transition-all cursor-pointer ${
-                conf.mode === "image"
-                  ? "text-amber-400 font-black drop-shadow-xs"
-                  : "text-slate-400 hover:text-slate-200 font-medium"
-              }`}
-            >
-              [ Image ]
-            </button>
-          </div>
-        ) : (
-          <span className="text-xs font-mono text-amber-400 font-bold">[ Solid Color Only ]</span>
-        )}
+          {/* Mode D: Image */}
+          <button
+            type="button"
+            onClick={() => setMode("image")}
+            className={`transition-all cursor-pointer ${
+              conf.mode === "image"
+                ? "text-amber-400 font-black drop-shadow-xs"
+                : "text-slate-400 hover:text-slate-200 font-medium"
+            }`}
+          >
+            [ Image ]
+          </button>
+        </div>
       </div>
 
       {/* ── CARD BODY (2-COLUMN HORIZONTAL STUDIO LAYOUT) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
         {/* LEFT COLUMN: Large Wide Preview Rectangle (approx 35%-40% width) */}
         <div className="lg:col-span-5 flex flex-col justify-center">
-          <div
-            className="w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center"
-            style={liveCardStyle}
-            title="Live Fill Preview"
-          >
-            <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl pointer-events-none" />
-            {isTextColorOnly && (
+          {isTextColorOnly ? (
+            <div className="w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex flex-col items-center justify-center p-3 bg-slate-950/80">
+              <span className="text-[10px] uppercase font-mono text-slate-500 mb-1">
+                College Typography Preview
+              </span>
               <span
-                className="text-xs sm:text-sm font-black uppercase tracking-wider drop-shadow-md text-center px-2"
-                style={{ color: conf.solid }}
+                className="text-xs sm:text-sm font-black uppercase tracking-wider drop-shadow-md text-center px-2 line-clamp-2"
+                style={liveTextStyle}
               >
                 GOVT. POST GRADUATE COLLEGE QUETTA
               </span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div
+              className="w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center"
+              style={liveCardStyle}
+              title="Live Fill Preview"
+            >
+              <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl pointer-events-none" />
+            </div>
+          )}
         </div>
 
         {/* RIGHT COLUMN: Controls according to active mode */}
@@ -561,105 +588,150 @@ export default function CorelFillPickerCard({
              ══════════════════════════════════════════════════════ */}
           {conf.mode === "gradient" && (
             <div className="space-y-3">
-              {/* Row 1: Label + Gradient Slider Track + Angle Dial */}
-              <div>
-                <span className="text-xs font-bold text-slate-300 block mb-1.5">
-                  {conf.gradient.stops.length > 2 ? "Active Gradient" : "Gradient"}
+              {/* Row 1: Header + Gradient Style Switcher (Linear | Radial | Conic) */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300">
+                  {conf.gradient.stops.length > 2 ? "Active Fountain Gradient" : "Gradient"}
                 </span>
 
-                <div className="flex items-center gap-4">
-                  {/* Interactive Multi-Stop Bar */}
-                  <div className="flex-1 space-y-2">
-                    <div
-                      ref={gradientBarRef}
-                      onClick={handleBarClick}
-                      className="h-6 w-full rounded-lg cursor-crosshair relative shadow-inner border border-slate-700/90 select-none"
-                      style={{
-                        backgroundImage: `linear-gradient(90deg, ${[...conf.gradient.stops]
-                          .sort((a, b) => a.position - b.position)
-                          .map((s) => `${s.color} ${s.position}%`)
-                          .join(", ")})`,
-                      }}
-                      title="Click anywhere on the bar to add a new color stop"
-                    >
-                      {/* Pin markers for each stop */}
-                      {conf.gradient.stops.map((stop, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedStopIdx(i);
-                          }}
-                          style={{ left: `${stop.position}%` }}
-                          className={`absolute -bottom-2.5 -translate-x-1/2 w-4 h-4 rounded-xs border-2 cursor-pointer transition-transform shadow-md ${
-                            selectedStopIdx === i
-                              ? "border-amber-400 scale-125 z-10 ring-2 ring-amber-400/50"
-                              : "border-slate-900 hover:scale-110 z-0"
-                          }`}
-                          title={`Stop ${i + 1}: ${stop.color} (${stop.position}%)`}
-                        >
-                          <span
-                            className="block w-full h-full rounded-xs"
-                            style={{ backgroundColor: stop.color }}
-                          />
-                        </button>
-                      ))}
-                    </div>
+                {/* 1-Click Corel Fountain Style Switcher */}
+                <div className="flex items-center gap-1 bg-slate-900/90 p-0.5 rounded-lg border border-slate-700/80 text-[10px] font-mono">
+                  <button
+                    type="button"
+                    onClick={() => handleGradientTypeChange("linear")}
+                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                      conf.gradient.type === "linear"
+                        ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Linear (لکیری)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGradientTypeChange("radial")}
+                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                      conf.gradient.type === "radial"
+                        ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Radial (دائرہ)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGradientTypeChange("conic")}
+                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                      conf.gradient.type === "conic"
+                        ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Conic (سویپ)
+                  </button>
+                </div>
+              </div>
 
-                    {/* Compact stop editor row */}
-                    {conf.gradient.stops[selectedStopIdx] && (
-                      <div className="flex items-center gap-2 pt-1 text-[11px] font-mono text-slate-300">
-                        <span className="text-slate-400 text-[10px]">Stop #{selectedStopIdx + 1}:</span>
-                        <input
-                          type="color"
-                          value={conf.gradient.stops[selectedStopIdx]?.color || "#ffffff"}
-                          onChange={(e) => updateStopColor(selectedStopIdx, e.target.value)}
-                          className="w-5 h-5 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+              {/* Row 2: Gradient Track + Angle Dial */}
+              <div className="flex items-center gap-4">
+                {/* Interactive Multi-Stop Bar */}
+                <div className="flex-1 space-y-2">
+                  <div
+                    ref={gradientBarRef}
+                    onClick={handleBarClick}
+                    className="h-6 w-full rounded-lg cursor-crosshair relative shadow-inner border border-slate-700/90 select-none"
+                    style={{
+                      backgroundImage: `linear-gradient(90deg, ${[...conf.gradient.stops]
+                        .sort((a, b) => a.position - b.position)
+                        .map((s) => `${s.color} ${s.position}%`)
+                        .join(", ")})`,
+                    }}
+                    title="Click anywhere on the bar to add a new color stop"
+                  >
+                    {/* Pin markers for each stop */}
+                    {conf.gradient.stops.map((stop, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedStopIdx(i);
+                        }}
+                        style={{ left: `${stop.position}%` }}
+                        className={`absolute -bottom-2.5 -translate-x-1/2 w-4 h-4 rounded-xs border-2 cursor-pointer transition-transform shadow-md ${
+                          selectedStopIdx === i
+                            ? "border-amber-400 scale-125 z-10 ring-2 ring-amber-400/50"
+                            : "border-slate-900 hover:scale-110 z-0"
+                        }`}
+                        title={`Stop ${i + 1}: ${stop.color} (${stop.position}%)`}
+                      >
+                        <span
+                          className="block w-full h-full rounded-xs"
+                          style={{ backgroundColor: stop.color }}
                         />
-                        <input
-                          type="text"
-                          value={conf.gradient.stops[selectedStopIdx]?.color || ""}
-                          onChange={(e) => updateStopColor(selectedStopIdx, e.target.value)}
-                          className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-200 uppercase"
-                        />
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={conf.gradient.stops[selectedStopIdx]?.position || 0}
-                          onChange={(e) => updateStopPos(selectedStopIdx, Number(e.target.value))}
-                          className="w-20 h-1 bg-slate-800 rounded accent-amber-500 cursor-pointer"
-                        />
-                        <span className="text-[10px] text-amber-300">
-                          {conf.gradient.stops[selectedStopIdx]?.position}%
-                        </span>
-
-                        {conf.gradient.stops.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={() => removeStop(selectedStopIdx)}
-                            className="text-[10px] text-red-400 hover:text-red-300 ml-auto flex items-center gap-0.5"
-                          >
-                            <Trash2 className="w-2.5 h-2.5" /> Remove
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      </button>
+                    ))}
                   </div>
 
-                  {/* Circular 360° Angle Dial */}
+                  {/* Compact stop editor row */}
+                  {conf.gradient.stops[selectedStopIdx] && (
+                    <div className="flex items-center gap-2 pt-1 text-[11px] font-mono text-slate-300">
+                      <span className="text-slate-400 text-[10px]">Stop #{selectedStopIdx + 1}:</span>
+                      <input
+                        type="color"
+                        value={conf.gradient.stops[selectedStopIdx]?.color || "#ffffff"}
+                        onChange={(e) => updateStopColor(selectedStopIdx, e.target.value)}
+                        className="w-5 h-5 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                      />
+                      <input
+                        type="text"
+                        value={conf.gradient.stops[selectedStopIdx]?.color || ""}
+                        onChange={(e) => updateStopColor(selectedStopIdx, e.target.value)}
+                        className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-200 uppercase"
+                      />
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={conf.gradient.stops[selectedStopIdx]?.position || 0}
+                        onChange={(e) => updateStopPos(selectedStopIdx, Number(e.target.value))}
+                        className="w-20 h-1 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                      />
+                      <span className="text-[10px] text-amber-300">
+                        {conf.gradient.stops[selectedStopIdx]?.position}%
+                      </span>
+
+                      {conf.gradient.stops.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => removeStop(selectedStopIdx)}
+                          className="text-[10px] text-red-400 hover:text-red-300 ml-auto flex items-center gap-0.5"
+                        >
+                          <Trash2 className="w-2.5 h-2.5" /> Remove
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Circular 360° Angle Dial (For Linear and Conic) */}
+                {conf.gradient.type !== "radial" ? (
                   <AngleDial
                     angle={conf.gradient.angle}
                     onChange={(ang) => handleGradientAngleChange(ang)}
                   />
-                </div>
+                ) : (
+                  <div className="w-13 h-13 rounded-full bg-slate-900/90 border border-slate-800 flex flex-col items-center justify-center text-center p-1">
+                    <Disc className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                    <span className="text-[9px] font-mono text-slate-400">Center</span>
+                  </div>
+                )}
               </div>
 
-              {/* Row 2: Presets */}
+              {/* Row 3: Presets */}
               <div className="space-y-1 pt-1 border-t border-slate-800/80">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Presets
+                  Presets:
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {activeGradientPresets.map((p) => (
@@ -683,23 +755,18 @@ export default function CorelFillPickerCard({
           )}
 
           {/* ══════════════════════════════════════════════════════
-              MODE C: TEXTURE & PATTERN FILL
+              MODE C: TEXTURE & PATTERN FILL (COREL-DRAW TEXTURES)
              ══════════════════════════════════════════════════════ */}
           {conf.mode === "texture" && (
             <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-300 block">Texture</span>
+              <span className="text-xs font-bold text-slate-300 block">
+                CorelDRAW Texture Presets (پیٹرن و ٹیکسچر گیلری)
+              </span>
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                {/* Texture Preset Thumbnails */}
-                <div className="sm:col-span-7 flex flex-wrap gap-2">
-                  {[
-                    { id: "carbon" as TextureType, name: "Carbon Fiber" },
-                    { id: "mesh" as TextureType, name: "Dark Mesh" },
-                    { id: "grid" as TextureType, name: "Fine Grid" },
-                    { id: "stripes" as TextureType, name: "Diagonal Stripes" },
-                    { id: "dots" as TextureType, name: "Subtle Dots" },
-                    { id: "canvas" as TextureType, name: "Canvas" },
-                  ].map((tex) => (
+                {/* 10 Texture Preset Thumbnails */}
+                <div className="sm:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {ALL_TEXTURE_PRESETS.map((tex) => (
                     <button
                       key={tex.id}
                       type="button"
@@ -711,7 +778,7 @@ export default function CorelFillPickerCard({
                       }`}
                     >
                       <div
-                        className="w-14 h-8 rounded border border-slate-700/60 mb-1"
+                        className="w-full h-7 rounded border border-slate-700/60 mb-1"
                         style={{
                           backgroundColor: conf.texture.baseColor || "#0f172a",
                           backgroundImage: `url("${generatePatternSvg(
@@ -722,15 +789,36 @@ export default function CorelFillPickerCard({
                           backgroundSize: `${conf.texture.scale || 20}px ${conf.texture.scale || 20}px`,
                         }}
                       />
-                      <span className="text-[10px] font-bold text-slate-300 tracking-tight">
+                      <span className="text-[10px] font-bold text-slate-200 tracking-tight block truncate w-full text-center">
                         {tex.name}
                       </span>
                     </button>
                   ))}
                 </div>
 
-                {/* Texture Controls (Scale & Opacity) */}
+                {/* Texture Controls (Scale, Opacity, Base & Pattern Color) */}
                 <div className="sm:col-span-5 space-y-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                  {/* Colors: Base & Pattern Tint */}
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                    <span>Base & Pattern:</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="color"
+                        value={conf.texture.baseColor || "#0f172a"}
+                        onChange={(e) => handleTextureBaseColor(e.target.value)}
+                        className="w-5 h-5 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                        title="Base Background Color"
+                      />
+                      <input
+                        type="color"
+                        value={conf.texture.patternColor || "#ffffff"}
+                        onChange={(e) => handleTexturePatternColor(e.target.value)}
+                        className="w-5 h-5 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                        title="Pattern Line / Tint Color"
+                      />
+                    </div>
+                  </div>
+
                   {/* Scale Slider */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
@@ -770,7 +858,7 @@ export default function CorelFillPickerCard({
           {/* ══════════════════════════════════════════════════════
               MODE A: SOLID FILL
              ══════════════════════════════════════════════════════ */}
-          {(conf.mode === "solid" || isTextColorOnly) && (
+          {conf.mode === "solid" && (
             <div className="space-y-3">
               <span className="text-xs font-bold text-slate-300 block">Solid Color</span>
 
@@ -832,19 +920,50 @@ export default function CorelFillPickerCard({
           )}
 
           {/* ══════════════════════════════════════════════════════
-              MODE D: IMAGE FILL
+              MODE D: IMAGE FILL & COREL SAMPLE PICTURES
              ══════════════════════════════════════════════════════ */}
           {conf.mode === "image" && (
             <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-300 block">Image Fill</span>
+              <span className="text-xs font-bold text-slate-300 block">
+                Sample Pictures & Backgrounds (سیمپل تصاویر اور اپلوڈ)
+              </span>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Upload Button + URL */}
+              {/* Sample Pictures Gallery Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {COREL_SAMPLE_PICTURES.map((sp) => (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    onClick={() => handleImageUrlChange(sp.url)}
+                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all ${
+                      conf.image.url === sp.url
+                        ? "border-amber-400 bg-amber-500/15 ring-1 ring-amber-400"
+                        : "border-slate-800 bg-slate-900/80 hover:border-slate-700"
+                    }`}
+                  >
+                    <div
+                      className="w-7 h-7 rounded border border-slate-700 flex-shrink-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url("${sp.url}")` }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] font-bold text-slate-200 block truncate">
+                        {sp.name}
+                      </span>
+                      <span className="text-[8px] font-mono text-slate-400 block truncate">
+                        {sp.category}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Upload Button + URL + Fit Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-800/80">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-bold cursor-pointer transition-all">
                       <Upload className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{isUploadingImg ? "Uploading..." : "Upload File"}</span>
+                      <span>{isUploadingImg ? "Uploading..." : "Upload My File"}</span>
                       <input
                         type="file"
                         accept="image/*"

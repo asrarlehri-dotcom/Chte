@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
 import { useSettings } from "@/lib/useSettings";
-import { compileFillToStyle } from "@/lib/theme-fill-compiler";
+import { compileFillToStyle, compileFillToTextStyle } from "@/lib/theme-fill-compiler";
 import {
   LayoutDashboard,
   UserPlus,
@@ -621,13 +621,12 @@ export function Sidebar() {
           <div className="min-w-0 flex-1">
             <div
               className="text-xs font-black tracking-wide leading-tight uppercase line-clamp-2 transition-colors duration-200"
-              style={{
-                color: collegeNameColor || (
-                  collegeHeaderBg && !["#ffffff", "#f8fafc", "#f1f5f9", "white"].includes(collegeHeaderBg.toLowerCase())
-                    ? "#ffffff"
-                    : "#0f172a"
-                )
-              }}
+              style={compileFillToTextStyle(
+                collegeNameColor,
+                collegeHeaderBg && typeof collegeHeaderBg === "string" && !["#ffffff", "#f8fafc", "#f1f5f9", "white"].includes(collegeHeaderBg.toLowerCase())
+                  ? "#ffffff"
+                  : "#0f172a"
+              )}
               title={collegeDisplayName || collegeName || "Govt. Degree College"}
             >
               {collegeDisplayName || collegeName || "Govt. Degree College"}

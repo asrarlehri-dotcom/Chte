@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { compileFillToStyle } from "@/lib/theme-fill-compiler";
+import { compileFillToStyle, compileFillToTextStyle } from "@/lib/theme-fill-compiler";
 import {
   GraduationCap,
   Users,
@@ -475,7 +475,7 @@ export default function CollegePortalHomePage() {
             <div>
               <h1
                 className="text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight group-hover:text-amber-200 transition-colors"
-                style={{ color: s.collegeNameColor || "#ffffff" }}
+                style={compileFillToTextStyle(s.collegeNameColor, "#ffffff")}
               >
                 {college.name}
               </h1>

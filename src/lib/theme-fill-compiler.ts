@@ -13,7 +13,18 @@ export type GradientConfig = {
   stops: GradientStop[];
 };
 
-export type TextureType = "canvas" | "grid" | "stripes" | "mesh" | "dots" | "paper" | "carbon";
+export type TextureType =
+  | "canvas"
+  | "grid"
+  | "stripes"
+  | "mesh"
+  | "dots"
+  | "paper"
+  | "carbon"
+  | "guilloche"
+  | "islamic"
+  | "golddust"
+  | "marble";
 
 export type TextureConfig = {
   type: TextureType;
@@ -119,6 +130,39 @@ export function generatePatternSvg(type: TextureType, patternColor: string, opac
     case "mesh":
       size = 24;
       svgContent = `<path d="M 0 12 L 12 0 L 24 12 L 12 24 Z" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="${op}" />`;
+      break;
+    case "guilloche":
+      size = 36;
+      svgContent = `
+        <path d="M0,12 C9,3 18,21 27,12 C36,3 45,21 54,12 M0,24 C9,15 18,33 27,24 C36,15 45,33 54,24 M0,0 C9,-9 18,9 27,0 C36,-9 45,9 54,0" fill="none" stroke="${color}" stroke-width="0.9" stroke-opacity="${op}" />
+        <path d="M0,18 C12,6 24,30 36,18 M0,6 C12,-6 24,18 36,6" fill="none" stroke="${color}" stroke-width="0.5" stroke-opacity="${(Number(op) * 0.7).toFixed(2)}" />
+      `;
+      break;
+    case "islamic":
+      size = 32;
+      svgContent = `
+        <polygon points="16,0 20,12 32,16 20,20 16,32 12,20 0,16 12,12" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="${op}" />
+        <polygon points="16,6 22,10 26,16 22,22 16,26 10,22 6,16 10,10" fill="none" stroke="${color}" stroke-width="0.6" stroke-opacity="${(Number(op) * 0.75).toFixed(2)}" />
+      `;
+      break;
+    case "golddust":
+      size = 28;
+      svgContent = `
+        <circle cx="4" cy="5" r="0.9" fill="${color}" fill-opacity="${op}" />
+        <circle cx="11" cy="14" r="1.3" fill="${color}" fill-opacity="${op}" />
+        <circle cx="21" cy="7" r="0.7" fill="${color}" fill-opacity="${op}" />
+        <circle cx="17" cy="19" r="1.1" fill="${color}" fill-opacity="${op}" />
+        <circle cx="7" cy="22" r="1.0" fill="${color}" fill-opacity="${op}" />
+        <circle cx="24" cy="24" r="1.4" fill="${color}" fill-opacity="${op}" />
+        <circle cx="14" cy="2" r="0.5" fill="${color}" fill-opacity="${op}" />
+      `;
+      break;
+    case "marble":
+      size = 40;
+      svgContent = `
+        <path d="M0,10 Q10,18 20,8 T40,14 M0,26 Q12,16 24,28 T48,20" fill="none" stroke="${color}" stroke-width="1.3" stroke-opacity="${op}" />
+        <path d="M10,0 Q18,12 8,24 T14,40 M26,0 Q34,16 24,30 T30,40" fill="none" stroke="${color}" stroke-width="0.7" stroke-opacity="${(Number(op) * 0.6).toFixed(2)}" />
+      `;
       break;
     case "dots":
       size = 16;
@@ -377,3 +421,203 @@ export function getRepresentativeColor(
   if (fill.mode === "image") return fill.image.tintColor || fill.solid || fallback;
   return fallback;
 }
+
+// Helper to compile fill to Text (Typography) style with backgroundClip: text
+export function compileFillToTextStyle(
+  fill: FillConfig | string | null | undefined,
+  defaultSolid = "#0f172a"
+): React.CSSProperties {
+  const conf = normalizeFillConfig(fill, defaultSolid);
+
+  if (conf.mode === "solid") {
+    return {
+      color: conf.solid || defaultSolid,
+    };
+  }
+
+  const baseStyle = compileFillToStyle(conf, defaultSolid);
+
+  if (baseStyle.backgroundImage && baseStyle.backgroundImage !== "none") {
+    return {
+      backgroundImage: baseStyle.backgroundImage,
+      backgroundSize: baseStyle.backgroundSize || "cover",
+      backgroundPosition: baseStyle.backgroundPosition || "center",
+      backgroundRepeat: baseStyle.backgroundRepeat || "repeat",
+      WebkitBackgroundClip: "text",
+      backgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      color: "transparent",
+      display: "inline-block",
+    };
+  }
+
+  return {
+    color: conf.solid || defaultSolid,
+  };
+}
+
+// Built-in CorelDRAW Sample Pictures Gallery (Self-contained high-res SVG vectors)
+export type SamplePicture = {
+  id: string;
+  name: string;
+  category: string;
+  url: string;
+};
+
+export const COREL_SAMPLE_PICTURES: SamplePicture[] = [
+  {
+    id: "gold-foil",
+    name: "Luxury Gold Foil",
+    category: "Metallic",
+    url:
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+        <defs>
+          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#78350f"/>
+            <stop offset="25%" stop-color="#b45309"/>
+            <stop offset="45%" stop-color="#fef08a"/>
+            <stop offset="55%" stop-color="#fbbf24"/>
+            <stop offset="75%" stop-color="#d97706"/>
+            <stop offset="100%" stop-color="#451a03"/>
+          </linearGradient>
+          <radialGradient id="r" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#fff" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0.4"/>
+          </radialGradient>
+        </defs>
+        <rect width="600" height="400" fill="url(#g)"/>
+        <rect width="600" height="400" fill="url(#r)"/>
+      </svg>
+    `),
+  },
+  {
+    id: "navy-polygon",
+    name: "Navy Geometric Low-Poly",
+    category: "Academic",
+    url:
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+        <defs>
+          <linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#020617"/>
+            <stop offset="50%" stop-color="#0f172a"/>
+            <stop offset="100%" stop-color="#1e3a8a"/>
+          </linearGradient>
+        </defs>
+        <rect width="600" height="400" fill="url(#ng)"/>
+        <polygon points="0,0 200,80 150,220 0,180" fill="#1e3a8a" fill-opacity="0.25"/>
+        <polygon points="200,80 400,20 350,180 150,220" fill="#3b82f6" fill-opacity="0.15"/>
+        <polygon points="400,20 600,0 600,200 350,180" fill="#1d4ed8" fill-opacity="0.2"/>
+        <polygon points="150,220 350,180 300,350 100,400" fill="#2563eb" fill-opacity="0.18"/>
+        <polygon points="350,180 600,200 550,380 300,350" fill="#1e40af" fill-opacity="0.22"/>
+        <polygon points="0,180 150,220 100,400 0,400" fill="#0f172a" fill-opacity="0.3"/>
+        <polygon points="300,350 550,380 600,400 300,400" fill="#020617" fill-opacity="0.35"/>
+      </svg>
+    `),
+  },
+  {
+    id: "quetta-arch",
+    name: "Quetta Campus Landmark Arch",
+    category: "Institutional",
+    url:
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+        <defs>
+          <linearGradient id="qg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#0b1329"/>
+            <stop offset="60%" stop-color="#1e293b"/>
+            <stop offset="100%" stop-color="#334155"/>
+          </linearGradient>
+        </defs>
+        <rect width="600" height="400" fill="url(#qg)"/>
+        <path d="M50,400 L50,220 C50,140 120,80 200,80 C280,80 350,140 350,220 L350,400 Z" fill="#020617" fill-opacity="0.4"/>
+        <path d="M100,400 L100,240 C100,180 140,130 200,130 C260,130 300,180 300,240 L300,400 Z" fill="#0b1329" fill-opacity="0.6"/>
+        <path d="M200,60 L200,80 M180,70 L220,70" stroke="#f59e0b" stroke-width="3" stroke-opacity="0.7"/>
+        <circle cx="480" cy="90" r="30" fill="#fef08a" fill-opacity="0.25"/>
+        <path d="M0,380 L600,380" stroke="#f59e0b" stroke-width="2" stroke-opacity="0.4"/>
+      </svg>
+    `),
+  },
+  {
+    id: "royal-velvet-waves",
+    name: "Royal Velvet & Crimson Waves",
+    category: "Luxury",
+    url:
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+        <defs>
+          <linearGradient id="vg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#450a0a"/>
+            <stop offset="50%" stop-color="#881337"/>
+            <stop offset="100%" stop-color="#1c0404"/>
+          </linearGradient>
+        </defs>
+        <rect width="600" height="400" fill="url(#vg)"/>
+        <path d="M0,180 Q150,80 300,200 T600,160 L600,400 L0,400 Z" fill="#be123c" fill-opacity="0.2"/>
+        <path d="M0,240 Q180,120 360,260 T600,220 L600,400 L0,400 Z" fill="#e11d48" fill-opacity="0.18"/>
+        <path d="M0,200 Q200,100 400,240 T600,180" fill="none" stroke="#fbbf24" stroke-width="2" stroke-opacity="0.4"/>
+      </svg>
+    `),
+  },
+  {
+    id: "guilloche-security",
+    name: "Guilloche Security Certificate",
+    category: "Diploma",
+    url:
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+        <defs>
+          <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#022c22"/>
+            <stop offset="50%" stop-color="#064e3b"/>
+            <stop offset="100%" stop-color="#0f172a"/>
+          </linearGradient>
+        </defs>
+        <rect width="600" height="400" fill="url(#gg)"/>
+        <g stroke="#10b981" stroke-width="1" stroke-opacity="0.2" fill="none">
+          <ellipse cx="300" cy="200" rx="260" ry="160"/>
+          <ellipse cx="300" cy="200" rx="240" ry="140"/>
+          <ellipse cx="300" cy="200" rx="220" ry="120"/>
+          <ellipse cx="300" cy="200" rx="200" ry="100"/>
+          <ellipse cx="300" cy="200" rx="180" ry="80"/>
+        </g>
+        <g stroke="#f59e0b" stroke-width="0.8" stroke-opacity="0.2" fill="none">
+          <circle cx="300" cy="200" r="90"/>
+          <circle cx="300" cy="200" r="70"/>
+        </g>
+      </svg>
+    `),
+  },
+  {
+    id: "tech-circuit",
+    name: "Dark Tech Cyber Circuit",
+    category: "Computer Science",
+    url:
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+        <defs>
+          <linearGradient id="cg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#020617"/>
+            <stop offset="100%" stop-color="#0f172a"/>
+          </linearGradient>
+        </defs>
+        <rect width="600" height="400" fill="url(#cg)"/>
+        <g stroke="#06b6d4" stroke-width="1.5" stroke-opacity="0.3" fill="none">
+          <path d="M40,60 L140,60 L200,120 L320,120 M200,120 L200,240 L280,320 L440,320"/>
+          <path d="M600,80 L480,80 L420,140 L350,140 M420,140 L420,260 L360,320 L200,320"/>
+          <circle cx="40" cy="60" r="3" fill="#06b6d4" fill-opacity="0.5"/>
+          <circle cx="320" cy="120" r="3" fill="#06b6d4" fill-opacity="0.5"/>
+          <circle cx="440" cy="320" r="3" fill="#06b6d4" fill-opacity="0.5"/>
+          <circle cx="600" cy="80" r="3" fill="#06b6d4" fill-opacity="0.5"/>
+        </g>
+      </svg>
+    `),
+  },
+];

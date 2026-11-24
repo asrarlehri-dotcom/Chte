@@ -39,6 +39,7 @@ import ThemePresetGallery, { ThemePresetItem, INSTITUTIONAL_PRESETS } from "./Th
 import {
   FillConfig,
   compileFillToStyle,
+  compileFillToTextStyle,
   normalizeFillConfig,
   getRepresentativeColor,
 } from "@/lib/theme-fill-compiler";
@@ -187,10 +188,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
   // Live real-time sync with Sidebar & Global Theme
   const syncThemeField = (field: string, val: any) => {
-    const isFillField = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeHeaderBg"].includes(field);
+    const isFillField = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeHeaderBg", "collegeNameColor"].includes(field);
     const cleanVal = isFillField
       ? (typeof val === "string" ? normalizeHex(val) : val)
-      : (field === "collegeNameColor" || field === "portalSubtitleColor" ? normalizeHex(String(val || "")) : val);
+      : (field === "portalSubtitleColor" ? normalizeHex(String(val || "")) : val);
 
     setFormData((prev) => {
       const updated = { ...prev, [field]: cleanVal };
@@ -728,11 +729,12 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             const ribbonStr = typeof formData.ribbonColor === "object" ? JSON.stringify(formData.ribbonColor) : String(formData.ribbonColor);
             const sidebarStr = typeof formData.sidebarColor === "object" ? JSON.stringify(formData.sidebarColor) : String(formData.sidebarColor);
             const headerBgStr = typeof formData.collegeHeaderBg === "object" ? JSON.stringify(formData.collegeHeaderBg) : String(formData.collegeHeaderBg);
+            const nameColorStr = typeof formData.collegeNameColor === "object" ? JSON.stringify(formData.collegeNameColor) : String(formData.collegeNameColor);
 
             if (selectedCollege.code) {
               localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, ribbonStr);
               localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, sidebarStr);
-              localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, formData.collegeNameColor);
+              localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, nameColorStr);
               localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, headerBgStr);
               localStorage.setItem(`college_name_${selectedCollege.code.toLowerCase()}`, formData.collegeName);
               localStorage.setItem(`college_subtitle_${selectedCollege.code.toLowerCase()}`, formData.portalSubtitle);
@@ -741,7 +743,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             if (selectedCollege.id) {
               localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, ribbonStr);
               localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, sidebarStr);
-              localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, formData.collegeNameColor);
+              localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, nameColorStr);
               localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, headerBgStr);
               localStorage.setItem(`college_name_${selectedCollege.id.toLowerCase()}`, formData.collegeName);
               localStorage.setItem(`college_subtitle_${selectedCollege.id.toLowerCase()}`, formData.portalSubtitle);
@@ -1207,7 +1209,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 title="College Name Color"
                 subtitleUrdu="کالج کے نام کا رنگ (ٹیکسٹ)"
                 value={formData.collegeNameColor}
-                onChange={(val) => syncThemeField("collegeNameColor", val.solid || "#0f172a")}
+                onChange={(val) => syncThemeField("collegeNameColor", val)}
                 defaultColor="#0f172a"
                 isTextColorOnly={true}
                 quickPresets={[
@@ -1484,7 +1486,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   <span>🎨 Live Sidebar Preview (Custom Header Box + Theme Colors)</span>
                 </span>
                 <span className="text-[10px] font-mono font-bold text-slate-500">
-                  Header Bg: {toSafeColor(formData.collegeHeaderBg, "#FFFFFF")} • Name: <span style={{ color: toSafeColor(formData.collegeNameColor, "#0f172a") }}>{formData.collegeNameColor || "#0f172a"}</span> • Sidebar: {toSafeColor(formData.sidebarColor, "#090E24")}
+                  Header Bg: {toSafeColor(formData.collegeHeaderBg, "#FFFFFF")} • Name: <span style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a")}>{toSafeColor(formData.collegeNameColor, "#0f172a")}</span> • Sidebar: {toSafeColor(formData.sidebarColor, "#090E24")}
                 </span>
               </div>
               <div className="max-w-xs rounded-2xl overflow-hidden shadow-lg border border-slate-300">
@@ -1507,7 +1509,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   <div className="min-w-0 flex-1">
                     <div
                       className="text-xs font-black leading-tight uppercase transition-colors duration-200 line-clamp-2"
-                      style={{ color: toSafeColor(formData.collegeNameColor, "#0f172a") }}
+                      style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a")}
                     >
                       {formData.collegeName || selectedCollege?.name || "Govt. Post Graduate College Quetta"}
                     </div>

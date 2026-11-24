@@ -16,7 +16,7 @@ export type ThemePresetItem = {
   primaryColor: FillConfig | string;
   bodyBgColor: FillConfig | string;
   sidebarColor: FillConfig | string;
-  collegeNameColor: string;
+  collegeNameColor: FillConfig | string;
   collegeHeaderBg: FillConfig | string;
   portalSubtitle?: string;
   portalSubtitleColor?: string;
@@ -126,7 +126,7 @@ interface ThemePresetGalleryProps {
     primaryColor: FillConfig | string;
     bodyBgColor: FillConfig | string;
     sidebarColor: FillConfig | string;
-    collegeNameColor: string;
+    collegeNameColor: FillConfig | string;
     collegeHeaderBg: FillConfig | string;
     portalSubtitle?: string;
     portalSubtitleColor?: string;
