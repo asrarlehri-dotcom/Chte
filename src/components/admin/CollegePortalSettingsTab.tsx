@@ -924,14 +924,18 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
-          {/* ── SECTION 1: THEME COLORS & "RED PATII" ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <Palette className="w-5 h-5 text-red-600" />
+          {/* ── SECTION 1: THEME COLORS & "RED PATII" (DARK STUDIO ENGINE) ── */}
+          <div className="bg-[#0b0f19] p-5 sm:p-6 rounded-3xl border border-slate-800/90 shadow-2xl space-y-6">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-600 to-amber-600 flex items-center justify-center shadow-md">
+                <Palette className="w-4 h-4 text-white" />
+              </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Theme Colors & Ribbon Bar ("Red Patii")</h3>
-                <p className="text-xs text-slate-500">
-                  Configure the primary header color, the top accent ribbon ("red patii"), and overall background color.
+                <h3 className="text-base font-bold text-white tracking-wide">
+                  Theme Colors & Ribbon Bar ("Red Patii")
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Configure the primary header color, the top accent ribbon ("red patii"), and overall background color with CorelDRAW-style fill engine.
                 </p>
               </div>
             </div>
@@ -954,16 +958,46 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               onDeleteCustomPreset={handleDeleteCustomPreset}
             />
 
-            {/* ── 6 CONFIGURATION CARDS (COREL-DRAW 4-MODE FILL ENGINE) ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-              {/* Card 1: Ribbon Color ("Red Patii" / سُرخ پٹی) */}
+            {/* ── STACKED HORIZONTAL STUDIO CARDS (AS SHOWN IN USER SCREENSHOT) ── */}
+            <div className="space-y-4">
+              {/* Card 1: Top Accent Ribbon ("Red Patii" / سُرخ پٹی) */}
               <CorelFillPickerCard
                 cardId="ribbonColor"
-                title='Ribbon Color ("Red Patii")'
+                title='Top Accent Ribbon ("Red Patii")'
                 subtitleUrdu="سُرخ پٹی (ٹاپ ایکسنٹ ربن)"
                 value={formData.ribbonColor}
                 onChange={(val) => syncThemeField("ribbonColor", val)}
                 defaultColor="#dc2626"
+                topRibbonAccent={true}
+                gradientPresets={[
+                  {
+                    name: "Crimson Sunset",
+                    angle: 90,
+                    stops: [
+                      { color: "#991b1b", position: 0 },
+                      { color: "#dc2626", position: 50 },
+                      { color: "#f59e0b", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Ruby Gold",
+                    angle: 90,
+                    stops: [
+                      { color: "#831843", position: 0 },
+                      { color: "#b45309", position: 50 },
+                      { color: "#fbbf24", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Metallic Patii",
+                    angle: 90,
+                    stops: [
+                      { color: "#78350f", position: 0 },
+                      { color: "#fde047", position: 50 },
+                      { color: "#b45309", position: 100 },
+                    ],
+                  },
+                ]}
                 quickPresets={[
                   { name: "Red", hex: "#dc2626" },
                   { name: "Crimson", hex: "#991b1b" },
@@ -976,14 +1010,42 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 onAddCustomColor={handleAddCustomColor}
               />
 
-              {/* Card 2: Primary / Header Color */}
+              {/* Card 2: Primary Header */}
               <CorelFillPickerCard
                 cardId="primaryColor"
-                title="Primary / Header Color"
+                title="Primary Header"
                 subtitleUrdu="مین ہیڈر کا رنگ"
                 value={formData.primaryColor}
                 onChange={(val) => syncThemeField("primaryColor", val)}
                 defaultColor="#040d1a"
+                gradientPresets={[
+                  {
+                    name: "Header Metal",
+                    angle: 120,
+                    stops: [
+                      { color: "#1e293b", position: 0 },
+                      { color: "#64748b", position: 50 },
+                      { color: "#0f172a", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Admin Gold",
+                    angle: 120,
+                    stops: [
+                      { color: "#b45309", position: 0 },
+                      { color: "#fef08a", position: 50 },
+                      { color: "#78350f", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Crimson Sunset",
+                    angle: 135,
+                    stops: [
+                      { color: "#881337", position: 0 },
+                      { color: "#e11d48", position: 100 },
+                    ],
+                  },
+                ]}
                 quickPresets={[
                   { name: "Deep Navy", hex: "#040d1a" },
                   { name: "Slate 900", hex: "#0f172a" },
@@ -994,14 +1056,40 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 onAddCustomColor={handleAddCustomColor}
               />
 
-              {/* Card 3: Body Background Color */}
+              {/* Card 3: Overall Background */}
               <CorelFillPickerCard
                 cardId="bodyBgColor"
-                title="Body Background Color"
+                title="Overall Background"
                 subtitleUrdu="پورٹل کا عمومی پس منظر"
                 value={formData.bodyBgColor}
                 onChange={(val) => syncThemeField("bodyBgColor", val)}
                 defaultColor="#070d19"
+                gradientPresets={[
+                  {
+                    name: "Carbon Dark",
+                    angle: 180,
+                    stops: [
+                      { color: "#0b0f19", position: 0 },
+                      { color: "#111827", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Midnight Slate",
+                    angle: 180,
+                    stops: [
+                      { color: "#020617", position: 0 },
+                      { color: "#0f172a", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Deep Space",
+                    angle: 180,
+                    stops: [
+                      { color: "#0a0a1a", position: 0 },
+                      { color: "#1a1a3a", position: 100 },
+                    ],
+                  },
+                ]}
                 quickPresets={[
                   { name: "Dark Theme", hex: "#070d19" },
                   { name: "Midnight", hex: "#0a1128" },
@@ -1012,7 +1100,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 onAddCustomColor={handleAddCustomColor}
               />
 
-              {/* Card 4: Sidebar Background (سائیڈ بار رنگ) */}
+              {/* Card 4: Sidebar Background */}
               <CorelFillPickerCard
                 cardId="sidebarColor"
                 title="Sidebar Background"
@@ -1020,6 +1108,40 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 value={formData.sidebarColor}
                 onChange={(val) => syncThemeField("sidebarColor", val)}
                 defaultColor="#090E24"
+                gradientPresets={[
+                  {
+                    name: "Navy Blue",
+                    angle: 180,
+                    stops: [
+                      { color: "#090E24", position: 0 },
+                      { color: "#1e1b4b", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Emerald Green",
+                    angle: 180,
+                    stops: [
+                      { color: "#064e3b", position: 0 },
+                      { color: "#022c22", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Slate Dark",
+                    angle: 180,
+                    stops: [
+                      { color: "#0f172a", position: 0 },
+                      { color: "#020617", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Burgundy Red",
+                    angle: 180,
+                    stops: [
+                      { color: "#450a0a", position: 0 },
+                      { color: "#1c0404", position: 100 },
+                    ],
+                  },
+                ]}
                 quickPresets={[
                   { name: "Navy", hex: "#090E24" },
                   { name: "Slate 900", hex: "#0f172a" },
@@ -1032,96 +1154,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 onAddCustomColor={handleAddCustomColor}
               />
 
-              {/* Card 5: College Name Color (کالج کے نام کا رنگ) - Preserved Clean Solid Text Color Picker */}
-              <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-200 space-y-3 flex flex-col justify-between shadow-xs">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-black text-indigo-950 flex items-center gap-1">
-                      <span>College Name Color</span>
-                      <span className="text-[10px] text-indigo-600 font-bold">(نام کا رنگ)</span>
-                    </label>
-                    <div
-                      className="w-6 h-6 rounded-md border border-indigo-300 shadow-inner flex-shrink-0"
-                      style={{ backgroundColor: toSafeColor(formData.collegeNameColor, "#0f172a") }}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={toSafeColor(formData.collegeNameColor, "#0f172a")}
-                      onChange={(e) => syncThemeField("collegeNameColor", e.target.value)}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-indigo-200 bg-transparent p-0.5 flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      value={formData.collegeNameColor}
-                      onChange={(e) => syncThemeField("collegeNameColor", e.target.value)}
-                      placeholder="#0f172a"
-                      className="flex-1 bg-white border border-indigo-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-indigo-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Quick Presets for College Name */}
-                <div className="pt-2 border-t border-indigo-100">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold text-indigo-500 uppercase">Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomColor(formData.collegeNameColor)}
-                      className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
-                      title="Save current color into custom presets"
-                    >
-                      <Plus className="w-2.5 h-2.5" /> Save
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { name: "Black", hex: "#0f172a" },
-                      { name: "Navy", hex: "#1e3a8a" },
-                      { name: "Emerald", hex: "#0c5938" },
-                      { name: "Crimson", hex: "#991b1b" },
-                      { name: "Indigo", hex: "#4338ca" },
-                      { name: "Burgundy", hex: "#7f1d1d" },
-                      { name: "White", hex: "#ffffff" },
-                      { name: "Gold", hex: "#d97706" },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => syncThemeField("collegeNameColor", c.hex)}
-                        className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-xs hover:scale-105 transition-transform ${
-                          c.hex === "#ffffff" ? "text-slate-900 border border-slate-300" : "text-white"
-                        }`}
-                        style={{ backgroundColor: c.hex }}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {formData.customColors.length > 0 && (
-                    <div className="mt-2 pt-1.5 border-t border-indigo-200">
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase block mb-1">My Saved Presets:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.customColors.map((hex) => (
-                          <button
-                            key={hex}
-                            type="button"
-                            onClick={() => syncThemeField("collegeNameColor", hex)}
-                            className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
-                            style={{ backgroundColor: hex }}
-                            title={`Apply ${hex} to College Name`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Card 6: College Header Bg (ہیڈر بیک گراؤنڈ) */}
+              {/* Card 5: College Header Bg */}
               <CorelFillPickerCard
                 cardId="collegeHeaderBg"
                 title="College Header Bg"
@@ -1129,6 +1162,32 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 value={formData.collegeHeaderBg}
                 onChange={(val) => syncThemeField("collegeHeaderBg", val)}
                 defaultColor="#ffffff"
+                gradientPresets={[
+                  {
+                    name: "Crisp White",
+                    angle: 90,
+                    stops: [
+                      { color: "#ffffff", position: 0 },
+                      { color: "#f1f5f9", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Navy Metal",
+                    angle: 135,
+                    stops: [
+                      { color: "#1e3a8a", position: 0 },
+                      { color: "#0f172a", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Emerald Header",
+                    angle: 135,
+                    stops: [
+                      { color: "#064e3b", position: 0 },
+                      { color: "#042f2e", position: 100 },
+                    ],
+                  },
+                ]}
                 quickPresets={[
                   { name: "White", hex: "#ffffff" },
                   { name: "Slate 100", hex: "#f1f5f9" },
@@ -1141,17 +1200,81 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 customColors={formData.customColors}
                 onAddCustomColor={handleAddCustomColor}
               />
+
+              {/* Card 6: College Name Color (کالج کے نام کا رنگ - Typography Text Color) */}
+              <CorelFillPickerCard
+                cardId="collegeNameColor"
+                title="College Name Color"
+                subtitleUrdu="کالج کے نام کا رنگ (ٹیکسٹ)"
+                value={formData.collegeNameColor}
+                onChange={(val) => syncThemeField("collegeNameColor", val.solid || "#0f172a")}
+                defaultColor="#0f172a"
+                isTextColorOnly={true}
+                quickPresets={[
+                  { name: "Black", hex: "#0f172a" },
+                  { name: "Navy", hex: "#1e3a8a" },
+                  { name: "Emerald", hex: "#0c5938" },
+                  { name: "Crimson", hex: "#991b1b" },
+                  { name: "Indigo", hex: "#4338ca" },
+                  { name: "Burgundy", hex: "#7f1d1d" },
+                  { name: "White", hex: "#ffffff" },
+                  { name: "Gold", hex: "#d97706" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
             </div>
 
-            {/* Dedicated Custom Color Palette Manager */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50/70 via-blue-50/50 to-slate-50 border border-indigo-200/80 space-y-3">
+            {/* ── ACTION BAR (MATCHING USER SCREENSHOT) ── */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-800">
+              <span className="text-xs text-slate-400 font-medium">
+                Configuring portal for:{" "}
+                <strong className="text-slate-200">
+                  {selectedCollege?.name || "Govt. Post Graduate College Quetta"}
+                </strong>
+              </span>
+
+              <div className="flex items-center gap-2.5">
+                {selectedCollege && (
+                  <a
+                    href={`/colleges/${selectedCollege.code.toLowerCase()}${
+                      formData.ribbonColor
+                        ? `?theme=${encodeURIComponent(
+                            typeof formData.ribbonColor === "object"
+                              ? JSON.stringify(formData.ribbonColor)
+                              : formData.ribbonColor
+                          )}`
+                        : ""
+                    }`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-bold transition-all hover:scale-102"
+                  >
+                    <span>Preview Portal</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  </a>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/80 text-amber-300 font-bold text-xs transition-all hover:scale-102 cursor-pointer shadow-md"
+                >
+                  <Save className="w-4 h-4 text-amber-400" />
+                  <span>{saving ? "Saving Changes..." : "Save Portal Settings"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ── CUSTOM COLOR PALETTE MANAGER (DARK STYLED) ── */}
+            <div className="p-4 rounded-2xl bg-[#0e1526]/80 border border-slate-800 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    <span>🎨 Custom Color Palette Manager (کسٹم رنگ شامل کریں اور محفوظ رکھیں)</span>
+                  <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Custom Color Palette Manager (کسٹم رنگ شامل کریں اور محفوظ رکھیں)</span>
                   </span>
-                  <p className="text-[11px] text-slate-600 mt-0.5">
+                  <p className="text-[11px] text-slate-400 mt-0.5">
                     Pick any custom color or enter hex code (e.g. 2653FF) and save it to your institutional custom palette.
                   </p>
                 </div>
@@ -1160,7 +1283,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, customColors: [] })}
-                    className="text-[10px] text-red-600 hover:text-red-700 font-bold self-start sm:self-auto"
+                    className="text-[10px] text-red-400 hover:text-red-300 font-bold self-start sm:self-auto"
                   >
                     Clear All Custom Colors
                   </button>
@@ -1168,27 +1291,27 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
 
               {/* Input bar to add custom color */}
-              <div className="flex flex-wrap items-center gap-2.5 bg-white p-2.5 rounded-xl border border-indigo-100 shadow-xs">
+              <div className="flex flex-wrap items-center gap-2.5 bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
                     value={toSafeColor(newCustomColor, "#2653FF")}
                     onChange={(e) => setNewCustomColor(e.target.value.toUpperCase())}
-                    className="w-9 h-9 rounded-lg cursor-pointer border border-slate-200 bg-transparent p-0.5"
+                    className="w-9 h-9 rounded-lg cursor-pointer border border-slate-700 bg-transparent p-0.5"
                   />
                   <input
                     type="text"
                     value={newCustomColor}
                     onChange={(e) => setNewCustomColor(normalizeHex(e.target.value).toUpperCase())}
                     placeholder="#2653FF"
-                    className="w-28 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-800 uppercase"
+                    className="w-28 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-200 uppercase focus:outline-none focus:ring-1 focus:ring-amber-400"
                   />
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleAddCustomColor(newCustomColor)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all hover:scale-102"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition-all hover:scale-102"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>+ Add to Custom Presets (نیا رنگ شامل کریں)</span>
@@ -1198,28 +1321,28 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               {/* Display of added custom color chips */}
               {formData.customColors.length > 0 ? (
                 <div className="space-y-2 pt-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                     Saved Custom Colors ({formData.customColors.length}):
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {formData.customColors.map((hex) => (
                       <div
                         key={hex}
-                        className="group flex items-center gap-1.5 bg-white pl-1.5 pr-2 py-1 rounded-xl border border-slate-200 shadow-xs hover:border-indigo-300 transition-all"
+                        className="group flex items-center gap-1.5 bg-slate-900 pl-1.5 pr-2 py-1 rounded-xl border border-slate-800 shadow-xs hover:border-slate-700 transition-all"
                       >
                         <div
-                          className="w-5 h-5 rounded-md border border-slate-300 shadow-inner flex-shrink-0"
+                          className="w-5 h-5 rounded-md border border-slate-700 shadow-inner flex-shrink-0"
                           style={{ backgroundColor: hex }}
                         />
-                        <span className="text-[11px] font-mono font-bold text-slate-800">{hex}</span>
-                        <div className="h-3 w-px bg-slate-200 mx-0.5" />
+                        <span className="text-[11px] font-mono font-bold text-slate-200">{hex}</span>
+                        <div className="h-3 w-px bg-slate-800 mx-0.5" />
 
                         {/* Quick apply pills */}
                         <div className="flex items-center gap-1 text-[9px] font-bold">
                           <button
                             type="button"
                             onClick={() => setFormData({ ...formData, collegeNameColor: hex })}
-                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 transition-colors"
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 transition-colors"
                             title="Apply to College Name"
                           >
                             Name
@@ -1227,7 +1350,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             type="button"
                             onClick={() => setFormData({ ...formData, sidebarColor: hex })}
-                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 transition-colors"
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 transition-colors"
                             title="Apply to Sidebar"
                           >
                             Sidebar
@@ -1235,7 +1358,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             type="button"
                             onClick={() => setFormData({ ...formData, ribbonColor: hex })}
-                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 transition-colors"
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 transition-colors"
                             title="Apply to Ribbon"
                           >
                             Ribbon
@@ -1243,7 +1366,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             type="button"
                             onClick={() => setFormData({ ...formData, primaryColor: hex })}
-                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 transition-colors"
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 transition-colors"
                             title="Apply to Header"
                           >
                             Header
@@ -1251,7 +1374,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             type="button"
                             onClick={() => setFormData({ ...formData, collegeHeaderBg: hex })}
-                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-amber-600 hover:text-white text-slate-700 transition-colors"
+                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 transition-colors"
                             title="Apply to College Header Box"
                           >
                             Box
@@ -1261,7 +1384,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                         <button
                           type="button"
                           onClick={() => handleRemoveCustomColor(hex)}
-                          className="text-slate-400 hover:text-red-500 p-0.5 rounded transition-colors ml-1"
+                          className="text-slate-500 hover:text-red-400 p-0.5 rounded transition-colors ml-1"
                           title="Remove preset"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -1271,11 +1394,12 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   </div>
                 </div>
               ) : (
-                <p className="text-[11px] text-slate-400 italic">
+                <p className="text-[11px] text-slate-500 italic">
                   No custom colors added yet. Pick a color above and click "+ Add to Custom Presets" or click "Save" under any color card.
                 </p>
               )}
             </div>
+          </div>
 
             {/* ── HEADER BRANDING & TITLES (کالج کا نام اور پورٹل عنوان ایڈٹ کریں) ── */}
             <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border border-indigo-100/90 shadow-xs space-y-4">
@@ -1481,7 +1605,6 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 </div>
               </div>
             </div>
-          </div>
 
           {/* ── SECTION 2: HERO MEDIA WITH DIRECT PHOTO OR VIDEO UPLOAD ── */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">

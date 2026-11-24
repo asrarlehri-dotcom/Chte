@@ -160,17 +160,17 @@ export default function ThemePresetGallery({
   const allPresets = [...INSTITUTIONAL_PRESETS, ...customPresets];
 
   return (
-    <div className="bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 p-5 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
+    <div className="bg-[#0e1526]/80 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-md space-y-4">
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-sm font-black text-slate-900 tracking-tight">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-black text-slate-100 tracking-tight">
               Saved Portal Themes & Preset Gallery (1-کلک تھیم پریسیٹ گیلری)
             </h3>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-400 mt-0.5">
             Switch entire college portal aesthetic in 1-click, or save current color combination as your institutional theme.
           </p>
         </div>
@@ -183,8 +183,8 @@ export default function ThemePresetGallery({
             disabled={customPresets.length >= 6}
             className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs transition-all ${
               customPresets.length >= 6
-                ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                : "bg-indigo-600 hover:bg-indigo-700 text-white hover:scale-102"
+                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                : "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:scale-102"
             }`}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -192,7 +192,7 @@ export default function ThemePresetGallery({
             <span className="text-[10px] opacity-80">({customPresets.length}/6)</span>
           </button>
         ) : (
-          <form onSubmit={handleSaveSubmit} className="flex items-center gap-2 bg-white p-1 rounded-xl border border-indigo-200 shadow-sm">
+          <form onSubmit={handleSaveSubmit} className="flex items-center gap-2 bg-slate-900 p-1 rounded-xl border border-amber-500/50 shadow-sm">
             <input
               type="text"
               autoFocus
@@ -200,11 +200,11 @@ export default function ThemePresetGallery({
               value={newThemeName}
               onChange={(e) => setNewThemeName(e.target.value)}
               placeholder="e.g. Convocation 2026 Theme"
-              className="px-2.5 py-1 text-xs font-bold text-slate-800 bg-transparent outline-none w-48 sm:w-56"
+              className="px-2.5 py-1 text-xs font-bold text-slate-200 bg-transparent outline-none w-48 sm:w-56"
             />
             <button
               type="submit"
-              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+              className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
             >
               <Check className="w-3 h-3" />
               <span>Save</span>
@@ -215,7 +215,7 @@ export default function ThemePresetGallery({
                 setShowSaveInput(false);
                 setNewThemeName("");
               }}
-              className="px-2 py-1 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              className="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs font-bold"
             >
               ✕
             </button>
@@ -224,14 +224,12 @@ export default function ThemePresetGallery({
       </div>
 
       {/* Preset Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {allPresets.map((preset) => {
           const ribbonStyle = compileFillToStyle(preset.ribbonColor, "#dc2626");
           const headerStyle = compileFillToStyle(preset.primaryColor, "#040d1a");
           const sidebarStyle = compileFillToStyle(preset.sidebarColor, "#090E24");
           const bodyStyle = compileFillToStyle(preset.bodyBgColor, "#070d19");
-          const cardHeaderBgStyle = compileFillToStyle(preset.collegeHeaderBg, "#ffffff");
-
           const isSelected = activePresetId === preset.id;
 
           return (
@@ -241,75 +239,69 @@ export default function ThemePresetGallery({
                 setActivePresetId(preset.id);
                 onApplyTheme(preset);
               }}
-              className={`group relative p-2.5 rounded-2xl bg-white border cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex flex-col justify-between ${
+              className={`group relative p-2.5 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-102 flex flex-col justify-between ${
                 isSelected
-                  ? "border-indigo-600 ring-2 ring-indigo-200 shadow-md"
-                  : "border-slate-200 hover:border-indigo-300"
+                  ? "border-amber-400 bg-amber-500/10 ring-2 ring-amber-400/30 shadow-md"
+                  : "border-slate-800 bg-[#090e1a] hover:border-slate-700"
               }`}
             >
-              {/* Mini Portal Mockup Thumbnail */}
+              {/* Mini Portal Mockup Visualizer */}
               <div
-                className="w-full h-20 rounded-xl overflow-hidden border border-slate-300/80 shadow-inner flex flex-col relative"
+                className="w-full h-16 rounded-lg overflow-hidden border border-slate-700/80 shadow-xs relative flex flex-col mb-2 select-none"
                 style={bodyStyle}
               >
-                {/* 1. Top Ribbon ("Red Patii") */}
-                <div className="h-2 w-full transition-colors flex-shrink-0" style={ribbonStyle} />
+                {/* Top "Red Patii" Ribbon */}
+                <div className="h-1.5 w-full flex-shrink-0" style={ribbonStyle} />
 
-                {/* 2. Top Header Bar */}
+                {/* Primary Header Bar */}
                 <div
-                  className="h-4.5 w-full px-2 flex items-center justify-between border-b border-white/10 flex-shrink-0"
+                  className="h-4 w-full flex items-center justify-between px-1.5 border-b border-black/10 flex-shrink-0"
                   style={headerStyle}
                 >
-                  <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
-                    <div className="w-12 h-1 bg-white/40 rounded-full" />
-                  </div>
-                  <div className="w-6 h-1 bg-white/30 rounded-full" />
+                  <div className="w-8 h-1.5 rounded-full bg-white/40" />
+                  <div className="w-3 h-1.5 rounded-full bg-white/30" />
                 </div>
 
-                {/* 3. Lower Workspace: Left Sidebar + Main Content */}
+                {/* Split: Sidebar + Body Content */}
                 <div className="flex-1 flex overflow-hidden">
-                  {/* Left Sidebar */}
-                  <div className="w-1/3 h-full border-r border-white/10 p-1 flex flex-col gap-0.5" style={sidebarStyle}>
-                    {/* Header Box */}
-                    <div className="h-3 w-full rounded flex items-center px-1" style={cardHeaderBgStyle}>
-                      <span className="w-full text-[6px] font-black truncate block" style={{ color: preset.collegeNameColor || "#0f172a" }}>
-                        GPGCQ
-                      </span>
-                    </div>
-                    <div className="w-3/4 h-1 bg-white/20 rounded mt-0.5" />
-                    <div className="w-1/2 h-1 bg-white/15 rounded" />
+                  <div className="w-6 h-full flex-shrink-0 p-0.5 space-y-0.5" style={sidebarStyle}>
+                    <div className="w-full h-1 rounded-xs bg-white/30" />
+                    <div className="w-3/4 h-1 rounded-xs bg-white/20" />
+                    <div className="w-4/5 h-1 rounded-xs bg-white/20" />
                   </div>
-
-                  {/* Body Content */}
-                  <div className="flex-1 p-1 flex flex-col gap-1 justify-center items-center opacity-80">
-                    <div className="w-3/4 h-1.5 bg-white/20 rounded" />
-                    <div className="w-1/2 h-1 bg-white/15 rounded" />
+                  <div className="flex-1 p-1">
+                    <div className="w-12 h-2 rounded-xs bg-white/10 mb-1" />
+                    <div className="grid grid-cols-2 gap-0.5">
+                      <div className="h-3 rounded-xs bg-white/5" />
+                      <div className="h-3 rounded-xs bg-white/5" />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Title & Metadata */}
-              <div className="mt-2 flex items-center justify-between gap-1">
-                <div className="truncate">
-                  <span className="text-[11px] font-bold text-slate-800 truncate block group-hover:text-indigo-600 transition-colors">
+              {/* Title & Badge */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-200 group-hover:text-amber-300 transition-colors block line-clamp-1">
                     {preset.name}
                   </span>
-                  <span className="text-[9px] text-slate-400 font-medium">
-                    {preset.isSystem ? "Built-in Theme" : "Custom Preset"}
+                  <span className="text-[9px] text-slate-500 font-mono">
+                    {preset.isSystem ? "Official Preset" : "Custom Saved"}
                   </span>
                 </div>
 
-                {/* Delete button for user custom presets */}
+                {/* Delete button for user custom preset */}
                 {!preset.isSystem && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDeleteCustomPreset(preset.id);
+                      if (confirm(`Delete theme preset "${preset.name}"?`)) {
+                        onDeleteCustomPreset(preset.id);
+                      }
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-600 rounded transition-opacity"
-                    title="Delete preset"
+                    className="p-1 text-slate-500 hover:text-red-400 rounded transition-colors"
+                    title="Delete Preset"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>

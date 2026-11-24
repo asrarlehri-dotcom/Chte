@@ -13,7 +13,7 @@ export type GradientConfig = {
   stops: GradientStop[];
 };
 
-export type TextureType = "canvas" | "grid" | "stripes" | "mesh" | "dots" | "paper";
+export type TextureType = "canvas" | "grid" | "stripes" | "mesh" | "dots" | "paper" | "carbon";
 
 export type TextureConfig = {
   type: TextureType;
@@ -100,6 +100,14 @@ export function generatePatternSvg(type: TextureType, patternColor: string, opac
   let size = 20;
 
   switch (type) {
+    case "carbon":
+      size = 12;
+      svgContent = `
+        <rect width="6" height="6" fill="${color}" fill-opacity="${op}" />
+        <rect x="6" y="6" width="6" height="6" fill="${color}" fill-opacity="${op}" />
+        <path d="M0,0 l6,6 M6,0 l6,6 M0,6 l6,6" stroke="${color}" stroke-width="0.8" stroke-opacity="${op}" />
+      `;
+      break;
     case "grid":
       size = 20;
       svgContent = `<path d="M 20 0 L 0 0 0 20" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="${op}" />`;
