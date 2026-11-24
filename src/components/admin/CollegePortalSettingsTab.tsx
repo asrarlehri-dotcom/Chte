@@ -34,6 +34,14 @@ import {
   Eye,
   Undo2
 } from "lucide-react";
+import CorelFillPickerCard from "./CorelFillPickerCard";
+import ThemePresetGallery, { ThemePresetItem, INSTITUTIONAL_PRESETS } from "./ThemePresetGallery";
+import {
+  FillConfig,
+  compileFillToStyle,
+  normalizeFillConfig,
+  getRepresentativeColor,
+} from "@/lib/theme-fill-compiler";
 
 type CollegeOption = {
   id: string;
@@ -85,12 +93,12 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     principalName: "",
 
     // Colors
-    primaryColor: "#040d1a",
-    ribbonColor: "#dc2626", // Red patii
-    bodyBgColor: "#070d19",
-    sidebarColor: "#090E24", // Sidebar ERP background color
+    primaryColor: "#040d1a" as string | FillConfig,
+    ribbonColor: "#dc2626" as string | FillConfig, // Red patii
+    bodyBgColor: "#070d19" as string | FillConfig,
+    sidebarColor: "#090E24" as string | FillConfig, // Sidebar ERP background color
     collegeNameColor: "#0f172a", // Custom College Name font color
-    collegeHeaderBg: "#ffffff", // Custom College Header Box background color
+    collegeHeaderBg: "#ffffff" as string | FillConfig, // Custom College Header Box background color
     portalSubtitle: "CAMPUS ERP PORTAL", // Subtitle under college name in sidebar
     portalSubtitleColor: "#4338ca", // Font color of portal subtitle
     originalLogoUrl: "", // Preserves original unedited logo before background removal
@@ -127,6 +135,17 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     featuredProfiles: [] as FeaturedProfile[],
   });
 
+  // Saved Theme Presets Gallery State
+  const [customPresets, setCustomPresets] = useState<ThemePresetItem[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("college_custom_theme_presets");
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return [];
+  });
+
   // Custom Color Palette State & Helpers
   const [newCustomColor, setNewCustomColor] = useState<string>("#2653FF");
 
@@ -137,13 +156,19 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     return clean;
   };
 
-  const toSafeColor = (val: string, fallback = "#000000"): string => {
-    const clean = normalizeHex(val);
+  const toSafeColor = (val: any, fallback = "#000000"): string => {
+    if (typeof val === "object" && val !== null) {
+      return getRepresentativeColor(val, fallback);
+    }
+    const clean = normalizeHex(String(val || ""));
     return /^#[0-9A-Fa-f]{6}$/.test(clean) ? clean : fallback;
   };
 
-  const handleAddCustomColor = (colorToAdd?: string) => {
-    const color = normalizeHex(colorToAdd || newCustomColor).toUpperCase();
+  const handleAddCustomColor = (colorToAdd?: any) => {
+    const raw = typeof colorToAdd === "object" && colorToAdd !== null
+      ? getRepresentativeColor(colorToAdd, newCustomColor)
+      : (colorToAdd || newCustomColor);
+    const color = normalizeHex(raw).toUpperCase();
     if (!color || !/^#[0-9A-Fa-f]{6}$/.test(color)) return;
     if (!formData.customColors.includes(color)) {
       setFormData((prev) => ({
@@ -161,33 +186,51 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
   };
 
   // Live real-time sync with Sidebar & Global Theme
-  const syncThemeField = (field: string, val: string) => {
-    const cleanVal = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeNameColor", "collegeHeaderBg", "portalSubtitleColor"].includes(field)
-      ? normalizeHex(val)
-      : val;
+  const syncThemeField = (field: string, val: any) => {
+    const isFillField = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeHeaderBg"].includes(field);
+    const cleanVal = isFillField
+      ? (typeof val === "string" ? normalizeHex(val) : val)
+      : (field === "collegeNameColor" || field === "portalSubtitleColor" ? normalizeHex(String(val || "")) : val);
+
     setFormData((prev) => {
       const updated = { ...prev, [field]: cleanVal };
       if (typeof window !== "undefined") {
         try {
-          if (field === "sidebarColor") localStorage.setItem("college_sidebar_active", cleanVal);
-          if (field === "collegeNameColor") localStorage.setItem("college_name_color_active", cleanVal);
-          if (field === "collegeHeaderBg") localStorage.setItem("college_header_bg_active", cleanVal);
-          if (field === "collegeName") localStorage.setItem("college_name_active", cleanVal);
-          if (field === "portalSubtitle") localStorage.setItem("college_subtitle_active", cleanVal);
-          if (field === "portalSubtitleColor") localStorage.setItem("college_subtitle_color_active", cleanVal);
-          if (field === "ribbonColor") localStorage.setItem("college_theme_active", cleanVal);
+          const stringified = typeof cleanVal === "object" ? JSON.stringify(cleanVal) : String(cleanVal);
+          const reprColor = getRepresentativeColor(cleanVal);
+
+          if (field === "sidebarColor") {
+            localStorage.setItem("college_sidebar_active", stringified);
+            localStorage.setItem("college_sidebar_repr", reprColor);
+          }
+          if (field === "collegeNameColor") localStorage.setItem("college_name_color_active", stringified);
+          if (field === "collegeHeaderBg") {
+            localStorage.setItem("college_header_bg_active", stringified);
+            localStorage.setItem("college_header_bg_repr", reprColor);
+          }
+          if (field === "collegeName") localStorage.setItem("college_name_active", stringified);
+          if (field === "portalSubtitle") localStorage.setItem("college_subtitle_active", stringified);
+          if (field === "portalSubtitleColor") localStorage.setItem("college_subtitle_color_active", stringified);
+          if (field === "ribbonColor") {
+            localStorage.setItem("college_theme_active", stringified);
+            localStorage.setItem("college_theme_repr", reprColor);
+          }
 
           if (selectedCollege?.code) {
-            if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, cleanVal);
-            if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, cleanVal);
-            if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, cleanVal);
-            if (field === "collegeName") localStorage.setItem(`college_name_${selectedCollege.code.toLowerCase()}`, cleanVal);
+            const cCode = selectedCollege.code.toLowerCase();
+            if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${cCode}`, stringified);
+            if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${cCode}`, stringified);
+            if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${cCode}`, stringified);
+            if (field === "collegeName") localStorage.setItem(`college_name_${cCode}`, stringified);
+            if (field === "ribbonColor") localStorage.setItem(`college_theme_${cCode}`, stringified);
           }
           if (selectedCollege?.id) {
-            if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, cleanVal);
-            if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, cleanVal);
-            if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, cleanVal);
-            if (field === "collegeName") localStorage.setItem(`college_name_${selectedCollege.id.toLowerCase()}`, cleanVal);
+            const cId = selectedCollege.id.toLowerCase();
+            if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${cId}`, stringified);
+            if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${cId}`, stringified);
+            if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${cId}`, stringified);
+            if (field === "collegeName") localStorage.setItem(`college_name_${cId}`, stringified);
+            if (field === "ribbonColor") localStorage.setItem(`college_theme_${cId}`, stringified);
           }
 
           window.dispatchEvent(new CustomEvent("college-theme-change", {
@@ -205,6 +248,54 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       }
       return updated;
     });
+  };
+
+  // 1-Click Theme Preset Gallery Actions
+  const handleApplyTheme = (preset: ThemePresetItem) => {
+    syncThemeField("ribbonColor", preset.ribbonColor);
+    syncThemeField("primaryColor", preset.primaryColor);
+    syncThemeField("bodyBgColor", preset.bodyBgColor);
+    syncThemeField("sidebarColor", preset.sidebarColor);
+    syncThemeField("collegeNameColor", preset.collegeNameColor);
+    syncThemeField("collegeHeaderBg", preset.collegeHeaderBg);
+    if (preset.portalSubtitle) syncThemeField("portalSubtitle", preset.portalSubtitle);
+    if (preset.portalSubtitleColor) syncThemeField("portalSubtitleColor", preset.portalSubtitleColor);
+    setMsg({ type: "success", text: `✨ 1-Click Theme Applied: "${preset.name}"` });
+  };
+
+  const handleSaveCustomPreset = (name: string) => {
+    const newPreset: ThemePresetItem = {
+      id: "custom-" + Date.now(),
+      name,
+      isSystem: false,
+      ribbonColor: formData.ribbonColor,
+      primaryColor: formData.primaryColor,
+      bodyBgColor: formData.bodyBgColor,
+      sidebarColor: formData.sidebarColor,
+      collegeNameColor: formData.collegeNameColor,
+      collegeHeaderBg: formData.collegeHeaderBg,
+      portalSubtitle: formData.portalSubtitle,
+      portalSubtitleColor: formData.portalSubtitleColor,
+    };
+    const updated = [newPreset, ...customPresets.filter((p) => p.name !== name).slice(0, 5)];
+    setCustomPresets(updated);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("college_custom_theme_presets", JSON.stringify(updated));
+      } catch {}
+    }
+    setMsg({ type: "success", text: `Theme preset "${name}" saved to your institutional preset gallery!` });
+  };
+
+  const handleDeleteCustomPreset = (id: string) => {
+    const updated = customPresets.filter((p) => p.id !== id);
+    setCustomPresets(updated);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("college_custom_theme_presets", JSON.stringify(updated));
+      } catch {}
+    }
+    setMsg({ type: "success", text: "Custom preset removed." });
   };
 
   // Logo Background Remover State (MS Word Style)
@@ -561,6 +652,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               }
             ]
         });
+        if (Array.isArray(data.themePresets) && data.themePresets.length > 0) {
+          setCustomPresets(data.themePresets);
+        }
       })
       .catch((err) => console.error("Error loading portal settings:", err))
       .finally(() => setLoading(false));
@@ -592,6 +686,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       portalSubtitleColor: formData.portalSubtitleColor,
       originalLogoUrl: formData.originalLogoUrl,
       customColors: formData.customColors,
+      themePresets: customPresets,
 
       heroBgType: formData.heroBgType,
       heroBgUrl: formData.heroImages?.[0] || formData.heroBgUrl,
@@ -630,20 +725,24 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
         setMsg({ type: "success", text: "College Portal, Photos, Videos & Featured Profiles saved successfully!" });
         if (typeof window !== "undefined" && selectedCollege) {
           try {
+            const ribbonStr = typeof formData.ribbonColor === "object" ? JSON.stringify(formData.ribbonColor) : String(formData.ribbonColor);
+            const sidebarStr = typeof formData.sidebarColor === "object" ? JSON.stringify(formData.sidebarColor) : String(formData.sidebarColor);
+            const headerBgStr = typeof formData.collegeHeaderBg === "object" ? JSON.stringify(formData.collegeHeaderBg) : String(formData.collegeHeaderBg);
+
             if (selectedCollege.code) {
-              localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, formData.ribbonColor);
-              localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, formData.sidebarColor);
+              localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, ribbonStr);
+              localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, sidebarStr);
               localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, formData.collegeNameColor);
-              localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, formData.collegeHeaderBg);
+              localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, headerBgStr);
               localStorage.setItem(`college_name_${selectedCollege.code.toLowerCase()}`, formData.collegeName);
               localStorage.setItem(`college_subtitle_${selectedCollege.code.toLowerCase()}`, formData.portalSubtitle);
               localStorage.setItem(`college_subtitle_color_${selectedCollege.code.toLowerCase()}`, formData.portalSubtitleColor);
             }
             if (selectedCollege.id) {
-              localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, formData.ribbonColor);
-              localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, formData.sidebarColor);
+              localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, ribbonStr);
+              localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, sidebarStr);
               localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, formData.collegeNameColor);
-              localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, formData.collegeHeaderBg);
+              localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, headerBgStr);
               localStorage.setItem(`college_name_${selectedCollege.id.toLowerCase()}`, formData.collegeName);
               localStorage.setItem(`college_subtitle_${selectedCollege.id.toLowerCase()}`, formData.portalSubtitle);
               localStorage.setItem(`college_subtitle_color_${selectedCollege.id.toLowerCase()}`, formData.portalSubtitleColor);
@@ -780,7 +879,15 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
           {selectedCollege && (
             <a
-              href={`/colleges/${selectedCollege.code.toLowerCase()}${formData.ribbonColor ? `?theme=${encodeURIComponent(formData.ribbonColor)}` : ""}`}
+              href={`/colleges/${selectedCollege.code.toLowerCase()}${
+                formData.ribbonColor
+                  ? `?theme=${encodeURIComponent(
+                      typeof formData.ribbonColor === "object"
+                        ? JSON.stringify(formData.ribbonColor)
+                        : formData.ribbonColor
+                    )}`
+                  : ""
+              }`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs hover:scale-105"
@@ -809,7 +916,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           <div
             className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-3"
             style={{
-              borderColor: formData.ribbonColor || "#dc2626",
+              borderColor: toSafeColor(formData.ribbonColor, "#dc2626"),
               borderTopColor: "transparent"
             }}
           />
@@ -829,339 +936,103 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             </div>
 
+            {/* ── 1-CLICK THEME PRESET GALLERY (1-کلک تھیم پریسیٹ گیلری) ── */}
+            <ThemePresetGallery
+              currentTheme={{
+                ribbonColor: formData.ribbonColor,
+                primaryColor: formData.primaryColor,
+                bodyBgColor: formData.bodyBgColor,
+                sidebarColor: formData.sidebarColor,
+                collegeNameColor: formData.collegeNameColor,
+                collegeHeaderBg: formData.collegeHeaderBg,
+                portalSubtitle: formData.portalSubtitle,
+                portalSubtitleColor: formData.portalSubtitleColor,
+              }}
+              customPresets={customPresets}
+              onApplyTheme={handleApplyTheme}
+              onSaveCustomPreset={handleSaveCustomPreset}
+              onDeleteCustomPreset={handleDeleteCustomPreset}
+            />
+
+            {/* ── 6 CONFIGURATION CARDS (COREL-DRAW 4-MODE FILL ENGINE) ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-              {/* Color 1: Ribbon Bar ("Red Patii") */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-800">
-                      Ribbon Color ("Red Patii" / سُرخ پٹی)
-                    </label>
-                    <div
-                      className="w-6 h-6 rounded-md border border-slate-300 shadow-inner flex-shrink-0"
-                      style={{ backgroundColor: toSafeColor(formData.ribbonColor, "#dc2626") }}
-                    />
-                  </div>
+              {/* Card 1: Ribbon Color ("Red Patii" / سُرخ پٹی) */}
+              <CorelFillPickerCard
+                cardId="ribbonColor"
+                title='Ribbon Color ("Red Patii")'
+                subtitleUrdu="سُرخ پٹی (ٹاپ ایکسنٹ ربن)"
+                value={formData.ribbonColor}
+                onChange={(val) => syncThemeField("ribbonColor", val)}
+                defaultColor="#dc2626"
+                quickPresets={[
+                  { name: "Red", hex: "#dc2626" },
+                  { name: "Crimson", hex: "#991b1b" },
+                  { name: "Green", hex: "#0c5938" },
+                  { name: "Navy", hex: "#1e3a8a" },
+                  { name: "Purple", hex: "#7c3aed" },
+                  { name: "Gold", hex: "#d97706" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
 
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={toSafeColor(formData.ribbonColor, "#dc2626")}
-                      onChange={(e) => setFormData({ ...formData, ribbonColor: e.target.value })}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 bg-transparent p-0.5 flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      value={formData.ribbonColor}
-                      onChange={(e) => setFormData({ ...formData, ribbonColor: normalizeHex(e.target.value) })}
-                      placeholder="#dc2626"
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800"
-                    />
-                  </div>
-                </div>
+              {/* Card 2: Primary / Header Color */}
+              <CorelFillPickerCard
+                cardId="primaryColor"
+                title="Primary / Header Color"
+                subtitleUrdu="مین ہیڈر کا رنگ"
+                value={formData.primaryColor}
+                onChange={(val) => syncThemeField("primaryColor", val)}
+                defaultColor="#040d1a"
+                quickPresets={[
+                  { name: "Deep Navy", hex: "#040d1a" },
+                  { name: "Slate 900", hex: "#0f172a" },
+                  { name: "Forest", hex: "#083b25" },
+                  { name: "Midnight", hex: "#081329" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
 
-                {/* Quick Presets for Ribbon */}
-                <div className="pt-2 border-t border-slate-200/70">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Quick Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomColor(formData.ribbonColor)}
-                      className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
-                      title="Save current color into custom presets"
-                    >
-                      <Plus className="w-2.5 h-2.5" /> Save
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { name: "Red", hex: "#dc2626" },
-                      { name: "Crimson", hex: "#991b1b" },
-                      { name: "Green", hex: "#0c5938" },
-                      { name: "Navy", hex: "#1e3a8a" },
-                      { name: "Purple", hex: "#7c3aed" },
-                      { name: "Gold", hex: "#d97706" },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, ribbonColor: c.hex })}
-                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white shadow-xs hover:scale-105 transition-transform"
-                        style={{ backgroundColor: c.hex }}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
+              {/* Card 3: Body Background Color */}
+              <CorelFillPickerCard
+                cardId="bodyBgColor"
+                title="Body Background Color"
+                subtitleUrdu="پورٹل کا عمومی پس منظر"
+                value={formData.bodyBgColor}
+                onChange={(val) => syncThemeField("bodyBgColor", val)}
+                defaultColor="#070d19"
+                quickPresets={[
+                  { name: "Dark Theme", hex: "#070d19" },
+                  { name: "Midnight", hex: "#0a1128" },
+                  { name: "Light Theme", hex: "#f8fafc" },
+                  { name: "Pure White", hex: "#ffffff" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
 
-                  {formData.customColors.length > 0 && (
-                    <div className="mt-2 pt-1.5 border-t border-slate-200">
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase block mb-1">My Saved Presets:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.customColors.map((hex) => (
-                          <button
-                            key={hex}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, ribbonColor: hex })}
-                            className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
-                            style={{ backgroundColor: hex }}
-                            title={`Apply ${hex} to Ribbon`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Card 4: Sidebar Background (سائیڈ بار رنگ) */}
+              <CorelFillPickerCard
+                cardId="sidebarColor"
+                title="Sidebar Background"
+                subtitleUrdu="سائیڈ بار رنگ (ERP مینیو)"
+                value={formData.sidebarColor}
+                onChange={(val) => syncThemeField("sidebarColor", val)}
+                defaultColor="#090E24"
+                quickPresets={[
+                  { name: "Navy", hex: "#090E24" },
+                  { name: "Slate 900", hex: "#0f172a" },
+                  { name: "Emerald", hex: "#064e3b" },
+                  { name: "Indigo", hex: "#1e1b4b" },
+                  { name: "Midnight", hex: "#020617" },
+                  { name: "Burgundy", hex: "#450a0a" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
 
-              {/* Color 2: Primary / Header Color */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-800">
-                      Primary / Header Color
-                    </label>
-                    <div
-                      className="w-6 h-6 rounded-md border border-slate-300 shadow-inner flex-shrink-0"
-                      style={{ backgroundColor: toSafeColor(formData.primaryColor, "#040d1a") }}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={toSafeColor(formData.primaryColor, "#040d1a")}
-                      onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 bg-transparent p-0.5 flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      value={formData.primaryColor}
-                      onChange={(e) => setFormData({ ...formData, primaryColor: normalizeHex(e.target.value) })}
-                      placeholder="#040d1a"
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800"
-                    />
-                  </div>
-                </div>
-
-                {/* Quick Presets for Header */}
-                <div className="pt-2 border-t border-slate-200/70">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Quick Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomColor(formData.primaryColor)}
-                      className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
-                      title="Save current color into custom presets"
-                    >
-                      <Plus className="w-2.5 h-2.5" /> Save
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { name: "Deep Navy", hex: "#040d1a" },
-                      { name: "Slate 900", hex: "#0f172a" },
-                      { name: "Forest", hex: "#083b25" },
-                      { name: "Midnight", hex: "#081329" },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, primaryColor: c.hex })}
-                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white shadow-xs hover:scale-105 transition-transform"
-                        style={{ backgroundColor: c.hex }}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {formData.customColors.length > 0 && (
-                    <div className="mt-2 pt-1.5 border-t border-slate-200">
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase block mb-1">My Saved Presets:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.customColors.map((hex) => (
-                          <button
-                            key={hex}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, primaryColor: hex })}
-                            className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
-                            style={{ backgroundColor: hex }}
-                            title={`Apply ${hex} to Header`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Color 3: Body Background Color */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-800">
-                      Body Background Color
-                    </label>
-                    <div
-                      className="w-6 h-6 rounded-md border border-slate-300 shadow-inner flex-shrink-0"
-                      style={{ backgroundColor: toSafeColor(formData.bodyBgColor, "#070d19") }}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={toSafeColor(formData.bodyBgColor, "#070d19")}
-                      onChange={(e) => setFormData({ ...formData, bodyBgColor: e.target.value })}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 bg-transparent p-0.5 flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      value={formData.bodyBgColor}
-                      onChange={(e) => setFormData({ ...formData, bodyBgColor: normalizeHex(e.target.value) })}
-                      placeholder="#070d19"
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800"
-                    />
-                  </div>
-                </div>
-
-                {/* Quick Presets for Body */}
-                <div className="pt-2 border-t border-slate-200/70">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Quick Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomColor(formData.bodyBgColor)}
-                      className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
-                      title="Save current color into custom presets"
-                    >
-                      <Plus className="w-2.5 h-2.5" /> Save
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { name: "Dark Theme", hex: "#070d19" },
-                      { name: "Midnight", hex: "#0a1128" },
-                      { name: "Light Theme", hex: "#f8fafc" },
-                      { name: "Pure White", hex: "#ffffff" },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, bodyBgColor: c.hex })}
-                        className="px-2 py-1 rounded-md text-[10px] font-bold text-slate-800 bg-white border border-slate-300 shadow-xs hover:scale-105 transition-transform"
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {formData.customColors.length > 0 && (
-                    <div className="mt-2 pt-1.5 border-t border-slate-200">
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase block mb-1">My Saved Presets:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.customColors.map((hex) => (
-                          <button
-                            key={hex}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, bodyBgColor: hex })}
-                            className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
-                            style={{ backgroundColor: hex }}
-                            title={`Apply ${hex} to Body`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Color 4: Sidebar Background Color (سائیڈ بار رنگ) */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-slate-800">
-                      Sidebar Background (سائیڈ بار رنگ)
-                    </label>
-                    <div
-                      className="w-6 h-6 rounded-md border border-slate-300 shadow-inner flex-shrink-0"
-                      style={{ backgroundColor: toSafeColor(formData.sidebarColor, "#090E24") }}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={toSafeColor(formData.sidebarColor, "#090E24")}
-                      onChange={(e) => syncThemeField("sidebarColor", e.target.value)}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200 bg-transparent p-0.5 flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      value={formData.sidebarColor}
-                      onChange={(e) => syncThemeField("sidebarColor", e.target.value)}
-                      placeholder="#090E24"
-                      className="flex-1 bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800"
-                    />
-                  </div>
-                </div>
-
-                {/* Quick Presets for Sidebar */}
-                <div className="pt-2 border-t border-slate-200/70">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Quick Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomColor(formData.sidebarColor)}
-                      className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
-                      title="Save current color into custom presets"
-                    >
-                      <Plus className="w-2.5 h-2.5" /> Save
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { name: "Navy", hex: "#090E24" },
-                      { name: "Slate 900", hex: "#0f172a" },
-                      { name: "Emerald", hex: "#064e3b" },
-                      { name: "Indigo", hex: "#1e1b4b" },
-                      { name: "Midnight", hex: "#020617" },
-                      { name: "Burgundy", hex: "#450a0a" },
-                    ].map((c) => (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => syncThemeField("sidebarColor", c.hex)}
-                        className="px-2 py-1 rounded-md text-[10px] font-bold text-white shadow-xs hover:scale-105 transition-transform"
-                        style={{ backgroundColor: c.hex }}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {formData.customColors.length > 0 && (
-                    <div className="mt-2 pt-1.5 border-t border-slate-200">
-                      <span className="text-[9px] font-bold text-indigo-700 uppercase block mb-1">My Saved Presets:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.customColors.map((hex) => (
-                          <button
-                            key={hex}
-                            type="button"
-                            onClick={() => syncThemeField("sidebarColor", hex)}
-                            className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
-                            style={{ backgroundColor: hex }}
-                            title={`Apply ${hex} to Sidebar`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Color 5: College Name Color (کالج کے نام کا رنگ) */}
+              {/* Card 5: College Name Color (کالج کے نام کا رنگ) - Preserved Clean Solid Text Color Picker */}
               <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-200 space-y-3 flex flex-col justify-between shadow-xs">
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -1220,8 +1091,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                         key={c.hex}
                         type="button"
                         onClick={() => syncThemeField("collegeNameColor", c.hex)}
-                        className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-xs hover:scale-105 transition-transform ${c.hex === "#ffffff" ? "text-slate-900 border border-slate-300" : "text-white"
-                          }`}
+                        className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-xs hover:scale-105 transition-transform ${
+                          c.hex === "#ffffff" ? "text-slate-900 border border-slate-300" : "text-white"
+                        }`}
                         style={{ backgroundColor: c.hex }}
                       >
                         {c.name}
@@ -1249,92 +1121,26 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 </div>
               </div>
 
-              {/* Color 6: College Header / Box Background (کالج باکس کا پس منظر / رنگ) */}
-              <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 space-y-3 flex flex-col justify-between shadow-xs">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-black text-amber-950 flex items-center gap-1">
-                      <span>College Header Bg</span>
-                      <span className="text-[10px] text-amber-700 font-bold">(باکس بیک گراؤنڈ)</span>
-                    </label>
-                    <div
-                      className="w-6 h-6 rounded-md border border-amber-300 shadow-inner flex-shrink-0"
-                      style={{ backgroundColor: toSafeColor(formData.collegeHeaderBg, "#ffffff") }}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={toSafeColor(formData.collegeHeaderBg, "#ffffff")}
-                      onChange={(e) => syncThemeField("collegeHeaderBg", e.target.value)}
-                      className="w-10 h-10 rounded-lg cursor-pointer border border-amber-200 bg-transparent p-0.5 flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      value={formData.collegeHeaderBg}
-                      onChange={(e) => syncThemeField("collegeHeaderBg", e.target.value)}
-                      placeholder="#ffffff"
-                      className="flex-1 bg-white border border-amber-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-amber-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Quick Presets for College Header Bg */}
-                <div className="pt-2 border-t border-amber-100">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold text-amber-600 uppercase">Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddCustomColor(formData.collegeHeaderBg)}
-                      className="text-[9px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-0.5"
-                      title="Save current color into custom presets"
-                    >
-                      <Plus className="w-2.5 h-2.5" /> Save
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { name: "White", hex: "#ffffff" },
-                      { name: "Slate 100", hex: "#f1f5f9" },
-                      { name: "Sidebar", hex: formData.sidebarColor || "#090E24" },
-                      { name: "Navy", hex: "#1e3a8a" },
-                      { name: "Emerald", hex: "#0c5938" },
-                      { name: "Crimson", hex: "#991b1b" },
-                      { name: "Gold", hex: "#d97706" },
-                    ].map((c) => (
-                      <button
-                        key={c.name}
-                        type="button"
-                        onClick={() => syncThemeField("collegeHeaderBg", c.hex)}
-                        className={`px-2 py-1 rounded-md text-[10px] font-bold shadow-xs hover:scale-105 transition-transform ${c.hex === "#ffffff" || c.hex === "#f1f5f9" ? "text-slate-900 border border-slate-300 bg-white" : "text-white"
-                          }`}
-                        style={{ backgroundColor: c.hex }}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {formData.customColors.length > 0 && (
-                    <div className="mt-2 pt-1.5 border-t border-amber-200">
-                      <span className="text-[9px] font-bold text-amber-800 uppercase block mb-1">My Saved Presets:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.customColors.map((hex) => (
-                          <button
-                            key={hex}
-                            type="button"
-                            onClick={() => syncThemeField("collegeHeaderBg", hex)}
-                            className="w-5 h-5 rounded-md border border-slate-300 shadow-xs hover:scale-115 transition-transform"
-                            style={{ backgroundColor: hex }}
-                            title={`Apply ${hex} to College Header Bg`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Card 6: College Header Bg (ہیڈر بیک گراؤنڈ) */}
+              <CorelFillPickerCard
+                cardId="collegeHeaderBg"
+                title="College Header Bg"
+                subtitleUrdu="لوگو و نام باکس کا پس منظر"
+                value={formData.collegeHeaderBg}
+                onChange={(val) => syncThemeField("collegeHeaderBg", val)}
+                defaultColor="#ffffff"
+                quickPresets={[
+                  { name: "White", hex: "#ffffff" },
+                  { name: "Slate 100", hex: "#f1f5f9" },
+                  { name: "Sidebar", hex: getRepresentativeColor(formData.sidebarColor, "#090E24") },
+                  { name: "Navy", hex: "#1e3a8a" },
+                  { name: "Emerald", hex: "#0c5938" },
+                  { name: "Crimson", hex: "#991b1b" },
+                  { name: "Gold", hex: "#d97706" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
             </div>
 
             {/* Dedicated Custom Color Palette Manager */}
@@ -1554,14 +1360,14 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   <span>🎨 Live Sidebar Preview (Custom Header Box + Theme Colors)</span>
                 </span>
                 <span className="text-[10px] font-mono font-bold text-slate-500">
-                  Header Bg: {formData.collegeHeaderBg || "#FFFFFF"} • Name: <span style={{ color: toSafeColor(formData.collegeNameColor, "#0f172a") }}>{formData.collegeNameColor || "#0f172a"}</span> • Sidebar: {formData.sidebarColor}
+                  Header Bg: {toSafeColor(formData.collegeHeaderBg, "#FFFFFF")} • Name: <span style={{ color: toSafeColor(formData.collegeNameColor, "#0f172a") }}>{formData.collegeNameColor || "#0f172a"}</span> • Sidebar: {toSafeColor(formData.sidebarColor, "#090E24")}
                 </span>
               </div>
               <div className="max-w-xs rounded-2xl overflow-hidden shadow-lg border border-slate-300">
                 {/* Dynamic Logo & Full Name Header Box */}
                 <div
                   className="px-4 py-3 border-b border-slate-200 flex items-center gap-3 transition-colors duration-200"
-                  style={{ backgroundColor: formData.collegeHeaderBg || "#ffffff" }}
+                  style={compileFillToStyle(formData.collegeHeaderBg, "#ffffff")}
                 >
                   {formData.logoUrl ? (
                     <img
@@ -1598,7 +1404,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 {/* Custom-Colored Sidebar Body */}
                 <div
                   className="p-3.5 space-y-2 text-xs transition-colors duration-200"
-                  style={{ backgroundColor: formData.sidebarColor }}
+                  style={compileFillToStyle(formData.sidebarColor, "#090E24")}
                 >
                   <div className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-sm flex items-center justify-between">
                     <span>📊 Dashboard</span>
@@ -3012,7 +2818,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       style={{
                         backgroundColor:
                           bgPreviewTab === "theme"
-                            ? (formData.collegeHeaderBg || "#ffffff")
+                            ? toSafeColor(formData.collegeHeaderBg, "#ffffff")
                             : bgPreviewTab === "dark"
                               ? "#090E24"
                               : bgPreviewTab === "white"

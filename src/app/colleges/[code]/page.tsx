@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { compileFillToStyle } from "@/lib/theme-fill-compiler";
 import {
   GraduationCap,
   Users,
@@ -84,12 +85,12 @@ type PortalSettings = {
   heroImgZoom?: number;
   heroImgPosX?: number;
   heroImgPosY?: number;
-  primaryColor: string;
-  ribbonColor: string; // The "red patii"
-  bodyBgColor: string;
-  sidebarBgColor?: string;
+  primaryColor: any;
+  ribbonColor: any; // The "red patii"
+  bodyBgColor: any;
+  sidebarBgColor?: any;
   collegeNameColor?: string;
-  collegeHeaderBg?: string;
+  collegeHeaderBg?: any;
   portalSubtitle?: string;
   portalSubtitleColor?: string;
   originalLogoUrl?: string;
@@ -313,12 +314,12 @@ export default function CollegePortalHomePage() {
   return (
     <div
       className="min-h-screen text-slate-100 font-sans selection:bg-red-600 selection:text-white"
-      style={{ backgroundColor: s.bodyBgColor || "#070d19" }}
+      style={compileFillToStyle(s.bodyBgColor, "#070d19")}
     >
       {/* ── 1. TOP NAV BAR (DARK NAVY / PRIMARY) ── */}
       <div
         className="text-white text-xs font-bold py-2 px-4 sm:px-8 border-b border-white/10"
-        style={{ backgroundColor: s.primaryColor || "#040d1a" }}
+        style={compileFillToStyle(s.primaryColor, "#040d1a")}
       >
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
           {/* Top Left Nav Links */}
@@ -373,7 +374,7 @@ export default function CollegePortalHomePage() {
       {/* ── 2. "RED PATII" (ACCENT RIBBON / SUB-BAR) ── */}
       <div
         className="text-white text-xs py-2 px-4 sm:px-8 shadow-sm transition-colors"
-        style={{ backgroundColor: s.ribbonColor || "#dc2626" }}
+        style={compileFillToStyle(s.ribbonColor, "#dc2626")}
       >
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* Ribbon Links */}
@@ -515,7 +516,7 @@ export default function CollegePortalHomePage() {
             <Link
               href={loginUrl}
               className="inline-flex items-center gap-2 px-4.5 py-2.5 rounded-xl text-white text-xs font-black shadow-lg hover:scale-105 active:scale-95 transition-all"
-              style={{ backgroundColor: s.ribbonColor || "#dc2626" }}
+              style={compileFillToStyle(s.ribbonColor, "#dc2626")}
             >
               <LogIn className="w-4 h-4" />
               <span>Login to CMS</span>
@@ -664,7 +665,7 @@ export default function CollegePortalHomePage() {
             <Link
               href={admissionUrl}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl text-white font-black text-sm shadow-xl hover:scale-105 transition-all"
-              style={{ backgroundColor: s.ribbonColor || "#dc2626" }}
+              style={compileFillToStyle(s.ribbonColor, "#dc2626")}
             >
               <GraduationCap className="w-4.5 h-4.5" />
               <span>Apply for Online Admission</span>

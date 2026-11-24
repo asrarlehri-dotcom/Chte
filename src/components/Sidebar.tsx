@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
 import { useSettings } from "@/lib/useSettings";
+import { compileFillToStyle } from "@/lib/theme-fill-compiler";
 import {
   LayoutDashboard,
   UserPlus,
@@ -556,7 +557,7 @@ export function Sidebar() {
   return (
     <aside
       className="flex flex-col w-64 text-slate-100 h-screen border-r border-white/10 select-none shadow-2xl z-30 flex-shrink-0 print:hidden transition-colors duration-300"
-      style={{ backgroundColor: isCentral ? "#090E24" : sidebarBgColor }}
+      style={isCentral ? { backgroundColor: "#090E24" } : compileFillToStyle(sidebarBgColor, "#090E24")}
     >
       {/* Top Header Logo */}
       {isCentral ? (
@@ -597,7 +598,7 @@ export function Sidebar() {
         /* College Campus Header with Custom Background and Full Name */
         <div 
           className="px-4 py-3.5 border-b border-white/10 flex items-center gap-3 shadow-xs transition-colors duration-200"
-          style={{ backgroundColor: collegeHeaderBg || "#ffffff" }}
+          style={compileFillToStyle(collegeHeaderBg, "#ffffff")}
         >
           {collegeLogo ? (
             <img
