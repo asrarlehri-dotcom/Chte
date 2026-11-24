@@ -42,6 +42,8 @@ import {
   compileFillToTextStyle,
   normalizeFillConfig,
   getRepresentativeColor,
+  MS_WORD_COLOR_PALETTE,
+  TypographyConfig,
 } from "@/lib/theme-fill-compiler";
 
 type CollegeOption = {
@@ -99,6 +101,14 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     bodyBgColor: "#070d19" as string | FillConfig,
     sidebarColor: "#090E24" as string | FillConfig, // Sidebar ERP background color
     collegeNameColor: "#0f172a", // Custom College Name font color
+    collegeFontFamily: "'Times New Roman', Times, serif",
+    collegeFontWeight: "700",
+    collegeFontStyle: "normal" as "normal" | "italic",
+    collegeTextDecoration: "none" as "none" | "underline",
+    collegeTextTransform: "uppercase" as "uppercase" | "capitalize" | "lowercase" | "none",
+    collegeLetterSpacing: "0.05em",
+    collegeFontSize: "13px",
+    collegeTextShadow: "none",
     collegeHeaderBg: "#ffffff" as string | FillConfig, // Custom College Header Box background color
     portalSubtitle: "CAMPUS ERP PORTAL", // Subtitle under college name in sidebar
     portalSubtitleColor: "#4338ca", // Font color of portal subtitle
@@ -603,6 +613,14 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           bodyBgColor: data.bodyBgColor || "#070d19",
           sidebarColor: data.sidebarColor || "#090E24",
           collegeNameColor: data.collegeNameColor || "#0f172a",
+          collegeFontFamily: data.collegeFontFamily || "'Times New Roman', Times, serif",
+          collegeFontWeight: data.collegeFontWeight || "700",
+          collegeFontStyle: data.collegeFontStyle || "normal",
+          collegeTextDecoration: data.collegeTextDecoration || "none",
+          collegeTextTransform: data.collegeTextTransform || "uppercase",
+          collegeLetterSpacing: data.collegeLetterSpacing || "0.05em",
+          collegeFontSize: data.collegeFontSize || "13px",
+          collegeTextShadow: data.collegeTextShadow || "none",
           collegeHeaderBg: data.collegeHeaderBg || "#ffffff",
           portalSubtitle: data.portalSubtitle || "CAMPUS ERP PORTAL",
           portalSubtitleColor: data.portalSubtitleColor || "#4338ca",
@@ -732,22 +750,40 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             const nameColorStr = typeof formData.collegeNameColor === "object" ? JSON.stringify(formData.collegeNameColor) : String(formData.collegeNameColor);
 
             if (selectedCollege.code) {
-              localStorage.setItem(`college_theme_${selectedCollege.code.toLowerCase()}`, ribbonStr);
-              localStorage.setItem(`college_sidebar_${selectedCollege.code.toLowerCase()}`, sidebarStr);
-              localStorage.setItem(`college_name_color_${selectedCollege.code.toLowerCase()}`, nameColorStr);
-              localStorage.setItem(`college_header_bg_${selectedCollege.code.toLowerCase()}`, headerBgStr);
-              localStorage.setItem(`college_name_${selectedCollege.code.toLowerCase()}`, formData.collegeName);
-              localStorage.setItem(`college_subtitle_${selectedCollege.code.toLowerCase()}`, formData.portalSubtitle);
-              localStorage.setItem(`college_subtitle_color_${selectedCollege.code.toLowerCase()}`, formData.portalSubtitleColor);
+              const cCode = selectedCollege.code.toLowerCase();
+              localStorage.setItem(`college_theme_${cCode}`, ribbonStr);
+              localStorage.setItem(`college_sidebar_${cCode}`, sidebarStr);
+              localStorage.setItem(`college_name_color_${cCode}`, nameColorStr);
+              localStorage.setItem(`college_header_bg_${cCode}`, headerBgStr);
+              localStorage.setItem(`college_name_${cCode}`, formData.collegeName);
+              localStorage.setItem(`college_subtitle_${cCode}`, formData.portalSubtitle);
+              localStorage.setItem(`college_subtitle_color_${cCode}`, formData.portalSubtitleColor);
+              localStorage.setItem(`college_font_family_${cCode}`, formData.collegeFontFamily || "");
+              localStorage.setItem(`college_font_weight_${cCode}`, formData.collegeFontWeight || "");
+              localStorage.setItem(`college_font_style_${cCode}`, formData.collegeFontStyle || "");
+              localStorage.setItem(`college_text_decoration_${cCode}`, formData.collegeTextDecoration || "");
+              localStorage.setItem(`college_text_transform_${cCode}`, formData.collegeTextTransform || "");
+              localStorage.setItem(`college_letter_spacing_${cCode}`, formData.collegeLetterSpacing || "");
+              localStorage.setItem(`college_font_size_${cCode}`, formData.collegeFontSize || "");
+              localStorage.setItem(`college_text_shadow_${cCode}`, formData.collegeTextShadow || "");
             }
             if (selectedCollege.id) {
-              localStorage.setItem(`college_theme_${selectedCollege.id.toLowerCase()}`, ribbonStr);
-              localStorage.setItem(`college_sidebar_${selectedCollege.id.toLowerCase()}`, sidebarStr);
-              localStorage.setItem(`college_name_color_${selectedCollege.id.toLowerCase()}`, nameColorStr);
-              localStorage.setItem(`college_header_bg_${selectedCollege.id.toLowerCase()}`, headerBgStr);
-              localStorage.setItem(`college_name_${selectedCollege.id.toLowerCase()}`, formData.collegeName);
-              localStorage.setItem(`college_subtitle_${selectedCollege.id.toLowerCase()}`, formData.portalSubtitle);
-              localStorage.setItem(`college_subtitle_color_${selectedCollege.id.toLowerCase()}`, formData.portalSubtitleColor);
+              const cId = selectedCollege.id.toLowerCase();
+              localStorage.setItem(`college_theme_${cId}`, ribbonStr);
+              localStorage.setItem(`college_sidebar_${cId}`, sidebarStr);
+              localStorage.setItem(`college_name_color_${cId}`, nameColorStr);
+              localStorage.setItem(`college_header_bg_${cId}`, headerBgStr);
+              localStorage.setItem(`college_name_${cId}`, formData.collegeName);
+              localStorage.setItem(`college_subtitle_${cId}`, formData.portalSubtitle);
+              localStorage.setItem(`college_subtitle_color_${cId}`, formData.portalSubtitleColor);
+              localStorage.setItem(`college_font_family_${cId}`, formData.collegeFontFamily || "");
+              localStorage.setItem(`college_font_weight_${cId}`, formData.collegeFontWeight || "");
+              localStorage.setItem(`college_font_style_${cId}`, formData.collegeFontStyle || "");
+              localStorage.setItem(`college_text_decoration_${cId}`, formData.collegeTextDecoration || "");
+              localStorage.setItem(`college_text_transform_${cId}`, formData.collegeTextTransform || "");
+              localStorage.setItem(`college_letter_spacing_${cId}`, formData.collegeLetterSpacing || "");
+              localStorage.setItem(`college_font_size_${cId}`, formData.collegeFontSize || "");
+              localStorage.setItem(`college_text_shadow_${cId}`, formData.collegeTextShadow || "");
             }
             window.dispatchEvent(new CustomEvent("college-theme-change", {
               detail: {
@@ -757,6 +793,14 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 collegeName: formData.collegeName,
                 portalSubtitle: formData.portalSubtitle,
                 portalSubtitleColor: formData.portalSubtitleColor,
+                collegeFontFamily: formData.collegeFontFamily,
+                collegeFontWeight: formData.collegeFontWeight,
+                collegeFontStyle: formData.collegeFontStyle,
+                collegeTextDecoration: formData.collegeTextDecoration,
+                collegeTextTransform: formData.collegeTextTransform,
+                collegeLetterSpacing: formData.collegeLetterSpacing,
+                collegeFontSize: formData.collegeFontSize,
+                collegeTextShadow: formData.collegeTextShadow,
               }
             }));
           } catch { }
@@ -1203,25 +1247,54 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 onAddCustomColor={handleAddCustomColor}
               />
 
-              {/* Card 6: College Name Color (کالج کے نام کا رنگ - Typography Text Color) */}
+              {/* Card 6: College Name & Font Style (کالج کے نام کا رنگ و فانٹ اسٹائل) */}
               <CorelFillPickerCard
                 cardId="collegeNameColor"
-                title="College Name Color"
-                subtitleUrdu="کالج کے نام کا رنگ (ٹیکسٹ)"
+                title="College Name & Font Style"
+                subtitleUrdu="کالج کے نام کا رنگ، فونٹ فیملی و ایم ایس ورڈ اسٹائلز"
                 value={formData.collegeNameColor}
                 onChange={(val) => syncThemeField("collegeNameColor", val)}
                 defaultColor="#0f172a"
                 isTextColorOnly={true}
-                quickPresets={[
-                  { name: "Black", hex: "#0f172a" },
-                  { name: "Navy", hex: "#1e3a8a" },
-                  { name: "Emerald", hex: "#0c5938" },
-                  { name: "Crimson", hex: "#991b1b" },
-                  { name: "Indigo", hex: "#4338ca" },
-                  { name: "Burgundy", hex: "#7f1d1d" },
-                  { name: "White", hex: "#ffffff" },
-                  { name: "Gold", hex: "#d97706" },
-                ]}
+                typography={{
+                  fontFamily: formData.collegeFontFamily,
+                  fontWeight: formData.collegeFontWeight,
+                  fontStyle: formData.collegeFontStyle,
+                  textDecoration: formData.collegeTextDecoration,
+                  textTransform: formData.collegeTextTransform,
+                  letterSpacing: formData.collegeLetterSpacing,
+                  fontSize: formData.collegeFontSize,
+                  textShadow: formData.collegeTextShadow,
+                }}
+                onTypographyChange={(typo) => {
+                  setFormData((prev) => {
+                    const updated = {
+                      ...prev,
+                      collegeFontFamily: typo.fontFamily ?? prev.collegeFontFamily,
+                      collegeFontWeight: typo.fontWeight ? String(typo.fontWeight) : prev.collegeFontWeight,
+                      collegeFontStyle: (typo.fontStyle as any) ?? prev.collegeFontStyle,
+                      collegeTextDecoration: (typo.textDecoration as any) ?? prev.collegeTextDecoration,
+                      collegeTextTransform: (typo.textTransform as any) ?? prev.collegeTextTransform,
+                      collegeLetterSpacing: typo.letterSpacing ?? prev.collegeLetterSpacing,
+                      collegeFontSize: typo.fontSize ?? prev.collegeFontSize,
+                      collegeTextShadow: typo.textShadow ?? prev.collegeTextShadow,
+                    };
+                    if (typeof window !== "undefined") {
+                      try {
+                        if (typo.fontFamily) localStorage.setItem("college_font_family_active", typo.fontFamily);
+                        if (typo.fontWeight) localStorage.setItem("college_font_weight_active", String(typo.fontWeight));
+                        if (typo.fontStyle) localStorage.setItem("college_font_style_active", typo.fontStyle);
+                        if (typo.textDecoration) localStorage.setItem("college_text_decoration_active", typo.textDecoration);
+                        if (typo.textTransform) localStorage.setItem("college_text_transform_active", typo.textTransform);
+                        if (typo.letterSpacing) localStorage.setItem("college_letter_spacing_active", typo.letterSpacing);
+                        if (typo.fontSize) localStorage.setItem("college_font_size_active", typo.fontSize);
+                        if (typo.textShadow) localStorage.setItem("college_text_shadow_active", typo.textShadow);
+                      } catch {}
+                    }
+                    return updated;
+                  });
+                }}
+                quickPresets={MS_WORD_COLOR_PALETTE}
                 customColors={formData.customColors}
                 onAddCustomColor={handleAddCustomColor}
               />
@@ -1508,8 +1581,17 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   )}
                   <div className="min-w-0 flex-1">
                     <div
-                      className="text-xs font-black leading-tight uppercase transition-colors duration-200 line-clamp-2"
-                      style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a")}
+                      className="text-xs leading-tight transition-colors duration-200 line-clamp-2"
+                      style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a", {
+                        fontFamily: formData.collegeFontFamily,
+                        fontWeight: formData.collegeFontWeight,
+                        fontStyle: formData.collegeFontStyle,
+                        textDecoration: formData.collegeTextDecoration,
+                        textTransform: formData.collegeTextTransform,
+                        letterSpacing: formData.collegeLetterSpacing,
+                        fontSize: formData.collegeFontSize,
+                        textShadow: formData.collegeTextShadow,
+                      })}
                     >
                       {formData.collegeName || selectedCollege?.name || "Govt. Post Graduate College Quetta"}
                     </div>

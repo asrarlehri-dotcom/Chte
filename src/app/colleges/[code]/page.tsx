@@ -90,6 +90,14 @@ type PortalSettings = {
   bodyBgColor: any;
   sidebarBgColor?: any;
   collegeNameColor?: string;
+  collegeFontFamily?: string;
+  collegeFontWeight?: string;
+  collegeFontStyle?: string;
+  collegeTextDecoration?: string;
+  collegeTextTransform?: string;
+  collegeLetterSpacing?: string;
+  collegeFontSize?: string;
+  collegeTextShadow?: string;
   collegeHeaderBg?: any;
   portalSubtitle?: string;
   portalSubtitleColor?: string;
@@ -474,8 +482,16 @@ export default function CollegePortalHomePage() {
 
             <div>
               <h1
-                className="text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight group-hover:text-amber-200 transition-colors"
-                style={compileFillToTextStyle(s.collegeNameColor, "#ffffff")}
+                className="text-xl sm:text-2xl leading-tight group-hover:text-amber-200 transition-colors"
+                style={compileFillToTextStyle(s.collegeNameColor, "#ffffff", {
+                  fontFamily: s.collegeFontFamily,
+                  fontWeight: s.collegeFontWeight,
+                  fontStyle: s.collegeFontStyle,
+                  textDecoration: s.collegeTextDecoration,
+                  textTransform: s.collegeTextTransform,
+                  letterSpacing: s.collegeLetterSpacing,
+                  textShadow: s.collegeTextShadow,
+                })}
               >
                 {college.name}
               </h1>

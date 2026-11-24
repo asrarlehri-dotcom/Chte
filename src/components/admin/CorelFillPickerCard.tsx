@@ -14,6 +14,11 @@ import {
   generatePatternSvg,
   COREL_SAMPLE_PICTURES,
   SamplePicture,
+  TypographyConfig,
+  MS_WORD_FONTS,
+  MS_WORD_PRESETS,
+  MS_WORD_COLOR_PALETTE,
+  MsWordPreset,
 } from "@/lib/theme-fill-compiler";
 import {
   Palette,
@@ -33,6 +38,10 @@ import {
   Target,
   Crosshair,
   Move,
+  Bold,
+  Italic,
+  Underline,
+  Type,
 } from "lucide-react";
 
 // Interactive Circular Angle Dial (360° Rotary Wheel)
@@ -146,6 +155,8 @@ export interface CorelFillPickerCardProps {
   topRibbonAccent?: boolean;
   gradientPresets?: { name: string; stops: GradientStop[]; angle: number }[];
   isTextColorOnly?: boolean;
+  typography?: TypographyConfig;
+  onTypographyChange?: (typo: TypographyConfig) => void;
 }
 
 export default function CorelFillPickerCard({
@@ -161,6 +172,8 @@ export default function CorelFillPickerCard({
   topRibbonAccent = false,
   gradientPresets,
   isTextColorOnly = false,
+  typography,
+  onTypographyChange,
 }: CorelFillPickerCardProps) {
   const conf = normalizeFillConfig(value, defaultColor);
 
@@ -470,7 +483,34 @@ export default function CorelFillPickerCard({
 
   // Live CSS style compiled for current card
   const liveCardStyle = compileFillToStyle(conf, defaultColor);
-  const liveTextStyle = compileFillToTextStyle(conf, defaultColor);
+  const liveTextStyle = compileFillToTextStyle(conf, defaultColor, typography);
+
+  // MS Word Typography Handlers
+  const handleApplyMsWordPreset = (p: MsWordPreset) => {
+    const newFill = typeof p.color === "object" ? p.color : normalizeFillConfig(p.color);
+    onChange(newFill);
+    if (onTypographyChange) {
+      onTypographyChange({
+        fontFamily: p.fontFamily,
+        fontWeight: p.fontWeight,
+        fontStyle: p.fontStyle,
+        textDecoration: p.textDecoration,
+        textTransform: p.textTransform,
+        letterSpacing: p.letterSpacing,
+        fontSize: p.fontSize,
+        textShadow: p.textShadow,
+      });
+    }
+  };
+
+  const updateTypo = (updates: Partial<TypographyConfig>) => {
+    if (onTypographyChange) {
+      onTypographyChange({
+        ...typography,
+        ...updates,
+      });
+    }
+  };
 
   // Built-in presets for gradient row
   const activeGradientPresets =
@@ -609,7 +649,7 @@ export default function CorelFillPickerCard({
           {isTextColorOnly ? (
             <div
               onClick={handlePreviewBoxClick}
-              className={`w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex flex-col items-center justify-center p-3 bg-slate-950/80 ${
+              className={`w-full min-h-24 sm:min-h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex flex-col items-center justify-center p-3 bg-slate-950/80 ${
                 conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
               }`}
               title={
@@ -618,15 +658,44 @@ export default function CorelFillPickerCard({
                   : ""
               }
             >
-              <span className="text-[10px] uppercase font-mono text-slate-500 mb-1">
-                College Typography Preview
-              </span>
+              <div className="flex items-center gap-1.5 mb-1 text-[9.5px] uppercase font-mono text-slate-400">
+                <Type className="w-3 h-3 text-amber-400" />
+                <span>College Typography Preview</span>
+              </div>
               <span
-                className="text-xs sm:text-sm font-black uppercase tracking-wider drop-shadow-md text-center px-2 line-clamp-2"
+                className="tracking-wider text-center px-2 line-clamp-2 transition-all duration-150"
                 style={liveTextStyle}
               >
                 GOVT. POST GRADUATE COLLEGE QUETTA
               </span>
+
+              {/* Status Pills */}
+              <div className="flex flex-wrap items-center justify-center gap-1 mt-2 text-[9px] font-mono text-slate-400">
+                <span className="text-amber-300 font-bold bg-slate-900 border border-slate-700/80 px-1.5 py-0.5 rounded">
+                  {MS_WORD_FONTS.find((f) => f.value === typography?.fontFamily)?.name || "Segoe UI"}
+                </span>
+                <span className="bg-slate-900 border border-slate-700/80 px-1.5 py-0.5 rounded">
+                  {typography?.fontWeight === "700" || typography?.fontWeight === "800" || typography?.fontWeight === "900" ? "Bold" : "Regular"}
+                </span>
+                {typography?.fontStyle === "italic" && (
+                  <span className="bg-slate-900 border border-slate-700/80 px-1.5 py-0.5 rounded italic text-amber-300">
+                    Italic
+                  </span>
+                )}
+                {typography?.textDecoration === "underline" && (
+                  <span className="bg-slate-900 border border-slate-700/80 px-1.5 py-0.5 rounded underline text-blue-300">
+                    Underline
+                  </span>
+                )}
+                <span className="bg-slate-900 border border-slate-700/80 px-1.5 py-0.5 rounded uppercase">
+                  {typography?.textTransform || "UPPERCASE"}
+                </span>
+                {typography?.fontSize && (
+                  <span className="bg-slate-900 border border-slate-700/80 px-1.5 py-0.5 rounded text-slate-300">
+                    {typography.fontSize}
+                  </span>
+                )}
+              </div>
 
               {/* Reticle indicator if image mode */}
               {conf.mode === "image" && conf.image.url && (
@@ -695,6 +764,231 @@ export default function CorelFillPickerCard({
 
         {/* RIGHT COLUMN: Controls according to active mode */}
         <div className="lg:col-span-7 space-y-3">
+          {/* ══════════════════════════════════════════════════════
+              MICROSOFT WORD TYPOGRAPHY & FONT STYLE STUDIO
+             ══════════════════════════════════════════════════════ */}
+          {isTextColorOnly && (
+            <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-2.5">
+              {/* Row 1: MS Word Presets Bar */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs font-bold text-slate-200">
+                      MS Word Style Presets (مائیکروسافٹ ورڈ پریسیٹس)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">1-Click Apply</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1 custom-scrollbar">
+                  {MS_WORD_PRESETS.map((p) => {
+                    const isSelected = typography?.fontFamily === p.fontFamily;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleApplyMsWordPreset(p)}
+                        className={`px-2.5 py-1 rounded-lg border text-left transition-all hover:scale-102 cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? "bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50"
+                            : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
+                        }`}
+                        title={`${p.name} - ${p.nameUrdu}`}
+                      >
+                        <span
+                          className="text-xs font-bold"
+                          style={{
+                            fontFamily: p.fontFamily,
+                            fontWeight: p.fontWeight,
+                            fontStyle: p.fontStyle,
+                          }}
+                        >
+                          Aa
+                        </span>
+                        <div className="leading-none">
+                          <span className="text-[10.5px] font-bold block">{p.name}</span>
+                          <span className="text-[8.5px] text-slate-400 block">{p.nameUrdu}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 2: MS Word Formatting Toolbar (Font Family, Bold, Italic, Underline, Case, Spacing, Size, Glow) */}
+              <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                {/* Font Family Select */}
+                <div className="flex items-center gap-1.5">
+                  <Type className="w-3.5 h-3.5 text-slate-400" />
+                  <select
+                    value={typography?.fontFamily || "'Times New Roman', Times, serif"}
+                    onChange={(e) => updateTypo({ fontFamily: e.target.value })}
+                    className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 font-medium focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer max-w-[200px] truncate"
+                  >
+                    {MS_WORD_FONTS.map((f) => (
+                      <option key={f.id} value={f.value} style={{ fontFamily: f.value }}>
+                        {f.name} ({f.category})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* MS Word Action Buttons (B, I, U, Aa, ↔, ✨, Size) */}
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 flex-wrap">
+                  {/* Bold (B) */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateTypo({
+                        fontWeight:
+                          typography?.fontWeight === "700" ||
+                          typography?.fontWeight === "800" ||
+                          typography?.fontWeight === "900"
+                            ? "400"
+                            : "700",
+                      })
+                    }
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
+                      typography?.fontWeight === "700" ||
+                      typography?.fontWeight === "800" ||
+                      typography?.fontWeight === "900"
+                        ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                        : "text-slate-300 hover:bg-slate-800"
+                    }`}
+                    title="Bold (بولڈ)"
+                  >
+                    <Bold className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Italic (I) */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateTypo({
+                        fontStyle: typography?.fontStyle === "italic" ? "normal" : "italic",
+                      })
+                    }
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
+                      typography?.fontStyle === "italic"
+                        ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                        : "text-slate-300 hover:bg-slate-800"
+                    }`}
+                    title="Italic (ترچھا)"
+                  >
+                    <Italic className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Underline (U) */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateTypo({
+                        textDecoration:
+                          typography?.textDecoration === "underline" ? "none" : "underline",
+                      })
+                    }
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
+                      typography?.textDecoration === "underline"
+                        ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                        : "text-slate-300 hover:bg-slate-800"
+                    }`}
+                    title="Underline (انڈر لائن)"
+                  >
+                    <Underline className="w-3.5 h-3.5" />
+                  </button>
+
+                  <div className="w-[1px] h-4 bg-slate-800 mx-0.5" />
+
+                  {/* Case (Aa) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = typography?.textTransform || "uppercase";
+                      const next =
+                        cur === "uppercase"
+                          ? "capitalize"
+                          : cur === "capitalize"
+                          ? "lowercase"
+                          : cur === "lowercase"
+                          ? "none"
+                          : "uppercase";
+                      updateTypo({ textTransform: next });
+                    }}
+                    className="px-1.5 h-7 rounded flex items-center justify-center text-xs font-mono font-bold text-slate-300 hover:bg-slate-800 transition-all cursor-pointer"
+                    title={`Text Case: ${typography?.textTransform || "UPPERCASE"} (کلک کر کے تبدیل کریں)`}
+                  >
+                    {typography?.textTransform === "capitalize"
+                      ? "Aa"
+                      : typography?.textTransform === "lowercase"
+                      ? "aa"
+                      : typography?.textTransform === "none"
+                      ? "--"
+                      : "AA"}
+                  </button>
+
+                  {/* Letter Spacing (↔) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = typography?.letterSpacing || "0.05em";
+                      const next =
+                        cur === "normal"
+                          ? "0.05em"
+                          : cur === "0.05em"
+                          ? "0.1em"
+                          : cur === "0.1em"
+                          ? "0.15em"
+                          : "normal";
+                      updateTypo({ letterSpacing: next });
+                    }}
+                    className="px-1.5 h-7 rounded flex items-center justify-center text-[10px] font-mono text-slate-300 hover:bg-slate-800 transition-all cursor-pointer"
+                    title={`Letter Spacing: ${typography?.letterSpacing || "0.05em"}`}
+                  >
+                    ↔ {typography?.letterSpacing === "0.15em" ? "+3" : typography?.letterSpacing === "0.1em" ? "+2" : typography?.letterSpacing === "0.05em" ? "+1" : "0"}
+                  </button>
+
+                  {/* WordArt Glow Shadow (✨) */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateTypo({
+                        textShadow:
+                          typography?.textShadow && typography.textShadow !== "none"
+                            ? "none"
+                            : "0 2px 8px rgba(217, 119, 6, 0.45)",
+                      })
+                    }
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
+                      typography?.textShadow && typography.textShadow !== "none"
+                        ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                        : "text-slate-300 hover:bg-slate-800"
+                    }`}
+                    title="WordArt Glow Shadow (گلو شیڈو)"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </button>
+
+                  <div className="w-[1px] h-4 bg-slate-800 mx-0.5" />
+
+                  {/* Font Size Selector */}
+                  <select
+                    value={typography?.fontSize || "13px"}
+                    onChange={(e) => updateTypo({ fontSize: e.target.value })}
+                    className="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[10.5px] text-slate-200 font-mono cursor-pointer"
+                    title="Font Size (فانٹ سائز)"
+                  >
+                    <option value="11px">11px</option>
+                    <option value="12px">12px</option>
+                    <option value="13px">13px</option>
+                    <option value="14px">14px</option>
+                    <option value="16px">16px</option>
+                    <option value="18px">18px</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
           {/* ══════════════════════════════════════════════════════
               MODE B: MULTI-COLOR GRADIENT (Corel-Style Fountain)
              ══════════════════════════════════════════════════════ */}

@@ -19,6 +19,14 @@ const DEFAULT_PORTAL_SETTINGS = {
   bodyBgColor: "#070d19", // Dark body background matching uploaded design
   sidebarColor: "#090E24", // Sidebar background color for Campus ERP
   collegeNameColor: "#0f172a", // Custom College Name color in sidebar & header
+  collegeFontFamily: "'Times New Roman', Times, serif",
+  collegeFontWeight: "700",
+  collegeFontStyle: "normal",
+  collegeTextDecoration: "none",
+  collegeTextTransform: "uppercase",
+  collegeLetterSpacing: "0.05em",
+  collegeFontSize: "13px",
+  collegeTextShadow: "none",
   collegeHeaderBg: "#ffffff", // Custom College Logo & Name header card background in sidebar
   portalSubtitle: "CAMPUS ERP PORTAL", // Subtitle under college name in sidebar (e.g. CAMPUS ERP PORTAL)
   portalSubtitleColor: "#4338ca", // Font color of the subtitle

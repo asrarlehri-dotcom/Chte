@@ -502,15 +502,248 @@ export function getRepresentativeColor(
 }
 
 // Helper to compile fill to Text (Typography) style with backgroundClip: text
+export type TypographyConfig = {
+  fontFamily?: string;
+  fontWeight?: string | number;
+  fontStyle?: "normal" | "italic" | string;
+  textDecoration?: "none" | "underline" | string;
+  textTransform?: "uppercase" | "capitalize" | "lowercase" | "none" | string;
+  letterSpacing?: string;
+  fontSize?: string;
+  textShadow?: string;
+};
+
+// 12 Classic Microsoft Word Font Families
+export const MS_WORD_FONTS = [
+  { id: "times", name: "Times New Roman", value: "'Times New Roman', Times, serif", category: "Serif (Official Academic)" },
+  { id: "calibri", name: "Calibri", value: "Calibri, Candara, sans-serif", category: "Sans-Serif (Default Body)" },
+  { id: "cambria", name: "Cambria", value: "Cambria, Georgia, serif", category: "Serif (Default Headings)" },
+  { id: "arial", name: "Arial", value: "Arial, Helvetica, sans-serif", category: "Sans-Serif (Clean Standard)" },
+  { id: "georgia", name: "Georgia", value: "Georgia, 'Times New Roman', serif", category: "Serif (High Legibility)" },
+  { id: "garamond", name: "Garamond", value: "Garamond, 'Baskerville', serif", category: "Serif (Classic Heritage)" },
+  { id: "century", name: "Century Gothic", value: "'Century Gothic', sans-serif", category: "Sans-Serif (Geometric Modern)" },
+  { id: "trebuchet", name: "Trebuchet MS", value: "'Trebuchet MS', sans-serif", category: "Sans-Serif (Dynamic Accent)" },
+  { id: "impact", name: "Impact", value: "Impact, Charcoal, sans-serif", category: "Display (Bold Poster)" },
+  { id: "segoe", name: "Segoe UI", value: "'Segoe UI', Tahoma, sans-serif", category: "Sans-Serif (Modern Office)" },
+  { id: "verdana", name: "Verdana", value: "Verdana, Geneva, sans-serif", category: "Sans-Serif (Screen Legible)" },
+  { id: "antiqua", name: "Book Antiqua", value: "'Book Antiqua', Palatino, serif", category: "Serif (Historic Document)" },
+];
+
+// MS Word Quick Style Presets (WordArt & Microsoft Word Styles Gallery)
+export type MsWordPreset = {
+  id: string;
+  name: string;
+  nameUrdu: string;
+  fontFamily: string;
+  fontWeight: string;
+  fontStyle: "normal" | "italic";
+  textDecoration: "none" | "underline";
+  textTransform: "uppercase" | "capitalize" | "lowercase" | "none";
+  letterSpacing: string;
+  fontSize: string;
+  textShadow: string;
+  color: FillConfig | string;
+};
+
+export const MS_WORD_PRESETS: MsWordPreset[] = [
+  {
+    id: "word-title-cambria",
+    name: "Word Title (Cambria)",
+    nameUrdu: "ورڈ ٹائٹل (کیمبریا)",
+    fontFamily: "Cambria, Georgia, serif",
+    fontWeight: "700",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    fontSize: "13px",
+    textShadow: "none",
+    color: "#1e3a8a",
+  },
+  {
+    id: "word-official-times",
+    name: "Official Gazette (Times New Roman)",
+    nameUrdu: "سرکاری دستاویز (ٹائمز رومن)",
+    fontFamily: "'Times New Roman', Times, serif",
+    fontWeight: "700",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    fontSize: "13px",
+    textShadow: "none",
+    color: "#0f172a",
+  },
+  {
+    id: "word-calibri-modern",
+    name: "Calibri Modern (Heading 1)",
+    nameUrdu: "کیلیبری ماڈرن ایکسنٹ",
+    fontFamily: "Calibri, Candara, sans-serif",
+    fontWeight: "600",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textTransform: "capitalize",
+    letterSpacing: "0.03em",
+    fontSize: "13px",
+    textShadow: "none",
+    color: "#2563eb",
+  },
+  {
+    id: "wordart-gold-shadow",
+    name: "WordArt Royal Gold (3D Glow)",
+    nameUrdu: "ورڈ آرٹ گولڈ گلو",
+    fontFamily: "Georgia, serif",
+    fontWeight: "800",
+    fontStyle: "italic",
+    textDecoration: "none",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    fontSize: "13px",
+    textShadow: "0 2px 8px rgba(217, 119, 6, 0.45)",
+    color: "#d97706",
+  },
+  {
+    id: "word-intense-crimson",
+    name: "Intense Emphasis (Crimson)",
+    nameUrdu: "شدید تاکید (سرخ)",
+    fontFamily: "Arial, Helvetica, sans-serif",
+    fontWeight: "800",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    fontSize: "13px",
+    textShadow: "none",
+    color: "#991b1b",
+  },
+  {
+    id: "word-executive-gothic",
+    name: "Century Gothic Executive",
+    nameUrdu: "سینچری گوتھک ایگزیکٹو",
+    fontFamily: "'Century Gothic', sans-serif",
+    fontWeight: "700",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textTransform: "uppercase",
+    letterSpacing: "0.12em",
+    fontSize: "12px",
+    textShadow: "none",
+    color: "#0c1e3d",
+  },
+  {
+    id: "word-heritage-garamond",
+    name: "Heritage Antiqua (Garamond)",
+    nameUrdu: "کلاسک ہیریٹیج (گیرامونڈ)",
+    fontFamily: "Garamond, 'Baskerville', serif",
+    fontWeight: "600",
+    fontStyle: "italic",
+    textDecoration: "none",
+    textTransform: "capitalize",
+    letterSpacing: "0.04em",
+    fontSize: "13px",
+    textShadow: "none",
+    color: "#334155",
+  },
+  {
+    id: "word-academic-emerald",
+    name: "Academic Emerald (Trebuchet)",
+    nameUrdu: "اکیڈمک زمرد (ٹریبوچیٹ)",
+    fontFamily: "'Trebuchet MS', sans-serif",
+    fontWeight: "700",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    fontSize: "13px",
+    textShadow: "none",
+    color: "#065f46",
+  },
+  {
+    id: "wordart-rainbow-gradient",
+    name: "WordArt Rainbow Foil",
+    nameUrdu: "ورڈ آرٹ رینبو گریڈینٹ",
+    fontFamily: "Impact, sans-serif",
+    fontWeight: "900",
+    fontStyle: "normal",
+    textDecoration: "none",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    fontSize: "14px",
+    textShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
+    color: {
+      mode: "gradient",
+      solid: "#991b1b",
+      gradient: {
+        type: "linear",
+        angle: 90,
+        stops: [
+          { color: "#991b1b", position: 0 },
+          { color: "#d97706", position: 35 },
+          { color: "#059669", position: 70 },
+          { color: "#2563eb", position: 100 },
+        ],
+      },
+      texture: { type: "canvas", baseColor: "#991b1b", patternColor: "#ffffff", scale: 20, opacity: 20 },
+      image: { url: "", fit: "cover", position: "center", tintColor: "#000000", tintOpacity: 0 },
+    },
+  },
+  {
+    id: "word-subtle-emphasis",
+    name: "Subtle Emphasis (Slate Gray)",
+    nameUrdu: "ہلکا سرمئی اسٹائل",
+    fontFamily: "Calibri, sans-serif",
+    fontWeight: "500",
+    fontStyle: "italic",
+    textDecoration: "none",
+    textTransform: "capitalize",
+    letterSpacing: "0.02em",
+    fontSize: "12px",
+    textShadow: "none",
+    color: "#64748b",
+  },
+];
+
+// MS Word Office Palette Swatches
+export const MS_WORD_COLOR_PALETTE = [
+  { name: "Black", hex: "#000000" },
+  { name: "Dark Navy", hex: "#0f172a" },
+  { name: "Word Blue", hex: "#1e3a8a" },
+  { name: "Accent Blue", hex: "#2563eb" },
+  { name: "Light Blue", hex: "#38bdf8" },
+  { name: "Emerald", hex: "#059669" },
+  { name: "Forest Green", hex: "#065f46" },
+  { name: "Amber Gold", hex: "#d97706" },
+  { name: "Warm Gold", hex: "#fbbf24" },
+  { name: "Crimson Red", hex: "#dc2626" },
+  { name: "Dark Red", hex: "#991b1b" },
+  { name: "Purple", hex: "#9333ea" },
+  { name: "Indigo", hex: "#4338ca" },
+  { name: "Slate Gray", hex: "#475569" },
+  { name: "White", hex: "#ffffff" },
+];
+
 export function compileFillToTextStyle(
   fill: FillConfig | string | null | undefined,
-  defaultSolid = "#0f172a"
+  defaultSolid = "#0f172a",
+  typography?: TypographyConfig
 ): React.CSSProperties {
   const conf = normalizeFillConfig(fill, defaultSolid);
+
+  const typoStyles: React.CSSProperties = {
+    fontFamily: typography?.fontFamily && typography.fontFamily !== "inherit" ? typography.fontFamily : undefined,
+    fontWeight: typography?.fontWeight ? (typography.fontWeight as any) : undefined,
+    fontStyle: typography?.fontStyle ? (typography.fontStyle as any) : undefined,
+    textDecoration: typography?.textDecoration ? (typography.textDecoration as any) : undefined,
+    textTransform: typography?.textTransform ? (typography.textTransform as any) : undefined,
+    letterSpacing: typography?.letterSpacing ? typography.letterSpacing : undefined,
+    fontSize: typography?.fontSize ? typography.fontSize : undefined,
+    textShadow: typography?.textShadow && typography.textShadow !== "none" ? typography.textShadow : undefined,
+  };
 
   if (conf.mode === "solid") {
     return {
       color: conf.solid || defaultSolid,
+      ...typoStyles,
     };
   }
 
@@ -527,11 +760,13 @@ export function compileFillToTextStyle(
       WebkitTextFillColor: "transparent",
       color: "transparent",
       display: "inline-block",
+      ...typoStyles,
     };
   }
 
   return {
     color: conf.solid || defaultSolid,
+    ...typoStyles,
   };
 }
 

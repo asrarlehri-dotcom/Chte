@@ -189,6 +189,80 @@ export function Sidebar() {
     return "#4338ca";
   });
 
+  // Dynamic College Typography (MS Word Font Styles)
+  const [collegeFontFamily, setCollegeFontFamily] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_font_family_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "'Times New Roman', Times, serif";
+  });
+  const [collegeFontWeight, setCollegeFontWeight] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_font_weight_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "700";
+  });
+  const [collegeFontStyle, setCollegeFontStyle] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_font_style_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "normal";
+  });
+  const [collegeTextDecoration, setCollegeTextDecoration] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_text_decoration_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "none";
+  });
+  const [collegeTextTransform, setCollegeTextTransform] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_text_transform_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "uppercase";
+  });
+  const [collegeLetterSpacing, setCollegeLetterSpacing] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_letter_spacing_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "0.05em";
+  });
+  const [collegeFontSize, setCollegeFontSize] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_font_size_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "12px";
+  });
+  const [collegeTextShadow, setCollegeTextShadow] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const active = localStorage.getItem("college_text_shadow_active");
+        if (active) return active;
+      } catch {}
+    }
+    return "none";
+  });
+
   useEffect(() => {
     if (collegeName) {
       setCollegeDisplayName(collegeName);
@@ -297,6 +371,14 @@ export function Sidebar() {
               } catch {}
             }
           }
+          if (data?.collegeFontFamily) setCollegeFontFamily(data.collegeFontFamily);
+          if (data?.collegeFontWeight) setCollegeFontWeight(String(data.collegeFontWeight));
+          if (data?.collegeFontStyle) setCollegeFontStyle(data.collegeFontStyle);
+          if (data?.collegeTextDecoration) setCollegeTextDecoration(data.collegeTextDecoration);
+          if (data?.collegeTextTransform) setCollegeTextTransform(data.collegeTextTransform);
+          if (data?.collegeLetterSpacing) setCollegeLetterSpacing(data.collegeLetterSpacing);
+          if (data?.collegeFontSize) setCollegeFontSize(data.collegeFontSize);
+          if (data?.collegeTextShadow) setCollegeTextShadow(data.collegeTextShadow);
         })
         .catch(() => {});
     }
@@ -320,6 +402,14 @@ export function Sidebar() {
       if (e?.detail?.portalSubtitleColor) {
         setPortalSubtitleColor(e.detail.portalSubtitleColor);
       }
+      if (e?.detail?.collegeFontFamily) setCollegeFontFamily(e.detail.collegeFontFamily);
+      if (e?.detail?.collegeFontWeight) setCollegeFontWeight(String(e.detail.collegeFontWeight));
+      if (e?.detail?.collegeFontStyle) setCollegeFontStyle(e.detail.collegeFontStyle);
+      if (e?.detail?.collegeTextDecoration) setCollegeTextDecoration(e.detail.collegeTextDecoration);
+      if (e?.detail?.collegeTextTransform) setCollegeTextTransform(e.detail.collegeTextTransform);
+      if (e?.detail?.collegeLetterSpacing) setCollegeLetterSpacing(e.detail.collegeLetterSpacing);
+      if (e?.detail?.collegeFontSize) setCollegeFontSize(e.detail.collegeFontSize);
+      if (e?.detail?.collegeTextShadow) setCollegeTextShadow(e.detail.collegeTextShadow);
     };
     if (typeof window !== "undefined") {
       window.addEventListener("college-theme-change", handleThemeEvent);
@@ -620,12 +710,22 @@ export function Sidebar() {
           </div>
           <div className="min-w-0 flex-1">
             <div
-              className="text-xs font-black tracking-wide leading-tight uppercase line-clamp-2 transition-colors duration-200"
+              className="text-xs leading-tight line-clamp-2 transition-colors duration-200"
               style={compileFillToTextStyle(
                 collegeNameColor,
                 collegeHeaderBg && typeof collegeHeaderBg === "string" && !["#ffffff", "#f8fafc", "#f1f5f9", "white"].includes(collegeHeaderBg.toLowerCase())
                   ? "#ffffff"
-                  : "#0f172a"
+                  : "#0f172a",
+                {
+                  fontFamily: collegeFontFamily,
+                  fontWeight: collegeFontWeight,
+                  fontStyle: collegeFontStyle,
+                  textDecoration: collegeTextDecoration,
+                  textTransform: collegeTextTransform,
+                  letterSpacing: collegeLetterSpacing,
+                  fontSize: collegeFontSize,
+                  textShadow: collegeTextShadow,
+                }
               )}
               title={collegeDisplayName || collegeName || "Govt. Degree College"}
             >
