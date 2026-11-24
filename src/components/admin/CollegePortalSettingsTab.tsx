@@ -141,7 +141,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       try {
         const cached = localStorage.getItem("college_custom_theme_presets");
         if (cached) return JSON.parse(cached);
-      } catch {}
+      } catch { }
     }
     return [];
   });
@@ -244,7 +244,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               ribbonColor: updated.ribbonColor,
             }
           }));
-        } catch {}
+        } catch { }
       }
       return updated;
     });
@@ -282,7 +282,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("college_custom_theme_presets", JSON.stringify(updated));
-      } catch {}
+      } catch { }
     }
     setMsg({ type: "success", text: `Theme preset "${name}" saved to your institutional preset gallery!` });
   };
@@ -293,7 +293,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("college_custom_theme_presets", JSON.stringify(updated));
-      } catch {}
+      } catch { }
     }
     setMsg({ type: "success", text: "Custom preset removed." });
   };
@@ -884,7 +884,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   ? `?theme=${encodeURIComponent(
                       typeof formData.ribbonColor === "object"
                         ? JSON.stringify(formData.ribbonColor)
-                        : formData.ribbonColor
+                        : String(formData.ribbonColor)
                     )}`
                   : ""
               }`}
@@ -2990,8 +2990,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                         updateModalPreview(bgCustomColor, bgTolerance, bgFeather, "contiguous");
                       }}
                       className={`p-2.5 rounded-xl text-left border transition-all ${bgMode === "contiguous"
-                          ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-300 shadow-xs"
-                          : "bg-white border-slate-200 hover:bg-slate-100"
+                        ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-300 shadow-xs"
+                        : "bg-white border-slate-200 hover:bg-slate-100"
                         }`}
                     >
                       <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-950">
@@ -3010,8 +3010,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                         updateModalPreview(bgCustomColor, bgTolerance, bgFeather, "global");
                       }}
                       className={`p-2.5 rounded-xl text-left border transition-all ${bgMode === "global"
-                          ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-300 shadow-xs"
-                          : "bg-white border-slate-200 hover:bg-slate-100"
+                        ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-300 shadow-xs"
+                        : "bg-white border-slate-200 hover:bg-slate-100"
                         }`}
                     >
                       <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-950">
