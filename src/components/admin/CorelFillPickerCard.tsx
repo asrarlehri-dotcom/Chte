@@ -28,6 +28,11 @@ import {
   Compass,
   Check,
   Disc,
+  ZoomIn,
+  ZoomOut,
+  Target,
+  Crosshair,
+  Move,
 } from "lucide-react";
 
 // Interactive Circular Angle Dial (360° Rotary Wheel)
@@ -128,9 +133,9 @@ export function AngleDial({
 }
 
 export interface CorelFillPickerCardProps {
+  cardId?: string;
   title: string;
   subtitleUrdu?: string;
-  cardId: string;
   value: FillConfig | string;
   onChange: (newVal: FillConfig) => void;
   defaultColor?: string;
@@ -144,6 +149,7 @@ export interface CorelFillPickerCardProps {
 }
 
 export default function CorelFillPickerCard({
+  cardId,
   title,
   subtitleUrdu,
   value,
@@ -420,6 +426,48 @@ export default function CorelFillPickerCard({
     });
   };
 
+  const handleZoom = (zoom: number) => {
+    const clamped = Math.max(25, Math.min(400, Math.round(zoom)));
+    onChange({
+      ...conf,
+      image: {
+        ...conf.image,
+        zoom: clamped,
+      },
+    });
+  };
+
+  const handleFocalPoint = (x: number, y: number) => {
+    const clampedX = Math.max(0, Math.min(100, Math.round(x)));
+    const clampedY = Math.max(0, Math.min(100, Math.round(y)));
+    onChange({
+      ...conf,
+      image: {
+        ...conf.image,
+        focalPoint: { x: clampedX, y: clampedY },
+        position: `${clampedX}% ${clampedY}%`,
+      },
+    });
+  };
+
+  const handleScaleMode = (scaleMode: "auto" | "width" | "height" | "both") => {
+    onChange({
+      ...conf,
+      image: {
+        ...conf.image,
+        scaleMode,
+      },
+    });
+  };
+
+  const handlePreviewBoxClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (conf.mode !== "image" || !conf.image.url) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+    const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+    handleFocalPoint(clickX, clickY);
+  };
+
   // Live CSS style compiled for current card
   const liveCardStyle = compileFillToStyle(conf, defaultColor);
   const liveTextStyle = compileFillToTextStyle(conf, defaultColor);
@@ -559,7 +607,17 @@ export default function CorelFillPickerCard({
         {/* LEFT COLUMN: Large Wide Preview Rectangle (approx 35%-40% width) */}
         <div className="lg:col-span-5 flex flex-col justify-center">
           {isTextColorOnly ? (
-            <div className="w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex flex-col items-center justify-center p-3 bg-slate-950/80">
+            <div
+              onClick={handlePreviewBoxClick}
+              className={`w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex flex-col items-center justify-center p-3 bg-slate-950/80 ${
+                conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
+              }`}
+              title={
+                conf.mode === "image" && conf.image.url
+                  ? "Click anywhere to set focus / Pan position (کلک کر کے فوکس پوائنٹ منتخب کریں)"
+                  : ""
+              }
+            >
               <span className="text-[10px] uppercase font-mono text-slate-500 mb-1">
                 College Typography Preview
               </span>
@@ -569,14 +627,68 @@ export default function CorelFillPickerCard({
               >
                 GOVT. POST GRADUATE COLLEGE QUETTA
               </span>
+
+              {/* Reticle indicator if image mode */}
+              {conf.mode === "image" && conf.image.url && (
+                <>
+                  <div
+                    className="absolute w-5 h-5 -ml-2.5 -mt-2.5 rounded-full border-2 border-amber-400 bg-amber-400/30 flex items-center justify-center pointer-events-none shadow-md"
+                    style={{
+                      left: `${conf.image.focalPoint?.x ?? 50}%`,
+                      top: `${conf.image.focalPoint?.y ?? 50}%`,
+                    }}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                  </div>
+                  <div className="absolute bottom-1 right-1 bg-slate-950/85 px-1.5 py-0.5 rounded text-[8.5px] font-mono text-amber-300 border border-slate-700 pointer-events-none">
+                    Zoom: {conf.image.zoom ?? 100}% | Focal: ({conf.image.focalPoint?.x ?? 50}%, {conf.image.focalPoint?.y ?? 50}%)
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div
-              className="w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center"
+              onClick={handlePreviewBoxClick}
+              className={`w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center ${
+                conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
+              }`}
               style={liveCardStyle}
-              title="Live Fill Preview"
+              title={
+                conf.mode === "image" && conf.image.url
+                  ? "Click anywhere to set focus / Pan position (کلک کر کے فوکس پوائنٹ منتخب کریں)"
+                  : "Live Fill Preview"
+              }
             >
               <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl pointer-events-none" />
+
+              {/* Reticle Crosshair Marker on Picture */}
+              {conf.mode === "image" && conf.image.url && (
+                <>
+                  <div
+                    className="absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 border-amber-400 bg-amber-400/30 flex items-center justify-center pointer-events-none shadow-lg animate-pulse"
+                    style={{
+                      left: `${conf.image.focalPoint?.x ?? 50}%`,
+                      top: `${conf.image.focalPoint?.y ?? 50}%`,
+                    }}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                    <div className="absolute w-8 h-[1px] bg-amber-400/70" />
+                    <div className="absolute h-8 w-[1px] bg-amber-400/70" />
+                  </div>
+
+                  {/* Live Status Badge */}
+                  <div className="absolute bottom-1.5 right-1.5 bg-slate-950/90 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] font-mono text-amber-300 border border-slate-700 pointer-events-none flex items-center gap-1.5 shadow-sm">
+                    <span className="font-bold">Zoom: {conf.image.zoom ?? 100}%</span>
+                    <span className="text-slate-500">•</span>
+                    <span>Crop: ({conf.image.focalPoint?.x ?? 50}%, {conf.image.focalPoint?.y ?? 50}%)</span>
+                  </div>
+
+                  <div className="absolute top-1.5 left-1.5 bg-slate-950/80 backdrop-blur-xs px-1.5 py-0.5 rounded text-[8px] font-mono text-slate-300 border border-slate-700 pointer-events-none flex items-center gap-1">
+                    <Crosshair className="w-2.5 h-2.5 text-amber-400" />
+                    <span>Click image to Pan</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -957,74 +1069,250 @@ export default function CorelFillPickerCard({
                 ))}
               </div>
 
-              {/* Custom Upload Button + URL + Fit Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-800/80">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-bold cursor-pointer transition-all">
-                      <Upload className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{isUploadingImg ? "Uploading..." : "Upload My File"}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
+              {/* Custom Upload Button + URL Input */}
+              <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 border-t border-slate-800/80">
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-bold cursor-pointer transition-all flex-shrink-0">
+                  <Upload className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{isUploadingImg ? "Uploading..." : "Upload File"}</span>
                   <input
-                    type="text"
-                    value={conf.image.url}
-                    onChange={(e) => handleImageUrlChange(e.target.value)}
-                    placeholder="https://.../portal-bg.jpg"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-mono text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
                   />
+                </label>
+                <input
+                  type="text"
+                  value={conf.image.url}
+                  onChange={(e) => handleImageUrlChange(e.target.value)}
+                  placeholder="Paste Image URL (https://.../portal-bg.jpg)"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-mono text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                />
+              </div>
+
+              {/* ── SECTION 1: ZOOM IN / ZOOM OUT CONTROLS ── */}
+              <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs font-bold text-slate-200">
+                      Picture Zoom In / Zoom Out (تصویر کا زوم)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleZoom((conf.image.zoom ?? 100) - 20)}
+                      title="Zoom Out (-20%)"
+                      className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all cursor-pointer"
+                    >
+                      <ZoomOut className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleZoom(100)}
+                      title="Reset Zoom to 100%"
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[10px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5 text-amber-400" />
+                      <span>100%</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleZoom((conf.image.zoom ?? 100) + 20)}
+                      title="Zoom In (+20%)"
+                      className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all cursor-pointer"
+                    >
+                      <ZoomIn className="w-3 h-3" />
+                    </button>
+                    <span className="font-mono text-amber-300 font-bold text-xs bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded ml-1">
+                      {conf.image.zoom ?? 100}%
+                    </span>
+                  </div>
                 </div>
 
-                {/* Fit Mode & Tint Overlay */}
-                <div className="space-y-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
+                {/* Range Slider for Zoom */}
+                <div className="flex items-center gap-3 pt-1">
+                  <span className="text-[10px] font-mono text-slate-400 w-8">25%</span>
+                  <input
+                    type="range"
+                    min={25}
+                    max={300}
+                    step={5}
+                    value={conf.image.zoom ?? 100}
+                    onChange={(e) => handleZoom(Number(e.target.value))}
+                    className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  />
+                  <span className="text-[10px] font-mono text-slate-400 w-8 text-right">300%</span>
+                </div>
+
+                {/* Fit Mode Switcher + Scale Axis */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px]">
+                  <div className="flex items-center gap-1 text-slate-400 font-medium">
                     <span>Fit Mode:</span>
                     <div className="flex items-center gap-1">
-                      {(["cover", "contain", "repeat"] as const).map((fit) => (
+                      {(["cover", "contain", "repeat", "stretch"] as const).map((fit) => (
                         <button
                           key={fit}
                           type="button"
                           onClick={() => handleImageFit(fit)}
-                          className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
+                          className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all cursor-pointer ${
                             conf.image.fit === fit
-                              ? "bg-amber-500 text-slate-950 font-black"
+                              ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                               : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                           }`}
                         >
-                          {fit}
+                          {fit === "cover" ? "Cover (پورا بھریں)" : fit === "contain" ? "Contain (پوری تصویر)" : fit}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
-                    <span>Tint Overlay:</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={conf.image.tintColor || "#000000"}
-                        onChange={(e) => handleImageTint(e.target.value)}
-                        className="w-5 h-5 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
-                      />
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <span className="text-[10px]">Scale Axis:</span>
+                    <select
+                      value={conf.image.scaleMode || (cardId === "sidebarColor" ? "height" : "auto")}
+                      onChange={(e) => handleScaleMode(e.target.value as any)}
+                      className="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-200 font-mono"
+                    >
+                      <option value="auto">Auto Dimension</option>
+                      <option value="width">Width (%)</option>
+                      <option value="height">Height (%)</option>
+                      <option value="both">Both (Distort)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── SECTION 2: FOCAL POINT & PAN AREA (کونسا حصہ دکھانا ہے) ── */}
+              <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs font-bold text-slate-200">
+                      Picture Focal Point & Crop (تصویر کا کونسا حصہ فِل میں دکھانا ہے)
+                    </span>
+                  </div>
+
+                  <span className="font-mono text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
+                    X: {conf.image.focalPoint?.x ?? 50}% • Y: {conf.image.focalPoint?.y ?? 50}%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                  {/* 3x3 Focal Alignment Matrix (5 cols) */}
+                  <div className="sm:col-span-5 bg-slate-950/70 p-2 rounded-lg border border-slate-800 flex flex-col items-center">
+                    <span className="text-[9px] uppercase font-mono text-slate-400 mb-1.5">
+                      9-Point Focus Matrix (9 پوائنٹ پیڈ)
+                    </span>
+                    <div className="grid grid-cols-3 gap-1 w-full max-w-[150px]">
+                      {[
+                        { label: "↖", name: "Top-Left", x: 0, y: 0 },
+                        { label: "↑", name: "Top-Center", x: 50, y: 0 },
+                        { label: "↗", name: "Top-Right", x: 100, y: 0 },
+                        { label: "←", name: "Center-Left", x: 0, y: 50 },
+                        { label: "•", name: "Center", x: 50, y: 50 },
+                        { label: "→", name: "Center-Right", x: 100, y: 50 },
+                        { label: "↙", name: "Bottom-Left", x: 0, y: 100 },
+                        { label: "↓", name: "Bottom-Center", x: 50, y: 100 },
+                        { label: "↘", name: "Bottom-Right", x: 100, y: 100 },
+                      ].map((pt) => {
+                        const isCur =
+                          (conf.image.focalPoint?.x ?? 50) === pt.x &&
+                          (conf.image.focalPoint?.y ?? 50) === pt.y;
+                        return (
+                          <button
+                            key={pt.name}
+                            type="button"
+                            onClick={() => handleFocalPoint(pt.x, pt.y)}
+                            title={pt.name}
+                            className={`h-7 rounded text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                              isCur
+                                ? "bg-amber-500 text-slate-950 font-black shadow-md scale-105"
+                                : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                            }`}
+                          >
+                            {pt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Precision Sliders (X & Y) (7 cols) */}
+                  <div className="sm:col-span-7 space-y-2">
+                    {/* Horizontal Pan */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                        <span>Horizontal Pan (بائیں ↔ دائیں X):</span>
+                        <span className="font-mono text-amber-300">
+                          {conf.image.focalPoint?.x ?? 50}%
+                        </span>
+                      </div>
                       <input
                         type="range"
                         min={0}
-                        max={90}
-                        value={conf.image.tintOpacity || 0}
-                        onChange={(e) => handleImageTintOpacity(Number(e.target.value))}
-                        className="w-16 h-1 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                        max={100}
+                        value={conf.image.focalPoint?.x ?? 50}
+                        onChange={(e) =>
+                          handleFocalPoint(Number(e.target.value), conf.image.focalPoint?.y ?? 50)
+                        }
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
                       />
-                      <span className="font-mono text-amber-300 text-[10px]">
-                        {conf.image.tintOpacity || 0}%
-                      </span>
+                    </div>
+
+                    {/* Vertical Pan */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                        <span>Vertical Pan (اوپر ↕ نیچے Y):</span>
+                        <span className="font-mono text-amber-300">
+                          {conf.image.focalPoint?.y ?? 50}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={conf.image.focalPoint?.y ?? 50}
+                        onChange={(e) =>
+                          handleFocalPoint(conf.image.focalPoint?.x ?? 50, Number(e.target.value))
+                        }
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      />
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 italic pt-0.5">
+                      💡 یا بائیں پریویو باکس پر کہیں بھی کلک کر کے فوری طور پر وہ حصہ منتخب کریں۔
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* ── SECTION 3: TINT OVERLAY COLOR & OPACITY ── */}
+              <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between text-[11px] font-bold text-slate-400">
+                <div className="flex items-center gap-2">
+                  <span>Tint Overlay (ٹنٹ اوورلے):</span>
+                  <input
+                    type="color"
+                    value={conf.image.tintColor || "#000000"}
+                    onChange={(e) => handleImageTint(e.target.value)}
+                    className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-400">Opacity:</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={90}
+                    value={conf.image.tintOpacity || 0}
+                    onChange={(e) => handleImageTintOpacity(Number(e.target.value))}
+                    className="w-24 h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                  />
+                  <span className="font-mono text-amber-300 text-xs w-7 text-right">
+                    {conf.image.tintOpacity || 0}%
+                  </span>
                 </div>
               </div>
             </div>

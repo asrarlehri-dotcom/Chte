@@ -181,11 +181,10 @@ export default function ThemePresetGallery({
             type="button"
             onClick={() => setShowSaveInput(true)}
             disabled={customPresets.length >= 6}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs transition-all ${
-              customPresets.length >= 6
-                ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                : "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:scale-102"
-            }`}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs transition-all ${customPresets.length >= 6
+              ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+              : "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:scale-102"
+              }`}
           >
             <Plus className="w-3.5 h-3.5" />
             <span>+ Save Current as Theme Preset</span>
@@ -239,11 +238,10 @@ export default function ThemePresetGallery({
                 setActivePresetId(preset.id);
                 onApplyTheme(preset);
               }}
-              className={`group relative p-2.5 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-102 flex flex-col justify-between ${
-                isSelected
-                  ? "border-amber-400 bg-amber-500/10 ring-2 ring-amber-400/30 shadow-md"
-                  : "border-slate-800 bg-[#090e1a] hover:border-slate-700"
-              }`}
+              className={`group relative p-2.5 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-102 flex flex-col justify-between ${isSelected
+                ? "border-amber-400 bg-amber-500/10 ring-2 ring-amber-400/30 shadow-md"
+                : "border-slate-800 bg-[#090e1a] hover:border-slate-700"
+                }`}
             >
               {/* Mini Portal Mockup Visualizer */}
               <div

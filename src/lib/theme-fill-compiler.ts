@@ -35,7 +35,17 @@ export type TextureConfig = {
 };
 
 export type ImageFitMode = "cover" | "contain" | "repeat" | "stretch";
-export type ImagePosition = "center" | "top" | "bottom" | "left" | "right";
+export type ImagePosition =
+  | "center"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "top left"
+  | "top right"
+  | "bottom left"
+  | "bottom right"
+  | string;
 
 export type ImageConfig = {
   url: string;
@@ -43,6 +53,9 @@ export type ImageConfig = {
   position: ImagePosition;
   tintColor: string;
   tintOpacity: number; // 0 to 95%
+  zoom?: number; // 25% to 400%, default 100
+  focalPoint?: { x: number; y: number }; // 0% to 100%
+  scaleMode?: "auto" | "width" | "height" | "both";
 };
 
 export type FillConfig = {
@@ -236,7 +249,10 @@ export function createDefaultFillConfig(defaultColor: string): FillConfig {
       fit: "cover",
       position: "center",
       tintColor: "#000000",
-      tintOpacity: 25,
+      tintOpacity: 0,
+      zoom: 100,
+      focalPoint: { x: 50, y: 50 },
+      scaleMode: "auto",
     },
   };
 }
@@ -297,16 +313,58 @@ export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillC
       opacity: typeof input.texture?.opacity === "number" ? Math.max(5, Math.min(100, input.texture.opacity)) : 20,
     };
 
+    const zoom =
+      typeof input.image?.zoom === "number" && input.image.zoom > 0
+        ? Math.max(10, Math.min(500, input.image.zoom))
+        : 100;
+
+    let focalPoint = { x: 50, y: 50 };
+    if (
+      input.image?.focalPoint &&
+      typeof input.image.focalPoint.x === "number" &&
+      typeof input.image.focalPoint.y === "number"
+    ) {
+      focalPoint = {
+        x: Math.max(0, Math.min(100, Math.round(input.image.focalPoint.x))),
+        y: Math.max(0, Math.min(100, Math.round(input.image.focalPoint.y))),
+      };
+    } else if (typeof input.image?.position === "string") {
+      const pos = input.image.position.toLowerCase();
+      if (pos.includes("top") && pos.includes("left")) focalPoint = { x: 0, y: 0 };
+      else if (pos.includes("top") && pos.includes("right")) focalPoint = { x: 100, y: 0 };
+      else if (pos.includes("bottom") && pos.includes("left")) focalPoint = { x: 0, y: 100 };
+      else if (pos.includes("bottom") && pos.includes("right")) focalPoint = { x: 100, y: 100 };
+      else if (pos === "top") focalPoint = { x: 50, y: 0 };
+      else if (pos === "bottom") focalPoint = { x: 50, y: 100 };
+      else if (pos === "left") focalPoint = { x: 0, y: 50 };
+      else if (pos === "right") focalPoint = { x: 100, y: 50 };
+      else if (pos.includes("%")) {
+        const parts = pos.split(/\s+/).map((p: string) => parseFloat(p));
+        if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          focalPoint = {
+            x: Math.max(0, Math.min(100, parts[0])),
+            y: Math.max(0, Math.min(100, parts[1])),
+          };
+        }
+      }
+    }
+
     const image: ImageConfig = {
       url: typeof input.image?.url === "string" ? input.image.url : "",
-      fit: ["cover", "contain", "repeat", "stretch"].includes(input.image?.fit) ? input.image.fit : "cover",
-      position: ["center", "top", "bottom", "left", "right"].includes(input.image?.position)
-        ? input.image.position
-        : "center",
+      fit: ["cover", "contain", "repeat", "stretch"].includes(input.image?.fit)
+        ? input.image.fit
+        : "cover",
+      position: `${focalPoint.x}% ${focalPoint.y}%`,
       tintColor: typeof input.image?.tintColor === "string" ? input.image.tintColor : "#000000",
-      tintOpacity: typeof input.image?.tintOpacity === "number"
-        ? Math.max(0, Math.min(95, input.image.tintOpacity))
-        : 25,
+      tintOpacity:
+        typeof input.image?.tintOpacity === "number"
+          ? Math.max(0, Math.min(95, input.image.tintOpacity))
+          : 0,
+      zoom,
+      focalPoint,
+      scaleMode: ["auto", "width", "height", "both"].includes(input.image?.scaleMode)
+        ? input.image.scaleMode
+        : "auto",
     };
 
     return {
@@ -377,26 +435,47 @@ export function compileFillToStyle(
 
       const { r, g, b } = hexToRgb(conf.image.tintColor || "#000000");
       const alpha = (conf.image.tintOpacity / 100).toFixed(2);
-      const tintLayer = conf.image.tintOpacity > 0 ? `linear-gradient(rgba(${r},${g},${b},${alpha}), rgba(${r},${g},${b},${alpha})), ` : "";
+      const tintLayer =
+        conf.image.tintOpacity > 0
+          ? `linear-gradient(rgba(${r},${g},${b},${alpha}), rgba(${r},${g},${b},${alpha})), `
+          : "";
 
+      const zoom = typeof conf.image.zoom === "number" && conf.image.zoom > 0 ? conf.image.zoom : 100;
       let backgroundSize = "cover";
       let backgroundRepeat = "no-repeat";
 
       if (conf.image.fit === "contain") {
-        backgroundSize = "contain";
+        backgroundSize = zoom === 100 ? "contain" : `${zoom}% auto`;
       } else if (conf.image.fit === "repeat") {
-        backgroundSize = "auto";
+        backgroundSize = zoom === 100 ? "auto" : `${zoom}% auto`;
         backgroundRepeat = "repeat";
       } else if (conf.image.fit === "stretch") {
-        backgroundSize = "100% 100%";
+        backgroundSize = zoom === 100 ? "100% 100%" : `${zoom}% ${zoom}%`;
+      } else {
+        // cover mode
+        if (zoom === 100) {
+          backgroundSize = "cover";
+        } else {
+          if (conf.image.scaleMode === "height") {
+            backgroundSize = `auto ${zoom}%`;
+          } else if (conf.image.scaleMode === "both") {
+            backgroundSize = `${zoom}% ${zoom}%`;
+          } else {
+            backgroundSize = `${zoom}% auto`;
+          }
+        }
       }
+
+      const focalX = conf.image.focalPoint?.x ?? 50;
+      const focalY = conf.image.focalPoint?.y ?? 50;
+      const backgroundPosition = `${focalX}% ${focalY}%`;
 
       return {
         backgroundColor: conf.image.tintColor || defaultSolid,
         backgroundImage: `${tintLayer}url("${conf.image.url}")`,
         backgroundSize,
         backgroundRepeat,
-        backgroundPosition: conf.image.position,
+        backgroundPosition,
       };
     }
 
