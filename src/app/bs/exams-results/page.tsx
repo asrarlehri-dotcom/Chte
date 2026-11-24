@@ -7,8 +7,30 @@ import ResultsPromotionTab from "./ResultsPromotionTab";
 import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
 import { useSettings } from "@/lib/useSettings";
 import { getGPValue } from "@/lib/cgpa";
+import {
+  Bell,
+  FileText,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
+  ExternalLink,
+  Users,
+  Award,
+  Layers,
+  ClipboardList,
+  Edit3,
+  GraduationCap,
+  ShieldCheck,
+  Search,
+  BookOpen
+} from "lucide-react";
+import { PortalPageHeader, PortalBottomWave } from "@/components/common/PortalPageHeader";
 
 export default function ExamsResultsPage() {
+  const { data: session } = useSession();
+  const userName = session?.user?.name || "Asrar Ahmed";
+  const userRole = (session?.user as any)?.role || "Super Admin";
+
   const [activeTab, setActiveTab] = useState("paper_attendance");
   const [sharedFilters, setSharedFilters] = useState({
     session: "2024-2028",
@@ -47,67 +69,118 @@ export default function ExamsResultsPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 print:hidden">
-        <h1 className="text-2xl font-bold text-gray-900">Examinations & Results</h1>
-        <p className="text-gray-500 mt-1">Manage Exam Paper Attendance, Student Marks Entry, Result Compilation, and Promotions.</p>
+    <div className="space-y-5">
+      {/* ── TOP USER BAR (MATCHING USER SCREENSHOT) ── */}
+      <div className="flex items-center justify-end gap-3 print:hidden">
+        {/* Notification Bell with Red Badge 3 */}
+        <button className="p-2 text-slate-600 hover:text-emerald-700 bg-white hover:bg-emerald-50 rounded-xl border border-slate-200 transition-colors relative shadow-xs">
+          <Bell className="w-4 h-4 text-emerald-900" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white">
+            3
+          </span>
+        </button>
+
+        {/* User Profile: Asrar Ahmed / Super Admin */}
+        <div className="flex items-center gap-2.5 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold text-xs flex items-center justify-center uppercase shadow-xs ring-2 ring-emerald-100">
+            {userName.slice(0, 2)}
+          </div>
+          <div className="text-left hidden sm:block">
+            <div className="text-xs font-black text-slate-900 leading-none">{userName}</div>
+            <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">{userRole.replace(/_/g, " ")}</div>
+          </div>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
-        <div className="flex border-b print:hidden overflow-x-auto bg-slate-50/50">
-          <button
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
-              activeTab === 'paper_attendance'
-                ? 'border-b-2 border-blue-600 text-blue-700 font-black bg-white shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
-            }`}
-            onClick={() => setActiveTab('paper_attendance')}
-          >
-            <span>📋 Paper Attendance</span>
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-800">Step 1</span>
-          </button>
+      {/* ── PANORAMIC COLLEGE BUILDING BANNER WITH ORGANIC GREEN WAVES ── */}
+      <PortalPageHeader
+        title="Examinations & Results"
+        subtitle="Manage Exam Paper Attendance, Student Marks Entry, Result Compilation, and Promotions."
+        showAccentBar={true}
+        accentBarColor="#047857"
+        heightClass="min-h-[170px] md:min-h-[200px]"
+      />
 
-          <button
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
-              activeTab === 'marks'
-                ? 'border-b-2 border-blue-600 text-blue-700 font-black bg-white shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
-            }`}
-            onClick={() => setActiveTab('marks')}
-          >
-            <span>📝 Marks Entry</span>
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-100 text-indigo-800">Step 2</span>
-          </button>
+      {/* ── STEP NAVIGATION PILLS BAR (MATCHING USER SCREENSHOT) ── */}
+      <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-2.5 overflow-x-auto print:hidden custom-scrollbar">
+        <button
+          onClick={() => setActiveTab('paper_attendance')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
+            activeTab === 'paper_attendance'
+              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+          }`}
+        >
+          <ClipboardList className="w-4 h-4 text-emerald-700" />
+          <span>Paper Attendance</span>
+          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
+            activeTab === 'paper_attendance' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
+          }`}>
+            Step 1
+          </span>
+        </button>
 
-          <button
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
-              activeTab === 'results'
-                ? 'border-b-2 border-blue-600 text-blue-700 font-black bg-white shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
-            }`}
-            onClick={() => setActiveTab('results')}
-          >
-            <span>🎓 Results & Promotion</span>
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800">Step 3</span>
-          </button>
-          <button
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
-              activeTab === 'academic_actions' ? 'border-b-2 border-blue-600 text-blue-600 font-bold bg-white' : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => setActiveTab('academic_actions')}
-          >
-            🔀 Status & Academic Actions
-          </button>
-          <button
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap ${
-              activeTab === 'merit' ? 'border-b-2 border-blue-600 text-blue-600 font-bold bg-white' : 'text-gray-500 hover:text-gray-700'
-            }`}
-            onClick={() => setActiveTab('merit')}
-          >
-            Merit & Scholarships
-          </button>
-        </div>
+        <button
+          onClick={() => setActiveTab('marks')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
+            activeTab === 'marks'
+              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+          }`}
+        >
+          <Edit3 className="w-4 h-4 text-emerald-700" />
+          <span>Marks Entry</span>
+          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
+            activeTab === 'marks' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
+          }`}>
+            Step 2
+          </span>
+        </button>
 
+        <button
+          onClick={() => setActiveTab('results')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
+            activeTab === 'results'
+              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+          }`}
+        >
+          <GraduationCap className="w-4 h-4 text-emerald-700" />
+          <span>Results & Promotion</span>
+          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
+            activeTab === 'results' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
+          }`}>
+            Step 3
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('academic_actions')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
+            activeTab === 'academic_actions'
+              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+          }`}
+        >
+          <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+          <span>Status & Academic Actions</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('merit')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
+            activeTab === 'merit'
+              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+          }`}
+        >
+          <Award className="w-4 h-4 text-amber-600" />
+          <span>Merit & Reports</span>
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
         <div className="p-6">
           {activeTab === 'paper_attendance' && (
             <PaperAttendanceModule
@@ -153,6 +226,7 @@ export default function ExamsResultsPage() {
           )}
         </div>
       </div>
+      <PortalBottomWave />
     </div>
   );
 }
@@ -1717,66 +1791,91 @@ function MarksEntryTable({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Enter & Review Student Marks</h2>
-          <p className="text-xs text-gray-500">Select program and course to manage student evaluation & result approvals.</p>
+      {/* ── CARD HEADER: ENTER & REVIEW STUDENT MARKS (MATCHING USER SCREENSHOT) ── */}
+      <div className="bg-[#064e3b] text-white p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-800/80 border border-emerald-600/60 flex items-center justify-center flex-shrink-0 text-white shadow-xs">
+            <FileText className="w-5 h-5 text-emerald-300" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-white tracking-tight">Enter & Review Student Marks</h2>
+            <p className="text-xs text-emerald-200/90 font-medium">Select program and course to manage student evaluation & result approvals.</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {selectedCourse && (
             <div>
               {resultStatus === "APPROVED" ? (
-                <span className="px-3 py-1.5 text-xs font-black rounded-lg bg-green-100 text-green-800 border border-green-300 flex items-center gap-1.5 shadow-sm">
+                <span className="px-3.5 py-1.5 text-xs font-black rounded-xl bg-emerald-600/90 text-white border border-emerald-400 flex items-center gap-1.5 shadow-sm">
                   <span>🔒</span> APPROVED & PUBLISHED (LOCKED)
                 </span>
               ) : resultStatus === "PENDING_APPROVAL" ? (
-                <span className="px-3 py-1.5 text-xs font-black rounded-lg bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1.5 animate-pulse shadow-sm">
+                <span className="px-3.5 py-1.5 text-xs font-black rounded-xl bg-amber-500 text-slate-950 border border-amber-300 flex items-center gap-1.5 animate-pulse shadow-sm">
                   <span>⏳</span> PENDING ADMIN APPROVAL
                 </span>
               ) : resultStatus === "REJECTED" ? (
-                <span className="px-3 py-1.5 text-xs font-black rounded-lg bg-red-100 text-red-800 border border-red-300 flex items-center gap-1.5 shadow-sm">
+                <span className="px-3.5 py-1.5 text-xs font-black rounded-xl bg-rose-600 text-white border border-rose-300 flex items-center gap-1.5 shadow-sm">
                   <span>❌</span> REJECTED - REVISION NEEDED
                 </span>
               ) : (
-                <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1.5 shadow-sm">
+                <span className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-800/90 text-emerald-100 border border-emerald-700 flex items-center gap-1.5 shadow-sm">
                   <span>📝</span> DRAFT / SAVED
                 </span>
               )}
             </div>
           )}
 
-          <div className="flex bg-gray-100 p-1 rounded-lg">
+          <div className="flex bg-emerald-950/70 p-1 rounded-xl border border-emerald-800/60 shadow-inner">
             <button
-              className={`px-4 py-2 text-sm rounded-md transition-colors ${entryType === 'detailed' ? 'bg-white shadow-sm font-bold text-blue-600' : 'text-gray-600 hover:bg-gray-200'}`}
+              className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                entryType === 'detailed'
+                  ? 'bg-white text-emerald-900 shadow-sm'
+                  : 'text-emerald-200 hover:text-white hover:bg-white/10'
+              }`}
               onClick={() => setEntryType('detailed')}
-            >Detailed Breakdown</button>
+            >
+              <span>📊</span>
+              <span>Detailed Breakdown</span>
+            </button>
             <button
-              className={`px-4 py-2 text-sm rounded-md transition-colors ${entryType === 'total' ? 'bg-white shadow-sm font-bold text-blue-600' : 'text-gray-600 hover:bg-gray-200'}`}
+              className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all ${
+                entryType === 'total'
+                  ? 'bg-white text-emerald-900 shadow-sm'
+                  : 'text-emerald-200 hover:text-white hover:bg-white/10'
+              }`}
               onClick={() => setEntryType('total')}
-            >Total Only</button>
+            >
+              Total Only
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Search & Filters row */}
-      <div className="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
+      {/* Search & Filters row (Matching Screenshot) */}
+      <div className="space-y-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Search Student</label>
+            <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Search className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Search Student</span>
+            </label>
             <input
               type="text"
-              className="w-full px-4 py-2 border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400"
-              placeholder="🔍 Search name or roll number..."
+              className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+              placeholder="Search name or roll number..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Program Type</label>
+            <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Program Type</span>
+            </label>
             <select
-              className="w-full px-4 py-2 border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400"
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-800"
               value={selectedProgType}
               onChange={e => setSelectedProgType(e.target.value)}
             >
@@ -1788,9 +1887,12 @@ function MarksEntryTable({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Session</label>
+            <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Session</span>
+            </label>
             <select
-              className="w-full px-4 py-2 border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400"
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-800"
               value={selectedSession}
               onChange={e => setSelectedSession(e.target.value)}
             >
@@ -1802,9 +1904,12 @@ function MarksEntryTable({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Program</label>
+            <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Program</span>
+            </label>
             <select
-              className="w-full px-4 py-2 border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400"
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-800"
               value={selectedProgram}
               onChange={e => {
                 setSelectedProgram(e.target.value);
@@ -1819,9 +1924,12 @@ function MarksEntryTable({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Semester</label>
+            <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Semester</span>
+            </label>
             <select
-              className="w-full px-4 py-2 border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400"
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-800"
               value={selectedSemester}
               onChange={e => {
                 setSelectedSemester(e.target.value);
@@ -1837,9 +1945,12 @@ function MarksEntryTable({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Select Course *</label>
+          <label className="block text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Select Course *</span>
+          </label>
           <select
-            className={`w-full px-4 py-2 border rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-400 ${!selectedProgram ? 'opacity-60 cursor-not-allowed' : ''}`}
+            className={`w-full px-4 py-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-800 ${!selectedProgram ? 'opacity-60 cursor-not-allowed' : ''}`}
             value={selectedCourse}
             onChange={e => handleCourseChange(e.target.value)}
           >
@@ -1901,20 +2012,25 @@ function MarksEntryTable({
             </div>
           )}
 
-          {/* Exam Scheme Mode Card (Decided by Datesheet) */}
-          <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 p-4 rounded-xl border border-purple-200 flex items-center justify-between flex-wrap gap-3 shadow-sm">
+          {/* Exam Scheme Mode Card (Decided by Datesheet) - Matching User Screenshot */}
+          <div className="bg-[#ecfdf5] p-4 sm:p-4.5 rounded-2xl border border-emerald-200/90 flex items-center justify-between flex-wrap gap-4 shadow-xs">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">📅</span>
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center border border-emerald-200/80 flex-shrink-0 shadow-xs">
+                <Calendar className="w-5 h-5 text-emerald-800" />
+              </div>
               <div>
-                <span className="text-[11px] font-black uppercase text-purple-900 tracking-wider">Exam Scheme Mode (Decided by Datesheet):</span>
+                <span className="text-[11px] font-black uppercase text-emerald-900 tracking-wider">Exam Scheme Mode (Decided by Datesheet):</span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <strong className="text-xs font-black text-gray-900">
-                    {examScheme === "TERMINAL"
-                      ? `🎓 Single Terminal Exam Scheme — ${isPracticalCourse ? 'Quiz+Assign (5) + Practical (25) + Terminal (70) = 100' : 'Quiz+Assign (30) + Terminal Exam (70) = 100'}`
-                      : `📑 Mid + Final Scheme — ${isPracticalCourse ? 'Quiz+Assign (15) + Practical (25) + Mid (20) + Final (40) = 100' : 'Quiz+Assign (30) + Mid (30) + Final (40) = 100'}`}
-                  </strong>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>
+                      {examScheme === "TERMINAL"
+                        ? `Single Terminal Exam Scheme — ${isPracticalCourse ? 'Quiz+Assign (5) + Practical (25) + Terminal (70) = 100' : 'Quiz+Assign (30) + Terminal Exam (70) = 100'}`
+                        : `Mid + Final Scheme — ${isPracticalCourse ? 'Quiz+Assign (15) + Practical (25) + Mid (20) + Final (40) = 100' : 'Quiz+Assign (30) + Mid (30) + Final (40) = 100'}`}
+                    </span>
+                  </div>
                   {datesheetInfo && (
-                    <span className="px-2 py-0.5 text-[10px] font-black bg-purple-200 text-purple-950 rounded-full border border-purple-300">
+                    <span className="px-2 py-0.5 text-[10px] font-black bg-emerald-200 text-emerald-950 rounded-full border border-emerald-300">
                       Datesheet ({datesheetInfo.examType})
                     </span>
                   )}
@@ -1922,22 +2038,30 @@ function MarksEntryTable({
               </div>
             </div>
 
-            <div className="flex bg-white p-1 rounded-xl border border-purple-200 shadow-sm">
+            <div className="flex items-center gap-2 bg-white/80 p-1 rounded-xl border border-emerald-200 shadow-xs">
               <button
                 type="button"
                 onClick={() => setExamScheme("MID_FINAL")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${examScheme === "MID_FINAL" ? "bg-blue-600 text-white shadow" : "text-gray-600 hover:text-gray-900"
-                  }`}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  examScheme === "MID_FINAL"
+                    ? "bg-[#064e3b] text-white shadow-sm"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                }`}
               >
-                Mid (30/20) + Final (40)
+                <FileText className="w-3.5 h-3.5" />
+                <span>Mid (30/20) + Final (40)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setExamScheme("TERMINAL")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${examScheme === "TERMINAL" ? "bg-purple-600 text-white shadow" : "text-gray-600 hover:text-gray-900"
-                  }`}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  examScheme === "TERMINAL"
+                    ? "bg-[#064e3b] text-white shadow-sm"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                }`}
               >
-                Single Terminal Exam (70)
+                <Award className="w-3.5 h-3.5" />
+                <span>Single Terminal Exam (70)</span>
               </button>
             </div>
           </div>

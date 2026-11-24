@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import CorelFillPickerCard from "./CorelFillPickerCard";
 import ThemePresetGallery, { ThemePresetItem, INSTITUTIONAL_PRESETS } from "./ThemePresetGallery";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 import {
   FillConfig,
   compileFillToStyle,
@@ -100,6 +101,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     ribbonColor: "#dc2626" as string | FillConfig, // Red patii
     bodyBgColor: "#070d19" as string | FillConfig,
     sidebarColor: "#090E24" as string | FillConfig, // Sidebar ERP background color
+    pageBannerBg: "/gpgcq-campus-banner.jpg" as string | FillConfig, // Official Campus Panoramic Banner
+    pageBannerWaveColor: "#047857" as string | FillConfig, // Balochistan Emerald Green wave curve
+    pageBannerWaveShow: true, // Show decorative wave swoosh
     collegeNameColor: "#0f172a", // Custom College Name font color
     collegeFontFamily: "'Times New Roman', Times, serif",
     collegeFontWeight: "700",
@@ -198,7 +202,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
   // Live real-time sync with Sidebar & Global Theme
   const syncThemeField = (field: string, val: any) => {
-    const isFillField = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeHeaderBg", "collegeNameColor"].includes(field);
+    const isFillField = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeHeaderBg", "collegeNameColor", "pageBannerBg", "pageBannerWaveColor"].includes(field);
     const cleanVal = isFillField
       ? (typeof val === "string" ? normalizeHex(val) : val)
       : (field === "portalSubtitleColor" ? normalizeHex(String(val || "")) : val);
@@ -209,6 +213,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
         try {
           const stringified = typeof cleanVal === "object" ? JSON.stringify(cleanVal) : String(cleanVal);
           const reprColor = getRepresentativeColor(cleanVal);
+
+          if (field === "pageBannerBg") localStorage.setItem("college_banner_bg", stringified);
+          if (field === "pageBannerWaveColor") localStorage.setItem("college_banner_wave_color", stringified);
+          if (field === "pageBannerWaveShow") localStorage.setItem("college_banner_wave_show", String(cleanVal));
 
           if (field === "sidebarColor") {
             localStorage.setItem("college_sidebar_active", stringified);
@@ -229,6 +237,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
           if (selectedCollege?.code) {
             const cCode = selectedCollege.code.toLowerCase();
+            if (field === "pageBannerBg") localStorage.setItem(`college_banner_bg_${cCode}`, stringified);
+            if (field === "pageBannerWaveColor") localStorage.setItem(`college_banner_wave_color_${cCode}`, stringified);
             if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${cCode}`, stringified);
             if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${cCode}`, stringified);
             if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${cCode}`, stringified);
@@ -237,6 +247,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           }
           if (selectedCollege?.id) {
             const cId = selectedCollege.id.toLowerCase();
+            if (field === "pageBannerBg") localStorage.setItem(`college_banner_bg_${cId}`, stringified);
+            if (field === "pageBannerWaveColor") localStorage.setItem(`college_banner_wave_color_${cId}`, stringified);
             if (field === "sidebarColor") localStorage.setItem(`college_sidebar_${cId}`, stringified);
             if (field === "collegeNameColor") localStorage.setItem(`college_name_color_${cId}`, stringified);
             if (field === "collegeHeaderBg") localStorage.setItem(`college_header_bg_${cId}`, stringified);
@@ -253,6 +265,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               portalSubtitle: updated.portalSubtitle,
               portalSubtitleColor: updated.portalSubtitleColor,
               ribbonColor: updated.ribbonColor,
+              pageBannerBg: updated.pageBannerBg,
+              pageBannerWaveColor: updated.pageBannerWaveColor,
+              pageBannerWaveShow: updated.pageBannerWaveShow,
             }
           }));
         } catch { }
@@ -612,6 +627,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           ribbonColor: data.ribbonColor || "#dc2626",
           bodyBgColor: data.bodyBgColor || "#070d19",
           sidebarColor: data.sidebarColor || "#090E24",
+          pageBannerBg: data.pageBannerBg || "/gpgcq-campus-banner.jpg",
+          pageBannerWaveColor: data.pageBannerWaveColor || "#047857",
+          pageBannerWaveShow: data.pageBannerWaveShow !== false,
           collegeNameColor: data.collegeNameColor || "#0f172a",
           collegeFontFamily: data.collegeFontFamily || "'Times New Roman', Times, serif",
           collegeFontWeight: data.collegeFontWeight || "700",
@@ -699,6 +717,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       ribbonColor: formData.ribbonColor,
       bodyBgColor: formData.bodyBgColor,
       sidebarColor: formData.sidebarColor,
+      pageBannerBg: formData.pageBannerBg,
+      pageBannerWaveColor: formData.pageBannerWaveColor,
+      pageBannerWaveShow: formData.pageBannerWaveShow,
       collegeNameColor: formData.collegeNameColor,
       collegeHeaderBg: formData.collegeHeaderBg,
       portalSubtitle: formData.portalSubtitle,
@@ -748,6 +769,12 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             const sidebarStr = typeof formData.sidebarColor === "object" ? JSON.stringify(formData.sidebarColor) : String(formData.sidebarColor);
             const headerBgStr = typeof formData.collegeHeaderBg === "object" ? JSON.stringify(formData.collegeHeaderBg) : String(formData.collegeHeaderBg);
             const nameColorStr = typeof formData.collegeNameColor === "object" ? JSON.stringify(formData.collegeNameColor) : String(formData.collegeNameColor);
+            const bannerBgStr = typeof formData.pageBannerBg === "object" ? JSON.stringify(formData.pageBannerBg) : String(formData.pageBannerBg);
+            const waveColorStr = typeof formData.pageBannerWaveColor === "object" ? JSON.stringify(formData.pageBannerWaveColor) : String(formData.pageBannerWaveColor);
+
+            localStorage.setItem("college_banner_bg", bannerBgStr);
+            localStorage.setItem("college_banner_wave_color", waveColorStr);
+            localStorage.setItem("college_banner_wave_show", String(formData.pageBannerWaveShow));
 
             if (selectedCollege.code) {
               const cCode = selectedCollege.code.toLowerCase();
@@ -1298,6 +1325,124 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 customColors={formData.customColors}
                 onAddCustomColor={handleAddCustomColor}
               />
+
+              {/* Card 7: Page Header Banner ("Campus Banner" / کیمپس بینر) */}
+              <CorelFillPickerCard
+                cardId="pageBannerBg"
+                title='Page Header Banner ("Campus Banner")'
+                subtitleUrdu="کیمپس بینر کا بیک گراؤنڈ (تصویر، رنگ، گریڈینٹ یا ٹیکسچر)"
+                value={formData.pageBannerBg}
+                onChange={(val) => syncThemeField("pageBannerBg", val)}
+                defaultColor="/gpgcq-campus-banner.jpg"
+                gradientPresets={[
+                  {
+                    name: "Balochistan Emerald",
+                    angle: 135,
+                    stops: [
+                      { color: "#064e3b", position: 0 },
+                      { color: "#059669", position: 50 },
+                      { color: "#10b981", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Academic Navy",
+                    angle: 135,
+                    stops: [
+                      { color: "#091e3a", position: 0 },
+                      { color: "#1e3a8a", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Crimson Heritage",
+                    angle: 135,
+                    stops: [
+                      { color: "#7f1d1d", position: 0 },
+                      { color: "#dc2626", position: 100 },
+                    ],
+                  },
+                ]}
+                quickPresets={[
+                  { name: "Default Photo", hex: "#ffffff" },
+                  { name: "Emerald 800", hex: "#064e3b" },
+                  { name: "Emerald 600", hex: "#059669" },
+                  { name: "Navy 900", hex: "#0f172a" },
+                  { name: "Navy 800", hex: "#1e3a8a" },
+                  { name: "Slate 900", hex: "#020617" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
+
+              {/* Card 8: Decorative Wave Accent ("Wave Patii" / لہر دار پٹی) */}
+              <CorelFillPickerCard
+                cardId="pageBannerWaveColor"
+                title='Decorative Wave Accent ("Wave Patii")'
+                subtitleUrdu="لہر دار پٹی کا رنگ (ڈیش بورڈ اور امتحانات کا بینر ڈیزائن)"
+                value={formData.pageBannerWaveColor}
+                onChange={(val) => syncThemeField("pageBannerWaveColor", val)}
+                defaultColor="#047857"
+                gradientPresets={[
+                  {
+                    name: "Balochistan Green",
+                    angle: 90,
+                    stops: [
+                      { color: "#064e3b", position: 0 },
+                      { color: "#047857", position: 50 },
+                      { color: "#10b981", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Ruby Ribbon",
+                    angle: 90,
+                    stops: [
+                      { color: "#881337", position: 0 },
+                      { color: "#e11d48", position: 50 },
+                      { color: "#fb7185", position: 100 },
+                    ],
+                  },
+                  {
+                    name: "Royal Gold",
+                    angle: 90,
+                    stops: [
+                      { color: "#78350f", position: 0 },
+                      { color: "#d97706", position: 50 },
+                      { color: "#fbbf24", position: 100 },
+                    ],
+                  },
+                ]}
+                quickPresets={[
+                  { name: "Balochistan Emerald", hex: "#047857" },
+                  { name: "Forest Green", hex: "#064e3b" },
+                  { name: "Ruby Crimson", hex: "#dc2626" },
+                  { name: "Academic Navy", hex: "#1e3a8a" },
+                  { name: "Royal Gold", hex: "#d97706" },
+                  { name: "Slate 900", hex: "#0f172a" },
+                ]}
+                customColors={formData.customColors}
+                onAddCustomColor={handleAddCustomColor}
+              />
+
+              {/* ── LIVE REAL-TIME BANNER & WAVE PATII PREVIEW BOX ── */}
+              <div className="bg-[#080d1a] p-4.5 rounded-2xl border border-slate-800 space-y-2.5 shadow-inner">
+                <div className="flex items-center justify-between text-xs text-slate-300 font-bold px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Live Header Banner & Wave Patii Preview (لائیو بینر اور لہر دار پٹی پریویو):</span>
+                  </div>
+                  <span className="text-emerald-400 font-mono text-[11px] bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md">
+                    Real-Time Dynamic Sync
+                  </span>
+                </div>
+                <PortalPageHeader
+                  title="Examinations & Results"
+                  subtitle="Manage Exam Paper Attendance, Student Marks Entry, Result Compilation, and Promotions."
+                  showAccentBar={true}
+                  customBannerBg={formData.pageBannerBg}
+                  customWaveColor={typeof formData.pageBannerWaveColor === "string" ? formData.pageBannerWaveColor : getRepresentativeColor(formData.pageBannerWaveColor, "#047857")}
+                  showWaves={formData.pageBannerWaveShow}
+                  heightClass="min-h-[140px]"
+                />
+              </div>
             </div>
 
             {/* ── ACTION BAR (MATCHING USER SCREENSHOT) ── */}

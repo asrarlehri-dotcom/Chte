@@ -18,6 +18,9 @@ const DEFAULT_PORTAL_SETTINGS = {
   ribbonColor: "#dc2626", // Red patii (accent ribbon)
   bodyBgColor: "#070d19", // Dark body background matching uploaded design
   sidebarColor: "#090E24", // Sidebar background color for Campus ERP
+  pageBannerBg: "/gpgcq-campus-banner.jpg", // Default campus panoramic building banner
+  pageBannerWaveColor: "#047857", // Balochistan emerald green decorative wave swoosh ("patii")
+  pageBannerWaveShow: true, // Whether decorative wave ribbon is displayed on page headers
   collegeNameColor: "#0f172a", // Custom College Name color in sidebar & header
   collegeFontFamily: "'Times New Roman', Times, serif",
   collegeFontWeight: "700",

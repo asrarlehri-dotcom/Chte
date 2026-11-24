@@ -592,11 +592,10 @@ export default function CorelFillPickerCard({
           <button
             type="button"
             onClick={() => setMode("solid")}
-            className={`transition-all cursor-pointer ${
-              conf.mode === "solid"
+            className={`transition-all cursor-pointer ${conf.mode === "solid"
                 ? "text-amber-400 font-black drop-shadow-xs"
                 : "text-slate-400 hover:text-slate-200 font-medium"
-            }`}
+              }`}
           >
             [ Solid ]
           </button>
@@ -605,11 +604,10 @@ export default function CorelFillPickerCard({
           <button
             type="button"
             onClick={() => setMode("gradient")}
-            className={`transition-all cursor-pointer ${
-              conf.mode === "gradient"
+            className={`transition-all cursor-pointer ${conf.mode === "gradient"
                 ? "text-amber-400 font-black drop-shadow-xs"
                 : "text-slate-400 hover:text-slate-200 font-medium"
-            }`}
+              }`}
           >
             [ Gradient (Corel-style) ]
           </button>
@@ -618,11 +616,10 @@ export default function CorelFillPickerCard({
           <button
             type="button"
             onClick={() => setMode("texture")}
-            className={`transition-all cursor-pointer ${
-              conf.mode === "texture"
+            className={`transition-all cursor-pointer ${conf.mode === "texture"
                 ? "text-amber-400 font-black drop-shadow-xs"
                 : "text-slate-400 hover:text-slate-200 font-medium"
-            }`}
+              }`}
           >
             [ Texture ]
           </button>
@@ -631,11 +628,10 @@ export default function CorelFillPickerCard({
           <button
             type="button"
             onClick={() => setMode("image")}
-            className={`transition-all cursor-pointer ${
-              conf.mode === "image"
+            className={`transition-all cursor-pointer ${conf.mode === "image"
                 ? "text-amber-400 font-black drop-shadow-xs"
                 : "text-slate-400 hover:text-slate-200 font-medium"
-            }`}
+              }`}
           >
             [ Image ]
           </button>
@@ -649,9 +645,8 @@ export default function CorelFillPickerCard({
           {isTextColorOnly ? (
             <div
               onClick={handlePreviewBoxClick}
-              className={`w-full min-h-24 sm:min-h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex flex-col items-center justify-center p-3 bg-slate-950/80 ${
-                conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
-              }`}
+              className={`w-full min-h-24 sm:min-h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex flex-col items-center justify-center p-3 bg-slate-950/80 ${conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
+                }`}
               title={
                 conf.mode === "image" && conf.image.url
                   ? "Click anywhere to set focus / Pan position (کلک کر کے فوکس پوائنٹ منتخب کریں)"
@@ -718,9 +713,8 @@ export default function CorelFillPickerCard({
           ) : (
             <div
               onClick={handlePreviewBoxClick}
-              className={`w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center ${
-                conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
-              }`}
+              className={`w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center ${conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
+                }`}
               style={liveCardStyle}
               title={
                 conf.mode === "image" && conf.image.url
@@ -789,11 +783,10 @@ export default function CorelFillPickerCard({
                         key={p.id}
                         type="button"
                         onClick={() => handleApplyMsWordPreset(p)}
-                        className={`px-2.5 py-1 rounded-lg border text-left transition-all hover:scale-102 cursor-pointer flex items-center gap-1.5 ${
-                          isSelected
+                        className={`px-2.5 py-1 rounded-lg border text-left transition-all hover:scale-102 cursor-pointer flex items-center gap-1.5 ${isSelected
                             ? "bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50"
                             : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
-                        }`}
+                          }`}
                         title={`${p.name} - ${p.nameUrdu}`}
                       >
                         <span
@@ -843,19 +836,18 @@ export default function CorelFillPickerCard({
                       updateTypo({
                         fontWeight:
                           typography?.fontWeight === "700" ||
-                          typography?.fontWeight === "800" ||
-                          typography?.fontWeight === "900"
+                            typography?.fontWeight === "800" ||
+                            typography?.fontWeight === "900"
                             ? "400"
                             : "700",
                       })
                     }
-                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
-                      typography?.fontWeight === "700" ||
-                      typography?.fontWeight === "800" ||
-                      typography?.fontWeight === "900"
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${typography?.fontWeight === "700" ||
+                        typography?.fontWeight === "800" ||
+                        typography?.fontWeight === "900"
                         ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                         : "text-slate-300 hover:bg-slate-800"
-                    }`}
+                      }`}
                     title="Bold (بولڈ)"
                   >
                     <Bold className="w-3.5 h-3.5" />
@@ -869,11 +861,10 @@ export default function CorelFillPickerCard({
                         fontStyle: typography?.fontStyle === "italic" ? "normal" : "italic",
                       })
                     }
-                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
-                      typography?.fontStyle === "italic"
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${typography?.fontStyle === "italic"
                         ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                         : "text-slate-300 hover:bg-slate-800"
-                    }`}
+                      }`}
                     title="Italic (ترچھا)"
                   >
                     <Italic className="w-3.5 h-3.5" />
@@ -888,11 +879,10 @@ export default function CorelFillPickerCard({
                           typography?.textDecoration === "underline" ? "none" : "underline",
                       })
                     }
-                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
-                      typography?.textDecoration === "underline"
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${typography?.textDecoration === "underline"
                         ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                         : "text-slate-300 hover:bg-slate-800"
-                    }`}
+                      }`}
                     title="Underline (انڈر لائن)"
                   >
                     <Underline className="w-3.5 h-3.5" />
@@ -909,10 +899,10 @@ export default function CorelFillPickerCard({
                         cur === "uppercase"
                           ? "capitalize"
                           : cur === "capitalize"
-                          ? "lowercase"
-                          : cur === "lowercase"
-                          ? "none"
-                          : "uppercase";
+                            ? "lowercase"
+                            : cur === "lowercase"
+                              ? "none"
+                              : "uppercase";
                       updateTypo({ textTransform: next });
                     }}
                     className="px-1.5 h-7 rounded flex items-center justify-center text-xs font-mono font-bold text-slate-300 hover:bg-slate-800 transition-all cursor-pointer"
@@ -921,10 +911,10 @@ export default function CorelFillPickerCard({
                     {typography?.textTransform === "capitalize"
                       ? "Aa"
                       : typography?.textTransform === "lowercase"
-                      ? "aa"
-                      : typography?.textTransform === "none"
-                      ? "--"
-                      : "AA"}
+                        ? "aa"
+                        : typography?.textTransform === "none"
+                          ? "--"
+                          : "AA"}
                   </button>
 
                   {/* Letter Spacing (↔) */}
@@ -936,10 +926,10 @@ export default function CorelFillPickerCard({
                         cur === "normal"
                           ? "0.05em"
                           : cur === "0.05em"
-                          ? "0.1em"
-                          : cur === "0.1em"
-                          ? "0.15em"
-                          : "normal";
+                            ? "0.1em"
+                            : cur === "0.1em"
+                              ? "0.15em"
+                              : "normal";
                       updateTypo({ letterSpacing: next });
                     }}
                     className="px-1.5 h-7 rounded flex items-center justify-center text-[10px] font-mono text-slate-300 hover:bg-slate-800 transition-all cursor-pointer"
@@ -959,11 +949,10 @@ export default function CorelFillPickerCard({
                             : "0 2px 8px rgba(217, 119, 6, 0.45)",
                       })
                     }
-                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${
-                      typography?.textShadow && typography.textShadow !== "none"
+                    className={`w-7 h-7 rounded flex items-center justify-center transition-all cursor-pointer ${typography?.textShadow && typography.textShadow !== "none"
                         ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                         : "text-slate-300 hover:bg-slate-800"
-                    }`}
+                      }`}
                     title="WordArt Glow Shadow (گلو شیڈو)"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
@@ -1005,33 +994,30 @@ export default function CorelFillPickerCard({
                   <button
                     type="button"
                     onClick={() => handleGradientTypeChange("linear")}
-                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
-                      conf.gradient.type === "linear"
+                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${conf.gradient.type === "linear"
                         ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                         : "text-slate-400 hover:text-slate-200"
-                    }`}
+                      }`}
                   >
                     Linear (لکیری)
                   </button>
                   <button
                     type="button"
                     onClick={() => handleGradientTypeChange("radial")}
-                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
-                      conf.gradient.type === "radial"
+                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${conf.gradient.type === "radial"
                         ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                         : "text-slate-400 hover:text-slate-200"
-                    }`}
+                      }`}
                   >
                     Radial (دائرہ)
                   </button>
                   <button
                     type="button"
                     onClick={() => handleGradientTypeChange("conic")}
-                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
-                      conf.gradient.type === "conic"
+                    className={`px-2 py-0.5 rounded transition-all cursor-pointer ${conf.gradient.type === "conic"
                         ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                         : "text-slate-400 hover:text-slate-200"
-                    }`}
+                      }`}
                   >
                     Conic (سویپ)
                   </button>
@@ -1064,11 +1050,10 @@ export default function CorelFillPickerCard({
                           setSelectedStopIdx(i);
                         }}
                         style={{ left: `${stop.position}%` }}
-                        className={`absolute -bottom-2.5 -translate-x-1/2 w-4 h-4 rounded-xs border-2 cursor-pointer transition-transform shadow-md ${
-                          selectedStopIdx === i
+                        className={`absolute -bottom-2.5 -translate-x-1/2 w-4 h-4 rounded-xs border-2 cursor-pointer transition-transform shadow-md ${selectedStopIdx === i
                             ? "border-amber-400 scale-125 z-10 ring-2 ring-amber-400/50"
                             : "border-slate-900 hover:scale-110 z-0"
-                        }`}
+                          }`}
                         title={`Stop ${i + 1}: ${stop.color} (${stop.position}%)`}
                       >
                         <span
@@ -1177,11 +1162,10 @@ export default function CorelFillPickerCard({
                       key={tex.id}
                       type="button"
                       onClick={() => handleTextureTypeChange(tex.id)}
-                      className={`flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all ${
-                        conf.texture.type === tex.id
+                      className={`flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all ${conf.texture.type === tex.id
                           ? "border-amber-400 bg-amber-500/10 shadow-xs ring-1 ring-amber-400"
                           : "border-slate-800 bg-slate-900/80 hover:border-slate-700"
-                      }`}
+                        }`}
                     >
                       <div
                         className="w-full h-7 rounded border border-slate-700/60 mb-1"
@@ -1341,11 +1325,10 @@ export default function CorelFillPickerCard({
                     key={sp.id}
                     type="button"
                     onClick={() => handleImageUrlChange(sp.url)}
-                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all ${
-                      conf.image.url === sp.url
+                    className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all ${conf.image.url === sp.url
                         ? "border-amber-400 bg-amber-500/15 ring-1 ring-amber-400"
                         : "border-slate-800 bg-slate-900/80 hover:border-slate-700"
-                    }`}
+                      }`}
                   >
                     <div
                       className="w-7 h-7 rounded border border-slate-700 flex-shrink-0 bg-cover bg-center"
@@ -1451,11 +1434,10 @@ export default function CorelFillPickerCard({
                           key={fit}
                           type="button"
                           onClick={() => handleImageFit(fit)}
-                          className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all cursor-pointer ${
-                            conf.image.fit === fit
+                          className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold transition-all cursor-pointer ${conf.image.fit === fit
                               ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                               : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                          }`}
+                            }`}
                         >
                           {fit === "cover" ? "Cover (پورا بھریں)" : fit === "contain" ? "Contain (پوری تصویر)" : fit}
                         </button>
@@ -1521,11 +1503,10 @@ export default function CorelFillPickerCard({
                             type="button"
                             onClick={() => handleFocalPoint(pt.x, pt.y)}
                             title={pt.name}
-                            className={`h-7 rounded text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
-                              isCur
+                            className={`h-7 rounded text-xs font-black transition-all cursor-pointer flex items-center justify-center ${isCur
                                 ? "bg-amber-500 text-slate-950 font-black shadow-md scale-105"
                                 : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
-                            }`}
+                              }`}
                           >
                             {pt.label}
                           </button>

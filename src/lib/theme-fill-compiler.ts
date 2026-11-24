@@ -270,7 +270,7 @@ export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillC
       try {
         const parsed = JSON.parse(trimmed);
         return normalizeFillConfig(parsed, defaultSolid);
-      } catch {}
+      } catch { }
     }
 
     return {
@@ -289,13 +289,13 @@ export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillC
 
     const stops: GradientStop[] = Array.isArray(input.gradient?.stops) && input.gradient.stops.length >= 2
       ? input.gradient.stops.map((s: any) => ({
-          color: typeof s.color === "string" ? s.color : "#ffffff",
-          position: typeof s.position === "number" ? Math.max(0, Math.min(100, s.position)) : 0,
-        }))
+        color: typeof s.color === "string" ? s.color : "#ffffff",
+        position: typeof s.position === "number" ? Math.max(0, Math.min(100, s.position)) : 0,
+      }))
       : [
-          { color: solid, position: 0 },
-          { color: "#ffffff", position: 100 },
-        ];
+        { color: solid, position: 0 },
+        { color: "#ffffff", position: 100 },
+      ];
 
     const gradient: GradientConfig = {
       type: ["linear", "radial", "conic"].includes(input.gradient?.type) ? input.gradient.type : "linear",
@@ -779,6 +779,18 @@ export type SamplePicture = {
 };
 
 export const COREL_SAMPLE_PICTURES: SamplePicture[] = [
+  {
+    id: "gpgcq-campus-banner",
+    name: "GPGCQ Quetta Campus Official Panoramic",
+    category: "Institutional",
+    url: "/gpgcq-campus-banner.jpg",
+  },
+  {
+    id: "gpgcq-building-clean",
+    name: "GPGCQ Quetta Main Academic Block",
+    category: "Institutional",
+    url: "/gpgcq-building-clean.jpg",
+  },
   {
     id: "gold-foil",
     name: "Luxury Gold Foil",
