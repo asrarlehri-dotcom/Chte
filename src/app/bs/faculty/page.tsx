@@ -729,17 +729,20 @@ export default function BSFacultyPage() {
         }),
       });
 
+      const json = await res.json().catch(() => ({}));
+
       if (res.ok) {
-        const json = await res.json();
         setSuccess(`Faculty joining recorded successfully! Form T.R.I generated.`);
-        setFacultyActions((prev) => ({ ...prev, [resolvedFacultyId]: json.data }));
+        if (json.data) {
+          setFacultyActions((prev) => ({ ...prev, [resolvedFacultyId]: json.data }));
+        }
         setShowJoiningModal(false);
         setJoiningNewForm(blankJoiningNewForm);
         fetchAll();
 
         // Open Form T.R.I Printable Report
         setTriReportData({
-          facultyName: `MR. ${facultyDisplayName.toUpperCase()}`,
+          facultyName: `MR. ${(facultyDisplayName || "Faculty Member").toUpperCase()}`,
           designation: joiningForm.designation,
           bpsScale: joiningForm.bpsScale,
           subject: joiningForm.subject,
@@ -754,11 +757,11 @@ export default function BSFacultyPage() {
         });
         setShowTriPrintModal(true);
       } else {
-        const d = await res.json().catch(() => ({}));
-        alert(d.error || "Failed to record joining.");
+        alert(json.error || "Failed to record joining.");
       }
-    } catch {
-      alert("Failed to submit joining record.");
+    } catch (err: any) {
+      console.error("Joining submission error:", err);
+      alert(`Failed to submit joining record: ${err?.message || "Network error"}`);
     }
     setSaving(false);
   };
@@ -784,16 +787,20 @@ export default function BSFacultyPage() {
         }),
       });
 
+      const json = await res.json().catch(() => ({}));
+
       if (res.ok) {
-        const json = await res.json();
         setSuccess(`Faculty relieved status recorded successfully! Relieving Certificate generated.`);
-        setFacultyActions((prev) => ({ ...prev, [relievedForm.facultyId]: json.data }));
+        if (json.data) {
+          setFacultyActions((prev) => ({ ...prev, [relievedForm.facultyId]: json.data }));
+        }
         setShowRelievedModal(false);
         fetchAll();
 
         // Open Form T.R.1 Printable Report
+        const displayName = (sel?.user?.name || "").trim();
         setRelievingReportData({
-          facultyName: sel?.user?.name ? `MR. ${sel.user.name.toUpperCase()}` : "MR. ABDUL AHAD",
+          facultyName: displayName ? `MR. ${displayName.toUpperCase()}` : "MR. ABDUL AHAD",
           designation: relievedForm.designation,
           bpsScale: relievedForm.bpsScale,
           subject: relievedForm.subject,
@@ -808,11 +815,11 @@ export default function BSFacultyPage() {
         });
         setShowRelievingPrintModal(true);
       } else {
-        const d = await res.json().catch(() => ({}));
-        alert(d.error || "Failed to record relieving status.");
+        alert(json.error || "Failed to record relieving status.");
       }
-    } catch {
-      alert("Failed to submit relieving record.");
+    } catch (err: any) {
+      console.error("Relieving submission error:", err);
+      alert(`Failed to submit relieving record: ${err?.message || "Network error"}`);
     }
     setSaving(false);
   };

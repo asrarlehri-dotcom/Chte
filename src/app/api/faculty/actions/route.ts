@@ -89,7 +89,20 @@ export async function POST(req: NextRequest) {
     }
 
     const targetCollegeId = sessionCollegeId || faculty.collegeId;
-    const storeKey = targetCollegeId ? `FACULTY_ACTIONS_${targetCollegeId}` : "FACULTY_ACTIONS_GLOBAL";
+    let validCollegeId: string | null = null;
+    if (targetCollegeId) {
+      try {
+        const colExists = await prisma.college.findUnique({
+          where: { id: targetCollegeId },
+          select: { id: true },
+        });
+        if (colExists) validCollegeId = colExists.id;
+      } catch {
+        validCollegeId = null;
+      }
+    }
+
+    const storeKey = validCollegeId ? `FACULTY_ACTIONS_${validCollegeId}` : "FACULTY_ACTIONS_GLOBAL";
 
     // Read existing store
     const existingRecord = await prisma.systemSetting.findUnique({
@@ -153,12 +166,12 @@ export async function POST(req: NextRequest) {
       where: { key: storeKey },
       update: {
         value: JSON.stringify(actionsMap),
-        collegeId: targetCollegeId || null,
+        collegeId: validCollegeId,
       },
       create: {
         key: storeKey,
         value: JSON.stringify(actionsMap),
-        collegeId: targetCollegeId || null,
+        collegeId: validCollegeId,
       },
     });
 
@@ -168,18 +181,22 @@ export async function POST(req: NextRequest) {
       data: { isActive: actionType === "JOINING" },
     });
 
-    // Create Audit Log
-    await prisma.auditLog.create({
-      data: {
-        userEmail: session.user?.email,
-        userName: session.user?.name,
-        action: actionType === "JOINING" ? "FACULTY_JOINING" : "FACULTY_RELIEVED",
-        entity: "Faculty",
-        entityId: facultyId,
-        description: `Faculty "${faculty.user?.name}" marked as ${actionType === "JOINING" ? "Joined (Form T.R.I Issued)" : "Relieved (Form T.R.1 Issued)"}`,
-        collegeId: targetCollegeId || null,
-      },
-    });
+    // Create Audit Log safely (non-blocking if audit fails)
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userEmail: session.user?.email || null,
+          userName: session.user?.name || null,
+          action: actionType === "JOINING" ? "FACULTY_JOINING" : "FACULTY_RELIEVED",
+          entity: "Faculty",
+          entityId: facultyId,
+          description: `Faculty "${faculty.user?.name || "Member"}" marked as ${actionType === "JOINING" ? "Joined (Form T.R.I Issued)" : "Relieved (Form T.R.1 Issued)"}`,
+          collegeId: validCollegeId,
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Failed to create faculty action audit log:", auditErr);
+    }
 
     return NextResponse.json({ success: true, data: updatedAction });
   } catch (error: any) {
