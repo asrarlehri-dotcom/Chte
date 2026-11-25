@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { expandTimetableDays } from "@/lib/timetable-days";
 
 export async function toggleStudentStatus(id: string, isActive: boolean) {
   await prisma.student.update({ where: { id }, data: { isActive } });
@@ -83,13 +84,16 @@ export async function getCompleteDashboardData(
   
   const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const todayDayName = daysOfWeek[new Date().getDay()];
-  const todaysClasses = await prisma.timetable.count({
+  const allTimetableDays = await prisma.timetable.findMany({
     where: {
-      dayOfWeek: todayDayName,
       ...collegeFilter,
       ...(educationLevel !== "ALL" ? { educationLevel } : {})
-    }
+    },
+    select: { dayOfWeek: true }
   });
+  const todaysClasses = allTimetableDays.filter(
+    (t) => expandTimetableDays(t.dayOfWeek).includes(todayDayName as any)
+  ).length;
 
   // 2. Student Status Distribution
   const activeStudentsCount = await prisma.student.count({

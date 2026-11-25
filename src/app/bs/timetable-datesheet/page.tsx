@@ -25,6 +25,15 @@ import {
 import { useSettings } from "@/lib/useSettings";
 import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
 import { parseGenericCSV, validateTimetableBatch, validateDatesheetBatch, getTimetableSampleCSV, getDatesheetSampleCSV } from "@/lib/domainParsers";
+import {
+  TIMETABLE_WEEKDAYS,
+  TIMETABLE_DAY_PRESETS,
+  DAY_ABBREV,
+  expandTimetableDays,
+  formatSelectedDaysValue,
+  isSingleOrPresetDay,
+  type TimetableWeekday,
+} from "@/lib/timetable-days";
 import UniversalImportModal from "@/components/UniversalImportModal";
 import { Calendar } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
@@ -258,6 +267,7 @@ export default function BSTimetableDatesheetPage() {
   const [ttSessionModal, setTtSessionModal] = useState("2024");
   const [ttSemesterModal, setTtSemesterModal] = useState("1");
   const [ttDay, setTtDay] = useState("Monday");
+  const [ttCustomDayMode, setTtCustomDayMode] = useState(false);
   const [ttStart, setTtStart] = useState("09:00");
   const [ttEnd, setTtEnd] = useState("10:00");
   const [ttCourseId, setTtCourseId] = useState("");
@@ -416,6 +426,7 @@ export default function BSTimetableDatesheetPage() {
   const handleSaveManualTT = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ttCourseId || !ttFacultyId) return alert("Please select both Course and Faculty.");
+    setError("");
     const res = await saveManualTimetable({
       id: editingTimetable?.id,
       session: ttSessionModal || "2024",
@@ -955,6 +966,9 @@ export default function BSTimetableDatesheetPage() {
                   <button
                     onClick={() => {
                       setEditingTimetable(null);
+                      setError("");
+                      setTtDay("Monday");
+                      setTtCustomDayMode(false);
                       setTtProgramIdModal(tProgramId !== "ALL" ? tProgramId : (allPrograms[0]?.id || ""));
                       setTtSessionModal(tSession !== "ALL" ? tSession : "2024");
                       setTtSemesterModal(tSemester !== "0" ? tSemester : "1");
@@ -1112,10 +1126,12 @@ export default function BSTimetableDatesheetPage() {
                             <button
                               onClick={() => {
                                 setEditingTimetable(t);
+                                setError("");
                                 setTtProgramIdModal(t.programId || (allPrograms[0]?.id || ""));
                                 setTtSessionModal(t.session || "2024");
                                 setTtSemesterModal(t.semester?.toString() || "1");
                                 setTtDay(t.dayOfWeek);
+                                setTtCustomDayMode(!isSingleOrPresetDay(t.dayOfWeek));
                                 setTtStart(t.startTime);
                                 setTtEnd(t.endTime);
                                 setTtCourseId(t.courseId || "");
@@ -2432,6 +2448,12 @@ export default function BSTimetableDatesheetPage() {
             </div>
 
             <form onSubmit={handleSaveManualTT} className="space-y-4">
+              {error && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+                  {error}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Program</label>
@@ -2475,16 +2497,77 @@ export default function BSTimetableDatesheetPage() {
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Day of Week</label>
                   <select
-                    value={ttDay}
-                    onChange={(e) => setTtDay(e.target.value)}
+                    value={ttCustomDayMode || !isSingleOrPresetDay(ttDay) ? "__CUSTOM__" : ttDay}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "__CUSTOM__") {
+                        setTtCustomDayMode(true);
+                        if (expandTimetableDays(ttDay).length <= 1) {
+                          setTtDay("Mon, Tue, Thu");
+                        }
+                      } else {
+                        setTtCustomDayMode(false);
+                        setTtDay(val);
+                      }
+                    }}
                     className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
                   >
-                    {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
+                    <optgroup label="Single Day">
+                      {TIMETABLE_WEEKDAYS.map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Day Groups (First / Last Days)">
+                      {TIMETABLE_DAY_PRESETS.map(p => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Custom Multiple Days">
+                      <option value="__CUSTOM__">Custom Days (e.g. Mon, Tue, Thu)</option>
+                    </optgroup>
                   </select>
                 </div>
               </div>
+
+              {(ttCustomDayMode || !isSingleOrPresetDay(ttDay)) && (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700">Select Custom Days:</span>
+                    <span className="text-[10px] font-semibold text-blue-700">{ttDay}</span>
+                  </div>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {TIMETABLE_WEEKDAYS.map((day) => {
+                      const activeDays = expandTimetableDays(ttDay);
+                      const isSelected = activeDays.includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            const next: TimetableWeekday[] = isSelected
+                              ? activeDays.filter((d) => d !== day)
+                              : [...activeDays, day];
+                            if (next.length === 0) return;
+                            setTtDay(formatSelectedDaysValue(next));
+                          }}
+                          className={`py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${isSelected
+                            ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                            }`}
+                        >
+                          {DAY_ABBREV[day]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {expandTimetableDays(ttDay).length > 1 && (
+                <div className="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] font-semibold text-indigo-800">
+                  Scheduled Days: {expandTimetableDays(ttDay).join(", ")}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

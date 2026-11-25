@@ -12,10 +12,11 @@ const TIMETABLE_SLOTS = [
   { start: "13:00", end: "14:00" }
 ];
 
-// Helper to fix any legacy overlapping timetable entries for the same program & semester
+// Helper to fix any legacy overlapping auto-generated timetable entries for the same program & semester
 async function cleanupConflictingTimetables() {
   try {
     const allTimetables = await prisma.timetable.findMany({
+      where: { generationMode: "AUTO" },
       orderBy: [{ programId: "asc" }, { semester: "asc" }, { createdAt: "asc" }]
     });
 

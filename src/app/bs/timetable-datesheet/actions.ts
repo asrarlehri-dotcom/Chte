@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { daysOverlap } from "@/lib/timetable-days";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const TIMETABLE_SLOTS = [
@@ -159,7 +160,7 @@ export async function generateTimetable(session: string, programId: string, depa
             // Faculty non-overlap check
             const isFacultyBusy = busySlots.some(s =>
               s.facultyId === assignedFacultyId &&
-              s.dayOfWeek === day &&
+              daysOverlap(s.dayOfWeek, day) &&
               checkOverlap(slot.start, slot.end, s.startTime, s.endTime)
             );
 
@@ -167,7 +168,7 @@ export async function generateTimetable(session: string, programId: string, depa
             const isSemesterBusy = busySlots.some(s =>
               s.programId === prog.id &&
               s.semester === sem &&
-              s.dayOfWeek === day &&
+              daysOverlap(s.dayOfWeek, day) &&
               checkOverlap(slot.start, slot.end, s.startTime, s.endTime)
             );
 

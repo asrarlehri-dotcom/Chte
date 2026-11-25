@@ -1,4 +1,5 @@
 import { detectDelimiter } from "./admissionParser";
+import { normalizeImportedTimetableDay } from "./timetable-days";
 
 export type UniversalFieldDiagnostic = {
   field: string;
@@ -441,8 +442,6 @@ Department of English Literature,ENG,Prof. Ayesha Lehri,english@college.edu.pk,0
 // =============================================================
 // 3. TIMETABLE PARSER & VALIDATOR
 // =============================================================
-const VALID_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
 export function validateTimetableBatch(
   rows: Record<string, string>[],
   programs: Array<{ id: string; name: string; code?: string }> = [],
@@ -463,20 +462,20 @@ export function validateTimetableBatch(
       errors.push({
         field: "Day",
         code: "MISSING_DAY",
-        message: "Day of week is required (e.g. Monday, Tuesday).",
-        tip: "Valid days: Monday through Saturday.",
+        message: "Day of week is required (e.g. Monday, First 3 Days, Last 3 Days).",
+        tip: "Valid days: Monday–Saturday, First 3 Days, Last 3 Days, First 2 Days, Last 2 Days, or comma-separated days (e.g. Mon, Tue, Thu).",
         value: ""
       });
     } else {
-      const matchedDay = VALID_DAYS.find(d => d.toLowerCase() === rawDay.toLowerCase());
-      if (matchedDay) {
-        rawDay = matchedDay;
+      const normalizedDay = normalizeImportedTimetableDay(rawDay);
+      if (normalizedDay) {
+        rawDay = normalizedDay;
       } else {
         errors.push({
           field: "Day",
           code: "INVALID_DAY",
           message: `Day '${rawDay}' is invalid.`,
-          tip: "Use full day name: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday.",
+          tip: "Use a weekday (Monday–Saturday), preset (First 3 Days, Last 3 Days, First 2 Days, Last 2 Days), or e.g. 'Mon, Tue, Thu'.",
           value: rawDay
         });
       }
