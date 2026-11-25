@@ -954,11 +954,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             <a
               href={`/colleges/${selectedCollege.code.toLowerCase()}${
                 formData.ribbonColor
-                  ? `?theme=${encodeURIComponent(
-                      typeof formData.ribbonColor === "object"
-                        ? JSON.stringify(formData.ribbonColor)
-                        : String(formData.ribbonColor)
-                    )}`
+                  ? `?theme=${encodeURIComponent(getRepresentativeColor(formData.ribbonColor, "#dc2626"))}`
                   : ""
               }`}
               target="_blank"
@@ -1459,11 +1455,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   <a
                     href={`/colleges/${selectedCollege.code.toLowerCase()}${
                       formData.ribbonColor
-                        ? `?theme=${encodeURIComponent(
-                            typeof formData.ribbonColor === "object"
-                              ? JSON.stringify(formData.ribbonColor)
-                              : formData.ribbonColor
-                          )}`
+                        ? `?theme=${encodeURIComponent(getRepresentativeColor(formData.ribbonColor, "#dc2626"))}`
                         : ""
                     }`}
                     target="_blank"

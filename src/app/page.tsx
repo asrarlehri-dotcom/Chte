@@ -34,6 +34,7 @@ import {
   Award
 } from "lucide-react";
 import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS, ChteHomepageSettings } from "@/lib/chte-settings";
+import { getRepresentativeColor } from "@/lib/theme-fill-compiler";
 
 interface PublicCollege {
   id: string;
@@ -107,8 +108,9 @@ export default function ChteHomePage() {
             try {
               data.forEach((c: PublicCollege) => {
                 if (c.code && c.themeColor) {
-                  localStorage.setItem(`college_theme_${c.code.toLowerCase()}`, c.themeColor);
-                  if (c.id) localStorage.setItem(`college_theme_${c.id.toLowerCase()}`, c.themeColor);
+                  const safeHex = getRepresentativeColor(c.themeColor, "#dc2626");
+                  localStorage.setItem(`college_theme_${c.code.toLowerCase()}`, safeHex);
+                  if (c.id) localStorage.setItem(`college_theme_${c.id.toLowerCase()}`, safeHex);
                 }
               });
             } catch { }
@@ -788,7 +790,7 @@ export default function ChteHomePage() {
                           {college.code}
                         </span>
                         <Link
-                          href={`/colleges/${college.code.toLowerCase()}${college.themeColor ? `?theme=${encodeURIComponent(college.themeColor)}` : ""}`}
+                          href={`/colleges/${college.code.toLowerCase()}${college.themeColor ? `?theme=${encodeURIComponent(getRepresentativeColor(college.themeColor, "#dc2626"))}` : ""}`}
                           className="block group/link"
                         >
                           <h3 className="text-sm font-bold text-slate-900 mt-1 leading-snug line-clamp-2 group-hover/link:text-[#0c5938] transition-colors cursor-pointer">
@@ -838,7 +840,7 @@ export default function ChteHomePage() {
                       </Link>
 
                       <Link
-                        href={`/colleges/${college.code.toLowerCase()}${college.themeColor ? `?theme=${encodeURIComponent(college.themeColor)}` : ""}`}
+                        href={`/colleges/${college.code.toLowerCase()}${college.themeColor ? `?theme=${encodeURIComponent(getRepresentativeColor(college.themeColor, "#dc2626"))}` : ""}`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0c5938] hover:bg-[#09472d] text-white text-xs font-bold shadow-xs transition-all hover:scale-105"
                       >
                         <span>Visit College Portal</span>

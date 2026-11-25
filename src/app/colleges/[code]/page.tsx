@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { compileFillToStyle, compileFillToTextStyle } from "@/lib/theme-fill-compiler";
+import { compileFillToStyle, compileFillToTextStyle, getRepresentativeColor } from "@/lib/theme-fill-compiler";
 import {
   GraduationCap,
   Users,
@@ -159,14 +159,16 @@ function getInitialCollegeTheme(codeParam: string): string {
       const sp = new URLSearchParams(window.location.search);
       const qTheme = sp.get("theme") || sp.get("color");
       if (qTheme) {
-        return qTheme.startsWith("#") ? qTheme : `#${qTheme}`;
+        const parsedQueryColor = getRepresentativeColor(qTheme, "");
+        if (parsedQueryColor) return parsedQueryColor;
       }
     } catch { }
 
     // 2. Check localStorage cache
     try {
       const cached = localStorage.getItem(`college_theme_${codeParam.toLowerCase()}`);
-      if (cached) return cached;
+      const parsedCachedColor = getRepresentativeColor(cached, "");
+      if (parsedCachedColor) return parsedCachedColor;
     } catch { }
   }
 
@@ -242,13 +244,15 @@ export default function CollegePortalHomePage() {
         const resolved =
           data.portalSettings?.ribbonColor ||
           data.portalSettings?.primaryColor;
-        if (resolved) {
-          setThemeColor(resolved);
+        const safeHexResolved = getRepresentativeColor(resolved, "");
+        if (safeHexResolved) {
+          setThemeColor(safeHexResolved);
           if (typeof window !== "undefined") {
             try {
-              localStorage.setItem(`college_theme_${codeParam.toLowerCase()}`, resolved);
-              if (data.code) localStorage.setItem(`college_theme_${data.code.toLowerCase()}`, resolved);
-              if (data.id) localStorage.setItem(`college_theme_${data.id.toLowerCase()}`, resolved);
+              const serialized = typeof resolved === "object" ? JSON.stringify(resolved) : safeHexResolved;
+              localStorage.setItem(`college_theme_${codeParam.toLowerCase()}`, serialized);
+              if (data.code) localStorage.setItem(`college_theme_${data.code.toLowerCase()}`, serialized);
+              if (data.id) localStorage.setItem(`college_theme_${data.id.toLowerCase()}`, serialized);
             } catch { }
           }
         }
@@ -447,7 +451,7 @@ export default function CollegePortalHomePage() {
       {/* ── 3. MAIN COLLEGE BRAND HEADER ── */}
       <header
         className="py-4 px-4 sm:px-8 border-b border-white/10 backdrop-blur-md"
-        style={{ backgroundColor: s.primaryColor || "#040d1a" }}
+        style={compileFillToStyle(s.primaryColor, "#040d1a")}
       >
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           {/* Logo & College Details */}
@@ -659,7 +663,7 @@ export default function CollegePortalHomePage() {
           {/* Badge */}
           <div
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-white text-xs font-black tracking-wider uppercase shadow-xl mb-6 border border-white/20"
-            style={{ backgroundColor: s.ribbonColor ? `${s.ribbonColor}cc` : "#dc2626cc" }}
+            style={{ backgroundColor: `${getRepresentativeColor(s.ribbonColor, "#dc2626")}cc` }}
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
             <span>{s.heroBadge || "EXCELLENCE IN HIGHER EDUCATION"}</span>
@@ -691,7 +695,7 @@ export default function CollegePortalHomePage() {
               href={loginUrl}
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white text-slate-900 font-black text-sm shadow-xl hover:bg-slate-100 transition-all hover:scale-105"
             >
-              <LogIn className="w-4.5 h-4.5" style={{ color: s.ribbonColor || "#dc2626" }} />
+              <LogIn className="w-4.5 h-4.5" style={{ color: getRepresentativeColor(s.ribbonColor, "#dc2626") }} />
               <span>Login by Institute / CMS</span>
             </Link>
 
@@ -774,7 +778,7 @@ export default function CollegePortalHomePage() {
           collegeId={college.id}
           collegeName={college.name}
           collegeCode={college.code}
-          themeColor={s.primaryColor || themeColor || "#0c5938"}
+          themeColor={getRepresentativeColor(s.primaryColor, "") || themeColor || "#0c5938"}
         />
       </section>
 
@@ -996,7 +1000,7 @@ export default function CollegePortalHomePage() {
                 onClick={() => setActiveTab("ALL")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "ALL" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
                   }`}
-                style={activeTab === "ALL" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
+                style={activeTab === "ALL" ? compileFillToStyle(s.ribbonColor, "#dc2626") : {}}
               >
                 All Programs ({college.programs.length})
               </button>
@@ -1004,7 +1008,7 @@ export default function CollegePortalHomePage() {
                 onClick={() => setActiveTab("BS")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "BS" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
                   }`}
-                style={activeTab === "BS" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
+                style={activeTab === "BS" ? compileFillToStyle(s.ribbonColor, "#dc2626") : {}}
               >
                 BS 4-Year
               </button>
@@ -1012,7 +1016,7 @@ export default function CollegePortalHomePage() {
                 onClick={() => setActiveTab("INTERMEDIATE")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "INTERMEDIATE" ? "text-white shadow-xs" : "text-slate-400 hover:text-white"
                   }`}
-                style={activeTab === "INTERMEDIATE" ? { backgroundColor: s.ribbonColor || "#dc2626" } : {}}
+                style={activeTab === "INTERMEDIATE" ? compileFillToStyle(s.ribbonColor, "#dc2626") : {}}
               >
                 Intermediate
               </button>

@@ -1,6 +1,32 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function extractSafeHexColor(val: unknown): string | null {
+  if (!val) return null;
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed.includes("[object")) return null;
+    if (trimmed.startsWith("{")) {
+      try {
+        return extractSafeHexColor(JSON.parse(trimmed));
+      } catch {
+        return null;
+      }
+    }
+    return trimmed;
+  }
+  if (typeof val === "object") {
+    const obj = val as Record<string, any>;
+    if (obj.mode === "solid" && typeof obj.solid === "string") return obj.solid;
+    if (obj.mode === "gradient" && Array.isArray(obj.gradient?.stops) && obj.gradient.stops[0]?.color) {
+      return obj.gradient.stops[0].color;
+    }
+    if (obj.mode === "texture" && typeof obj.texture?.baseColor === "string") return obj.texture.baseColor;
+    if (obj.mode === "image") return obj.image?.tintColor || obj.solid || null;
+  }
+  return null;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -49,10 +75,11 @@ export async function GET(request: Request) {
     for (const s of portalSettings) {
       try {
         const parsed = JSON.parse(s.value);
-        const color = parsed.ribbonColor || parsed.primaryColor;
-        if (color) {
+        const rawColor = parsed.ribbonColor || parsed.primaryColor;
+        const safeColor = extractSafeHexColor(rawColor);
+        if (safeColor) {
           const idOrCode = s.key.split(":")[0].replace("PORTAL_SETTINGS_", "").toLowerCase();
-          themeMap[idOrCode] = color;
+          themeMap[idOrCode] = safeColor;
         }
       } catch {}
     }

@@ -487,17 +487,63 @@ export function compileFillToStyle(
   }
 }
 
+// Validate whether a string is a valid CSS hex / rgb / hsl color
+function isSafeCssColorString(val: string): boolean {
+  const s = val.trim();
+  if (!s || s.includes("[object")) return false;
+  return (
+    /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(s) ||
+    /^rgba?\([^)]+\)$/i.test(s) ||
+    /^hsla?\([^)]+\)$/i.test(s)
+  );
+}
+
+// Compute whether a hex color is perceived as light (for choosing black vs white foreground text)
+export function isLightColor(colorStr: string | null | undefined): boolean {
+  if (!colorStr || typeof colorStr !== "string") return false;
+  const s = colorStr.trim();
+  if (!s.startsWith("#")) return false;
+  const { r, g, b } = hexToRgb(s);
+  // Standard W3C relative luminance approximation (YIQ / WCAG sRGB)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 165;
+}
+
 // Quick helper to extract single representative color for text contrast or borders
 export function getRepresentativeColor(
   fill: FillConfig | string | null | undefined,
   fallback = "#000000"
 ): string {
   if (!fill) return fallback;
-  if (typeof fill === "string") return fill;
-  if (fill.mode === "solid") return fill.solid || fallback;
-  if (fill.mode === "gradient") return fill.gradient.stops[0]?.color || fallback;
-  if (fill.mode === "texture") return fill.texture.baseColor || fallback;
-  if (fill.mode === "image") return fill.image.tintColor || fill.solid || fallback;
+  if (typeof fill === "string") {
+    const trimmed = fill.trim();
+    if (!trimmed || trimmed.includes("[object")) return fallback;
+    if (trimmed.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return getRepresentativeColor(parsed, fallback);
+      } catch {
+        return fallback;
+      }
+    }
+    if (isSafeCssColorString(trimmed)) return trimmed;
+    if (/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed)) return `#${trimmed}`;
+    return fallback;
+  }
+  if (fill.mode === "solid") return isSafeCssColorString(fill.solid) ? fill.solid : fallback;
+  if (fill.mode === "gradient") {
+    const stopColor = fill.gradient?.stops?.[0]?.color;
+    return stopColor && isSafeCssColorString(stopColor) ? stopColor : fallback;
+  }
+  if (fill.mode === "texture") {
+    return fill.texture?.baseColor && isSafeCssColorString(fill.texture.baseColor)
+      ? fill.texture.baseColor
+      : fallback;
+  }
+  if (fill.mode === "image") {
+    const candidate = fill.image?.tintColor || fill.solid;
+    return candidate && isSafeCssColorString(candidate) ? candidate : fallback;
+  }
   return fallback;
 }
 
