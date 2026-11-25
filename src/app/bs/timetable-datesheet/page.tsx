@@ -37,6 +37,8 @@ import {
 import UniversalImportModal from "@/components/UniversalImportModal";
 import { Calendar } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import OfficialTimetableMatrixReport, { toOrdinalUpper } from "@/components/bs/OfficialTimetableMatrixReport";
+import OfficialExamCenterReport from "@/components/bs/OfficialExamCenterReport";
 
 const SELECT_CLS =
   "w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-2xs transition-all";
@@ -246,14 +248,25 @@ export default function BSTimetableDatesheetPage() {
   const [dutyRoom, setDutyRoom] = useState("");
   const [editingDuty, setEditingDuty] = useState<any>(null);
 
-  // ── SUPERINTENDENT PARAMETERS
+  // ── SUPERINTENDENT & OFFICIAL CENTER REPORT PARAMETERS
+  const [centerNumber, setCenterNumber] = useState("5");
   const [superintendentName, setSuperintendentName] = useState("Dr. Muhammad Usman");
   const [superintendentDesignation, setSuperintendentDesignation] = useState("Chief Superintendent / HOD");
   const [superintendentDepartment, setSuperintendentDepartment] = useState("Computer Science");
   const [deputySuperintendent, setDeputySuperintendent] = useState("Prof. Shahida Kakar (Deputy Superintendent)");
-  const [examHallName, setExamHallName] = useState("Main Auditorium - Examination Hall A");
+  const [examHallName, setExamHallName] = useState("1st Floor BS New Block");
+  const [mobileCollector, setMobileCollector] = useState("Mr. Munir Ahmed (Botany LAB)");
+  const [dutyNote, setDutyNote] = useState("All respected professors are advised to note and ensure their presence on allocated duty.");
   const [isHallMerged, setIsHallMerged] = useState(true);
   const [selectedMergedPrograms, setSelectedMergedPrograms] = useState<string[]>([]);
+  const [studentCounts, setStudentCounts] = useState<Array<{ programId: string | null; semester: number | null; count: number }>>([]);
+
+  // Official Report View Toggles
+  const [ttViewMode, setTtViewMode] = useState<"matrix" | "list">("matrix");
+  const [dsViewMode, setDsViewMode] = useState<"official" | "list">("official");
+  const [dbDutyViewMode, setDbDutyViewMode] = useState<"official" | "list">("official");
+  const [suptViewMode, setSuptViewMode] = useState<"official" | "list">("official");
+  const [staffDutyViewMode, setStaffDutyViewMode] = useState<"official" | "list">("official");
 
   // Multi-selection options for Superintendent
   const [selectedSuptSessions, setSelectedSuptSessions] = useState<string[]>(["2024", "2025"]);
@@ -291,6 +304,55 @@ export default function BSTimetableDatesheetPage() {
 
   const [manualDuties, setManualDuties] = useState<any[]>([]);
   const [manualSuptEntries, setManualSuptEntries] = useState<any[]>([]);
+
+  // Shared helper to derive Center Summary mini-table (Semesters label & Program Student Counts)
+  const buildCenterSummaryMeta = (
+    targetProgramIds: string[],
+    targetSemesters: number[]
+  ) => {
+    const cleanSems = Array.from(new Set(targetSemesters.filter((s) => s > 0))).sort((a, b) => a - b);
+    let semesterLabel = "All Semesters";
+    if (cleanSems.length === 1) {
+      semesterLabel = `${toOrdinalUpper(cleanSems[0]).toLowerCase()} Semester`;
+    } else if (cleanSems.length === 2) {
+      semesterLabel = `${toOrdinalUpper(cleanSems[0]).toLowerCase()} and ${toOrdinalUpper(cleanSems[1]).toLowerCase()} Semesters`;
+    } else if (cleanSems.length > 2 && cleanSems.length < 8) {
+      semesterLabel = `${cleanSems.map((s) => toOrdinalUpper(s).toLowerCase()).join(", ")} Semesters`;
+    }
+
+    const activeProgs =
+      targetProgramIds.length > 0
+        ? allPrograms.filter((p) => targetProgramIds.includes(p.id))
+        : allPrograms;
+
+    const programCounts = activeProgs.map((p) => {
+      const sum = studentCounts
+        .filter((sc) => sc.programId === p.id && (cleanSems.length === 0 || (sc.semester && cleanSems.includes(sc.semester))))
+        .reduce((acc, sc) => acc + sc.count, 0);
+      return {
+        name: p.name.replace(/^BS\s+/i, ""),
+        count: sum,
+      };
+    });
+
+    return { semesterLabel, programCounts };
+  };
+
+  // Helper to open Timetable Edit modal cleanly from Matrix or List view
+  const openEditTimetableSlot = (t: any) => {
+    setEditingTimetable(t);
+    setError("");
+    setTtProgramIdModal(t.programId || (allPrograms[0]?.id || ""));
+    setTtSessionModal(t.session || "2024");
+    setTtSemesterModal(t.semester?.toString() || "1");
+    setTtDay(t.dayOfWeek);
+    setTtCustomDayMode(!isSingleOrPresetDay(t.dayOfWeek));
+    setTtStart(t.startTime);
+    setTtEnd(t.endTime);
+    setTtCourseId(t.courseId || "");
+    setTtFacultyId(t.facultyId || "");
+    setShowTimetableModal(true);
+  };
 
   // Time overlap helper function
   const isTimeOverlap = (timeStr1: string, timeStr2: string) => {
@@ -353,6 +415,9 @@ export default function BSTimetableDatesheetPage() {
       setAllPrograms(bsProgs);
       setDepartments(data.departments);
       setFaculties(data.faculties);
+      if (Array.isArray((data as any).studentCounts)) {
+        setStudentCounts((data as any).studentCounts);
+      }
       if (bsProgs.length > 0) {
         setTtProgramIdModal(bsProgs[0].id);
         setDsProgramIdModal(bsProgs[0].id);
@@ -819,8 +884,24 @@ export default function BSTimetableDatesheetPage() {
     downloadCSV("Superintendent_Duty_Allocation.csv", headers, rows);
   };
 
+  const isMatrixPrintLandscape = activeTab === "timetable" && ttViewMode === "matrix";
+
   return (
     <div className="space-y-6">
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: ${isMatrixPrintLandscape ? "A4 landscape" : "A4 portrait"};
+            margin: ${isMatrixPrintLandscape ? "7mm" : "9mm"};
+          }
+          html, body {
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}</style>
+
       {/* Top Header */}
       <PortalPageHeader
         title={<>Timetable &amp; Datesheet</>}
@@ -844,12 +925,12 @@ export default function BSTimetableDatesheetPage() {
         </div>
       </PortalPageHeader>
 
-      {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 font-semibold text-xs">{error}</div>}
-      {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 font-semibold text-xs">{success}</div>}
+      {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 font-semibold text-xs print:hidden">{error}</div>}
+      {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 font-semibold text-xs print:hidden">{success}</div>}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print:border-none print:shadow-none print:rounded-none print:overflow-visible">
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 bg-white flex-wrap">
+        <div className="flex border-b border-gray-200 bg-white flex-wrap print:hidden">
           {[
             { id: "timetable", label: "Class Timetable", icon: "🕒", subIcon: "📅" },
             { id: "datesheet", label: "Exam Datesheet", icon: "📅", subIcon: "📝" },
@@ -880,11 +961,11 @@ export default function BSTimetableDatesheetPage() {
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-6 print:p-0">
           {/* ----------------- TIMETABLE TAB ----------------- */}
           {activeTab === "timetable" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 rounded-2xl border border-gray-200 bg-white">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 rounded-2xl border border-gray-200 bg-white print:hidden">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     PROGRAM
@@ -947,7 +1028,7 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2.5 items-center justify-between">
+              <div className="flex flex-wrap gap-2.5 items-center justify-between print:hidden">
                 <div className="flex flex-wrap gap-2.5 items-center">
                   <button
                     onClick={loadTimetable}
@@ -1056,126 +1137,149 @@ export default function BSTimetableDatesheetPage() {
 
               {/* Finalization Status Banner */}
               {timetables.length > 0 && (
-                <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-xs font-semibold ${
+                <div className={`flex items-center justify-between flex-wrap gap-2 px-4 py-3 rounded-xl border text-xs font-semibold print:hidden ${
                   timetableFinalized
                     ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                     : "bg-[#fffbeb] border-[#fde68a] text-[#92400e]"
                 }`}>
-                  <span className="text-base">{timetableFinalized ? "✅" : "⚠️"}</span>
-                  <span>
-                    {timetableFinalized
-                      ? `Timetable is FINALIZED — Date Sheet can be generated from this timetable.`
-                      : `Timetable is NOT FINALIZED — Publish and click "Finalize Timetable" before generating the Date Sheet.`
-                    }
-                  </span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base">{timetableFinalized ? "✅" : "⚠️"}</span>
+                    <span>
+                      {timetableFinalized
+                        ? `Timetable is FINALIZED — Date Sheet can be generated from this timetable.`
+                        : `Timetable is NOT FINALIZED — Publish and click "Finalize Timetable" before generating the Date Sheet.`
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setTtViewMode("matrix")}
+                      className={`px-3 py-1 rounded-md text-xs font-bold cursor-pointer transition-all ${ttViewMode === "matrix"
+                        ? "bg-slate-900 text-white shadow-2xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                    >
+                      📊 Official Matrix Report
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTtViewMode("list")}
+                      className={`px-3 py-1 rounded-md text-xs font-bold cursor-pointer transition-all ${ttViewMode === "list"
+                        ? "bg-slate-900 text-white shadow-2xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                    >
+                      📋 Detailed Slot List
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Printable Header */}
-              <div className="hidden print:block text-center border-b-2 border-gray-800 pb-3 space-y-1">
-                {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
-                <h2 className="text-xl font-black text-gray-900 uppercase">{collegeName}</h2>
-                <p className="text-xs font-bold text-blue-600 uppercase">{collegeTagline}</p>
-                <h3 className="text-sm font-bold text-gray-800 uppercase pt-1">
-                  BS Class Schedule / Master Timetable Sheet
-                </h3>
-              </div>
-
-              <div className="overflow-x-auto border rounded-xl mt-4 relative">
-                {(collegeBackground || collegeWatermark || collegeLogo) && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
-                    <img
-                      src={collegeBackground || collegeWatermark || collegeLogo}
-                      alt="Watermark"
-                      className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
-                    />
-                  </div>
-                )}
-                <div className="relative z-10">
-                {loading ? (
-                  <p className="text-center py-12 text-gray-400">Loading Timetable Entries...</p>
-                ) : timetables.length > 0 ? (
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="p-3 font-semibold text-gray-600">Day</th>
-                        <th className="p-3 font-semibold text-gray-600">Time Window</th>
-                        <th className="p-3 font-semibold text-gray-600">Course Code & Title</th>
-                        <th className="p-3 font-semibold text-gray-600">Assigned Faculty</th>
-                        <th className="p-3 font-semibold text-gray-600">Program & Semester</th>
-                        <th className="p-3 font-semibold text-gray-600">Status</th>
-                        <th className="p-3 font-semibold text-gray-600 print:hidden">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {timetables.map((t) => (
-                        <tr key={t.id} className="border-b hover:bg-gray-50">
-                          <td className="p-3 font-bold text-blue-900">{t.dayOfWeek}</td>
-                          <td className="p-3 font-mono font-bold text-gray-700">{t.startTime} - {t.endTime}</td>
-                          <td className="p-3 font-bold text-gray-900">
-                            {t.course?.title} {t.course?.code && <span className="text-xs text-gray-500 font-mono">({t.course.code})</span>}
-                          </td>
-                          <td className="p-3 font-semibold text-indigo-900">{t.faculty?.user?.name || "TBA"}</td>
-                          <td className="p-3 text-xs text-gray-600 font-semibold">{t.program?.name} - Sem {t.semester} ({t.session})</td>
-                          <td className="p-3">
-                            <span className={`px-2.5 py-1 text-xs rounded-full font-bold ${t.status === 'PUBLISHED' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`}>
-                              {t.status}
-                            </span>
-                          </td>
-                          <td className="p-3 print:hidden flex gap-2 items-center">
-                            <button
-                              onClick={() => {
-                                setEditingTimetable(t);
-                                setError("");
-                                setTtProgramIdModal(t.programId || (allPrograms[0]?.id || ""));
-                                setTtSessionModal(t.session || "2024");
-                                setTtSemesterModal(t.semester?.toString() || "1");
-                                setTtDay(t.dayOfWeek);
-                                setTtCustomDayMode(!isSingleOrPresetDay(t.dayOfWeek));
-                                setTtStart(t.startTime);
-                                setTtEnd(t.endTime);
-                                setTtCourseId(t.courseId || "");
-                                setTtFacultyId(t.facultyId || "");
-                                setShowTimetableModal(true);
-                              }}
-                              className="text-blue-600 text-xs font-bold hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={async () => {
-                                await deleteTimetableEntry(t.id);
-                                loadTimetable();
-                              }}
-                              className="text-red-500 text-xs font-semibold hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-center py-12 space-y-3">
-                    <p className="text-gray-500 text-sm font-semibold">No timetable entries found for this selection.</p>
-                    <button
-                      onClick={handleAutoGenerateTimetable}
-                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                    >
-                      ⚡ Auto-Generate Master Timetable Now
-                    </button>
-                  </div>
-                )}
+              {loading ? (
+                <p className="text-center py-12 text-gray-400">Loading Timetable Entries...</p>
+              ) : timetables.length === 0 ? (
+                <div className="text-center py-12 border rounded-xl space-y-3 print:hidden">
+                  <p className="text-gray-500 text-sm font-semibold">No timetable entries found for this selection.</p>
+                  <button
+                    onClick={handleAutoGenerateTimetable}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                  >
+                    ⚡ Auto-Generate Master Timetable Now
+                  </button>
                 </div>
-              </div>
+              ) : ttViewMode === "matrix" ? (
+                <OfficialTimetableMatrixReport
+                  collegeName={collegeName}
+                  collegeLogo={collegeLogo}
+                  collegeTagline={collegeTagline}
+                  timetables={timetables}
+                  selectedSemester={tSemester}
+                  selectedSession={tSession}
+                  onEditSlot={openEditTimetableSlot}
+                />
+              ) : (
+                <>
+                  {/* Printable Header */}
+                  <div className="hidden print:block text-center border-b-2 border-gray-800 pb-3 space-y-1">
+                    {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                    <h2 className="text-xl font-black text-gray-900 uppercase">{collegeName}</h2>
+                    <p className="text-xs font-bold text-blue-600 uppercase">{collegeTagline}</p>
+                    <h3 className="text-sm font-bold text-gray-800 uppercase pt-1">
+                      BS Class Schedule / Master Timetable Sheet
+                    </h3>
+                  </div>
+
+                  <div className="overflow-x-auto border rounded-xl mt-2 relative">
+                    {(collegeBackground || collegeWatermark || collegeLogo) && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
+                        <img
+                          src={collegeBackground || collegeWatermark || collegeLogo}
+                          alt="Watermark"
+                          className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
+                        />
+                      </div>
+                    )}
+                    <div className="relative z-10">
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="p-3 font-semibold text-gray-600">Day</th>
+                            <th className="p-3 font-semibold text-gray-600">Time Window</th>
+                            <th className="p-3 font-semibold text-gray-600">Course Code & Title</th>
+                            <th className="p-3 font-semibold text-gray-600">Assigned Faculty</th>
+                            <th className="p-3 font-semibold text-gray-600">Program & Semester</th>
+                            <th className="p-3 font-semibold text-gray-600">Status</th>
+                            <th className="p-3 font-semibold text-gray-600 print:hidden">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {timetables.map((t) => (
+                            <tr key={t.id} className="border-b hover:bg-gray-50">
+                              <td className="p-3 font-bold text-blue-900">{t.dayOfWeek}</td>
+                              <td className="p-3 font-mono font-bold text-gray-700">{t.startTime} - {t.endTime}</td>
+                              <td className="p-3 font-bold text-gray-900">
+                                {t.course?.title} {t.course?.code && <span className="text-xs text-gray-500 font-mono">({t.course.code})</span>}
+                              </td>
+                              <td className="p-3 font-semibold text-indigo-900">{t.faculty?.user?.name || "TBA"}</td>
+                              <td className="p-3 text-xs text-gray-600 font-semibold">{t.program?.name} - Sem {t.semester} ({t.session})</td>
+                              <td className="p-3">
+                                <span className={`px-2.5 py-1 text-xs rounded-full font-bold ${t.status === 'PUBLISHED' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`}>
+                                  {t.status}
+                                </span>
+                              </td>
+                              <td className="p-3 print:hidden flex gap-2 items-center">
+                                <button
+                                  onClick={() => openEditTimetableSlot(t)}
+                                  className="text-blue-600 text-xs font-bold hover:underline"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await deleteTimetableEntry(t.id);
+                                    loadTimetable();
+                                  }}
+                                  className="text-red-500 text-xs font-semibold hover:underline"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {/* ----------------- DATESHEET TAB ----------------- */}
           {activeTab === "datesheet" && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 p-4 rounded-2xl border border-gray-200 bg-white">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 p-4 rounded-2xl border border-gray-200 bg-white print:hidden">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     PROGRAM
@@ -1249,24 +1353,47 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               </div>
 
-              {/* Excluded Exam Dates Input Box */}
-              <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-1">
-                <label className="block text-xs font-bold text-amber-950 uppercase tracking-wider">
-                  🚫 Excluded Exam Dates (Holidays / Exclusions)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 2026-06-07, 2026-06-14 (Comma separated dates to skip when generating)"
-                  className="w-full px-3 py-2 border border-amber-200 rounded-xl text-xs font-mono font-bold bg-white text-slate-800 shadow-2xs"
-                  value={excludedDatesInput}
-                  onChange={(e) => setExcludedDatesInput(e.target.value)}
-                />
-                <p className="text-[11px] text-amber-800 font-semibold pt-0.5">
-                  ✨ Note: <strong>SUNDAYS are automatically excluded by default</strong> in all exam datesheet calculations.
-                </p>
+              {/* Excluded Exam Dates & Center Report Metadata Strip */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 print:hidden">
+                <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-1">
+                  <label className="block text-xs font-bold text-amber-950 uppercase tracking-wider">
+                    🚫 Excluded Exam Dates (Holidays / Exclusions)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2026-06-07, 2026-06-14 (Comma separated dates to skip when generating)"
+                    className="w-full px-3 py-2 border border-amber-200 rounded-xl text-xs font-mono font-bold bg-white text-slate-800 shadow-2xs"
+                    value={excludedDatesInput}
+                    onChange={(e) => setExcludedDatesInput(e.target.value)}
+                  />
+                  <p className="text-[11px] text-amber-800 font-semibold pt-0.5">
+                    ✨ Note: <strong>SUNDAYS are automatically excluded by default</strong> in all exam datesheet calculations.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Center No</label>
+                    <input
+                      type="text"
+                      value={centerNumber}
+                      onChange={(e) => setCenterNumber(e.target.value)}
+                      className="w-full px-2.5 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-800"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Exam Center / Block</label>
+                    <input
+                      type="text"
+                      value={examHallName}
+                      onChange={(e) => setExamHallName(e.target.value)}
+                      className="w-full px-2.5 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-800"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2.5 items-center justify-between">
+              <div className="flex flex-wrap gap-2.5 items-center justify-between print:hidden">
                 <div className="flex flex-wrap gap-2.5 items-center">
                   <button
                     onClick={loadDatesheet}
@@ -1372,128 +1499,198 @@ export default function BSTimetableDatesheetPage() {
 
               {/* Datesheet Finalization Status Banner */}
               {datesheets.length > 0 && (
-                <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border text-sm font-semibold ${
+                <div className={`flex items-center justify-between flex-wrap gap-2 px-4 py-2 rounded-xl border text-sm font-semibold print:hidden ${
                   datesheetFinalized
                     ? "bg-green-50 border-green-200 text-green-700"
                     : "bg-amber-50 border-amber-200 text-amber-700"
                 }`}>
-                  <span className="text-lg">{datesheetFinalized ? "✅" : "⚠️"}</span>
-                  <span>
-                    {datesheetFinalized
-                      ? "Date Sheet is FINALIZED — This is the official exam schedule. Exam Duty and Result Entry are now unlocked."
-                      : "Date Sheet is NOT FINALIZED — Publish and click \"Finalize Date Sheet\" to make it official."
-                    }
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">{datesheetFinalized ? "✅" : "⚠️"}</span>
+                    <span className="text-xs sm:text-sm">
+                      {datesheetFinalized
+                        ? "Date Sheet is FINALIZED — This is the official exam schedule. Exam Duty and Result Entry are now unlocked."
+                        : "Date Sheet is NOT FINALIZED — Publish and click \"Finalize Date Sheet\" to make it official."
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setDsViewMode("official")}
+                      className={`px-3 py-1 rounded-md text-xs font-bold cursor-pointer transition-all ${dsViewMode === "official"
+                        ? "bg-slate-900 text-white shadow-2xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                    >
+                      📜 Official Exam Sheet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDsViewMode("list")}
+                      className={`px-3 py-1 rounded-md text-xs font-bold cursor-pointer transition-all ${dsViewMode === "list"
+                        ? "bg-slate-900 text-white shadow-2xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                    >
+                      📋 Detailed Datesheet List
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Printable Header */}
-              <div className="hidden print:block text-center border-b-2 border-gray-800 pb-3 space-y-1">
-                {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
-                <h2 className="text-xl font-black text-gray-900 uppercase">{collegeName}</h2>
-                <p className="text-xs font-bold text-blue-600 uppercase">{collegeTagline}</p>
-                <h3 className="text-sm font-bold text-gray-800 uppercase pt-1">
-                  Examination Master Datesheet Sheet (Commencing: {examStartDate})
-                </h3>
-              </div>
-
-              <div className="overflow-x-auto border rounded-xl mt-4 relative">
-                {(collegeBackground || collegeWatermark || collegeLogo) && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
-                    <img
-                      src={collegeBackground || collegeWatermark || collegeLogo}
-                      alt="Watermark"
-                      className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
-                    />
-                  </div>
-                )}
-                <div className="relative z-10">
-                {loading ? (
-                  <p className="text-center py-12 text-gray-400">Loading Exam Datesheet Entries...</p>
-                ) : datesheets.length > 0 ? (
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="p-3 font-semibold text-gray-600">Exam Date</th>
-                        <th className="p-3 font-semibold text-gray-600">Time Window</th>
-                        <th className="p-3 font-semibold text-gray-600">Course Code & Title</th>
-                        <th className="p-3 font-semibold text-gray-600">Program & Semester</th>
-                        <th className="p-3 font-semibold text-gray-600">Exam Type</th>
-                        <th className="p-3 font-semibold text-gray-600">Status</th>
-                        <th className="p-3 font-semibold text-gray-600 print:hidden">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {datesheets.map((d) => (
-                        <tr key={d.id} className="border-b hover:bg-gray-50">
-                          <td className="p-3 font-bold text-gray-900">{new Date(d.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                          <td className="p-3 font-mono font-bold text-gray-700">{d.startTime} - {d.endTime}</td>
-                          <td className="p-3 font-bold text-gray-900">
-                            {d.course?.title} {d.course?.code && <span className="text-xs text-gray-500 font-mono">({d.course.code})</span>}
-                          </td>
-                          <td className="p-3 text-xs text-gray-600 font-semibold">{d.program?.name} - Sem {d.semester} ({d.session})</td>
-                          <td className="p-3">
-                            <span className="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
-                              {d.examType === 'TERMINAL' ? 'Terminal' : d.examType === 'FINAL_TERM' ? 'Final Term' : 'Mid Term'}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2.5 py-1 text-xs rounded-full font-bold ${d.status === 'PUBLISHED' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`}>
-                                {d.status}
-                              </span>
-                              {d.isFinalized && (
-                                <span className="px-2 py-0.5 text-[10px] font-extrabold bg-orange-100 text-orange-700 border border-orange-300 rounded-full">
-                                  🔒 FINALIZED
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-3 print:hidden flex gap-2 items-center">
-                            <button
-                              onClick={() => {
-                                setEditingDatesheet(d);
-                                setDsProgramIdModal(d.programId || (allPrograms[0]?.id || ""));
-                                setDsSessionModal(d.session || "2024");
-                                setDsSemesterModal(d.semester?.toString() || "1");
-                                setDsExamTypeModal(d.examType || "TERMINAL");
-                                setDsDate(new Date(d.date).toISOString().split('T')[0]);
-                                setDsStart(d.startTime);
-                                setDsEnd(d.endTime);
-                                setDsCourseId(d.courseId || "");
-                                setShowDatesheetModal(true);
-                              }}
-                              className="text-blue-600 text-xs font-bold hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={async () => {
-                                await deleteDatesheetEntry(d.id);
-                                loadDatesheet();
-                              }}
-                              className="text-red-500 text-xs font-semibold hover:underline"
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-center py-12 space-y-3">
-                    <p className="text-gray-500 text-sm font-semibold">No exam datesheet generated yet.</p>
-                    <button
-                      onClick={handleAutoGenerateDatesheet}
-                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                    >
-                      ⚡ Auto-Generate Master Datesheet Now
-                    </button>
-                  </div>
-                )}
+              {loading ? (
+                <p className="text-center py-12 text-gray-400">Loading Exam Datesheet Entries...</p>
+              ) : datesheets.length === 0 ? (
+                <div className="text-center py-12 border rounded-xl space-y-3 print:hidden">
+                  <p className="text-gray-500 text-sm font-semibold">No exam datesheet generated yet.</p>
+                  <button
+                    onClick={handleAutoGenerateDatesheet}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                  >
+                    ⚡ Auto-Generate Master Datesheet Now
+                  </button>
                 </div>
-              </div>
+              ) : dsViewMode === "official" ? (
+                (() => {
+                  const dsProgIds = Array.from(new Set(datesheets.map((d) => d.programId).filter(Boolean))) as string[];
+                  const dsSems = Array.from(new Set(datesheets.map((d) => d.semester).filter(Boolean))) as number[];
+                  const { semesterLabel, programCounts } = buildCenterSummaryMeta(dsProgIds, dsSems);
+                  const examTitle =
+                    dExamType === "FINAL_TERM"
+                      ? "OFFICIAL FINAL TERM EXAMINATION DATE SHEET"
+                      : dExamType === "MID_TERM"
+                        ? "OFFICIAL MID TERM EXAMINATION DATE SHEET"
+                        : "OFFICIAL TERMINAL EXAMINATION DATE SHEET";
+                  return (
+                    <OfficialExamCenterReport
+                      variant="datesheet"
+                      collegeName={collegeName}
+                      collegeLogo={collegeLogo}
+                      collegeTagline={collegeTagline}
+                      centerNumber={centerNumber}
+                      centerLocation={examHallName}
+                      superintendentName={superintendentName}
+                      superintendentDepartment={superintendentDepartment}
+                      deputySuperintendent={deputySuperintendent}
+                      mobileCollector={mobileCollector}
+                      dutyNote={dutyNote}
+                      examTitle={examTitle}
+                      sessionLabel={dSession !== "ALL" ? dSession : undefined}
+                      semesterLabel={semesterLabel}
+                      programCounts={programCounts}
+                      datesheetRows={datesheets.map((d) => ({
+                        id: d.id,
+                        date: d.date,
+                        startTime: d.startTime,
+                        endTime: d.endTime,
+                        courseTitle: d.course?.title || "Subject",
+                        courseCode: d.course?.code,
+                        programName: d.program?.name || "BS Program",
+                        semester: d.semester,
+                        session: d.session,
+                        examType: d.examType,
+                        hall: examHallName,
+                      }))}
+                    />
+                  );
+                })()
+              ) : (
+                <>
+                  {/* Printable Header */}
+                  <div className="hidden print:block text-center border-b-2 border-gray-800 pb-3 space-y-1">
+                    {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                    <h2 className="text-xl font-black text-gray-900 uppercase">{collegeName}</h2>
+                    <p className="text-xs font-bold text-blue-600 uppercase">{collegeTagline}</p>
+                    <h3 className="text-sm font-bold text-gray-800 uppercase pt-1">
+                      Examination Master Datesheet Sheet (Commencing: {examStartDate})
+                    </h3>
+                  </div>
+
+                  <div className="overflow-x-auto border rounded-xl mt-2 relative">
+                    {(collegeBackground || collegeWatermark || collegeLogo) && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
+                        <img
+                          src={collegeBackground || collegeWatermark || collegeLogo}
+                          alt="Watermark"
+                          className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
+                        />
+                      </div>
+                    )}
+                    <div className="relative z-10">
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="p-3 font-semibold text-gray-600">Exam Date</th>
+                            <th className="p-3 font-semibold text-gray-600">Time Window</th>
+                            <th className="p-3 font-semibold text-gray-600">Course Code & Title</th>
+                            <th className="p-3 font-semibold text-gray-600">Program & Semester</th>
+                            <th className="p-3 font-semibold text-gray-600">Exam Type</th>
+                            <th className="p-3 font-semibold text-gray-600">Status</th>
+                            <th className="p-3 font-semibold text-gray-600 print:hidden">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {datesheets.map((d) => (
+                            <tr key={d.id} className="border-b hover:bg-gray-50">
+                              <td className="p-3 font-bold text-gray-900">{new Date(d.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                              <td className="p-3 font-mono font-bold text-gray-700">{d.startTime} - {d.endTime}</td>
+                              <td className="p-3 font-bold text-gray-900">
+                                {d.course?.title} {d.course?.code && <span className="text-xs text-gray-500 font-mono">({d.course.code})</span>}
+                              </td>
+                              <td className="p-3 text-xs text-gray-600 font-semibold">{d.program?.name} - Sem {d.semester} ({d.session})</td>
+                              <td className="p-3">
+                                <span className="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  {d.examType === 'TERMINAL' ? 'Terminal' : d.examType === 'FINAL_TERM' ? 'Final Term' : 'Mid Term'}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2.5 py-1 text-xs rounded-full font-bold ${d.status === 'PUBLISHED' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`}>
+                                    {d.status}
+                                  </span>
+                                  {d.isFinalized && (
+                                    <span className="px-2 py-0.5 text-[10px] font-extrabold bg-orange-100 text-orange-700 border border-orange-300 rounded-full">
+                                      🔒 FINALIZED
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3 print:hidden flex gap-2 items-center">
+                                <button
+                                  onClick={() => {
+                                    setEditingDatesheet(d);
+                                    setDsProgramIdModal(d.programId || (allPrograms[0]?.id || ""));
+                                    setDsSessionModal(d.session || "2024");
+                                    setDsSemesterModal(d.semester?.toString() || "1");
+                                    setDsExamTypeModal(d.examType || "TERMINAL");
+                                    setDsDate(new Date(d.date).toISOString().split('T')[0]);
+                                    setDsStart(d.startTime);
+                                    setDsEnd(d.endTime);
+                                    setDsCourseId(d.courseId || "");
+                                    setShowDatesheetModal(true);
+                                  }}
+                                  className="text-blue-600 text-xs font-bold hover:underline"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await deleteDatesheetEntry(d.id);
+                                    loadDatesheet();
+                                  }}
+                                  className="text-red-500 text-xs font-semibold hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1501,7 +1698,7 @@ export default function BSTimetableDatesheetPage() {
           {activeTab === "examduty" && (
             <div className="space-y-5">
               {/* Header */}
-              <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-5 rounded-2xl shadow-md">
+              <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-5 rounded-2xl shadow-md print:hidden">
                 <h2 className="text-lg font-black flex items-center gap-2">
                   <span>🛡️ Exam Duty Assignment</span>
                 </h2>
@@ -1513,7 +1710,7 @@ export default function BSTimetableDatesheetPage() {
 
               {/* Duty Warnings */}
               {dutyWarnings.length > 0 && (
-                <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl space-y-2">
+                <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl space-y-2 print:hidden">
                   <div className="font-bold text-amber-800 text-sm flex items-center gap-2">
                     <span>⚠️</span> Duty Generation Warnings ({dutyWarnings.length})
                   </div>
@@ -1524,7 +1721,7 @@ export default function BSTimetableDatesheetPage() {
               )}
 
               {/* Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 print:hidden">
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">PROGRAM</label>
                   <select value={dutyProgramId} onChange={e => setDutyProgramId(e.target.value)} className={SELECT_CLS}>
@@ -1557,8 +1754,48 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               </div>
 
+              {/* Center Metadata Strip for Official Sheet */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs print:hidden">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Center No</label>
+                  <input
+                    type="text"
+                    value={centerNumber}
+                    onChange={(e) => setCenterNumber(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Center / Block</label>
+                  <input
+                    type="text"
+                    value={examHallName}
+                    onChange={(e) => setExamHallName(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Center Superintendent</label>
+                  <input
+                    type="text"
+                    value={superintendentName}
+                    onChange={(e) => setSuperintendentName(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Mobile Collector Officer</label>
+                  <input
+                    type="text"
+                    value={mobileCollector}
+                    onChange={(e) => setMobileCollector(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                  />
+                </div>
+              </div>
+
               {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2 items-center justify-between">
+              <div className="flex flex-wrap gap-2 items-center justify-between print:hidden">
                 <div className="flex flex-wrap gap-2 items-center">
                   <button
                     onClick={loadDuties}
@@ -1585,111 +1822,178 @@ export default function BSTimetableDatesheetPage() {
                     />
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    const headers = ["Date", "Course", "Faculty", "Duty Type", "Mandatory", "Room", "Shift", "Override"];
-                    const rows = dbDuties.map(d => [
-                      new Date(d.datesheet?.date).toLocaleDateString(),
-                      d.datesheet?.course?.title || "",
-                      d.faculty?.user?.name || "",
-                      d.dutyType,
-                      d.isMandatory ? "YES" : "NO",
-                      d.room || "",
-                      d.shiftTime || "",
-                      d.isOverride ? "YES (Override)" : "NO"
-                    ]);
-                    downloadCSV("Exam_Duty_List.csv", headers, rows);
-                  }}
-                  className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
-                >
-                  📥 Export CSV
-                </button>
-              </div>
-
-              {/* Duty Table */}
-              <div className="overflow-x-auto border rounded-xl mt-2 relative">
-                {(collegeBackground || collegeWatermark || collegeLogo) && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
-                    <img
-                      src={collegeBackground || collegeWatermark || collegeLogo}
-                      alt="Watermark"
-                      className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
-                    />
-                  </div>
-                )}
-                <div className="relative z-10">
-                {dbDuties.length > 0 ? (
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="p-3 font-semibold text-gray-600">Exam Date</th>
-                        <th className="p-3 font-semibold text-gray-600">Course</th>
-                        <th className="p-3 font-semibold text-gray-600">Shift</th>
-                        <th className="p-3 font-semibold text-gray-600">Faculty / Invigilator</th>
-                        <th className="p-3 font-semibold text-gray-600">Duty Type</th>
-                        <th className="p-3 font-semibold text-gray-600">Room</th>
-                        <th className="p-3 font-semibold text-gray-600">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dbDuties.map(duty => (
-                        <tr key={duty.id} className={`border-b hover:bg-gray-50 ${duty.isOverride ? "bg-amber-50/40" : ""}`}>
-                          <td className="p-3 font-bold text-gray-900">
-                            {new Date(duty.datesheet?.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                          </td>
-                          <td className="p-3">
-                            <div className="font-bold text-gray-900 text-sm">{duty.datesheet?.course?.title}</div>
-                            <div className="text-xs text-gray-400 font-mono">{duty.datesheet?.course?.code}</div>
-                          </td>
-                          <td className="p-3 font-mono text-xs text-gray-600 font-semibold">{duty.shiftTime || `${duty.datesheet?.startTime} - ${duty.datesheet?.endTime}`}</td>
-                          <td className="p-3">
-                            <div className="font-bold text-gray-900">{duty.faculty?.user?.name}</div>
-                            <div className="text-xs text-gray-400">{duty.faculty?.designation}</div>
-                          </td>
-                          <td className="p-3">
-                            <div className="flex flex-col gap-1">
-                              <span className={`px-2.5 py-1 text-xs font-extrabold rounded-full inline-block w-fit ${
-                                duty.isMandatory
-                                  ? "bg-red-100 text-red-700 border border-red-300"
-                                  : "bg-blue-100 text-blue-700 border border-blue-200"
-                              }`}>
-                                {duty.isMandatory ? "🔴 MANDATORY" : "🔵 INVIGILATOR"}
-                              </span>
-                              {duty.isOverride && (
-                                <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 rounded-full inline-block w-fit">
-                                  ⚠️ Override
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-3 text-xs text-gray-600">{duty.room || "—"}</td>
-                          <td className="p-3">
-                            <button
-                              onClick={() => handleDeleteDuty(duty.id)}
-                              className="text-red-500 text-xs font-semibold hover:underline"
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-center py-12 space-y-3">
-                    <p className="text-gray-500 text-sm font-semibold">No duty assignments found.</p>
-                    <p className="text-gray-400 text-xs">Make sure the Date Sheet is finalized, then click "Generate Duties (Auto)".</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
                     <button
-                      onClick={handleGenerateDuties}
-                      disabled={generatingDuties}
-                      className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                      type="button"
+                      onClick={() => setDbDutyViewMode("official")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${dbDutyViewMode === "official"
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-white"
+                        }`}
                     >
-                      ⚡ Generate Duties Now
+                      📄 Official Center Sheet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDbDutyViewMode("list")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${dbDutyViewMode === "list"
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-white"
+                        }`}
+                    >
+                      📋 Detailed Table
                     </button>
                   </div>
-                )}
+                  <button
+                    onClick={() => {
+                      const headers = ["Date", "Course", "Faculty", "Duty Type", "Mandatory", "Room", "Shift", "Override"];
+                      const rows = dbDuties.map(d => [
+                        new Date(d.datesheet?.date).toLocaleDateString(),
+                        d.datesheet?.course?.title || "",
+                        d.faculty?.user?.name || "",
+                        d.dutyType,
+                        d.isMandatory ? "YES" : "NO",
+                        d.room || "",
+                        d.shiftTime || "",
+                        d.isOverride ? "YES (Override)" : "NO"
+                      ]);
+                      downloadCSV("Exam_Duty_List.csv", headers, rows);
+                    }}
+                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    📥 Export CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    📄 Export PDF / Print
+                  </button>
                 </div>
               </div>
+
+              {/* Duty View */}
+              {dbDuties.length === 0 ? (
+                <div className="text-center py-12 border rounded-xl space-y-3 print:hidden">
+                  <p className="text-gray-500 text-sm font-semibold">No duty assignments found.</p>
+                  <p className="text-gray-400 text-xs">Make sure the Date Sheet is finalized, then click "Generate Duties (Auto)".</p>
+                  <button
+                    onClick={handleGenerateDuties}
+                    disabled={generatingDuties}
+                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                  >
+                    ⚡ Generate Duties Now
+                  </button>
+                </div>
+              ) : dbDutyViewMode === "official" ? (
+                (() => {
+                  const dutyProgIds = Array.from(new Set(dbDuties.map((d) => d.datesheet?.programId).filter(Boolean))) as string[];
+                  const dutySems = Array.from(new Set(dbDuties.map((d) => d.datesheet?.semester).filter(Boolean))) as number[];
+                  const { semesterLabel, programCounts } = buildCenterSummaryMeta(dutyProgIds, dutySems);
+                  return (
+                    <OfficialExamCenterReport
+                      variant="duty"
+                      collegeName={collegeName}
+                      collegeLogo={collegeLogo}
+                      collegeTagline={collegeTagline}
+                      centerNumber={centerNumber}
+                      centerLocation={examHallName}
+                      superintendentName={superintendentName}
+                      superintendentDepartment={superintendentDepartment}
+                      deputySuperintendent={deputySuperintendent}
+                      mobileCollector={mobileCollector}
+                      dutyNote={dutyNote}
+                      sessionLabel={dutySession !== "ALL" ? dutySession : undefined}
+                      semesterLabel={semesterLabel}
+                      programCounts={programCounts}
+                      dutyRows={dbDuties.map((d) => ({
+                        id: d.id,
+                        date: d.datesheet?.date,
+                        shiftTime: d.shiftTime || (d.datesheet?.startTime ? `${d.datesheet.startTime} - ${d.datesheet.endTime}` : ""),
+                        courseTitle: d.datesheet?.course?.title,
+                        courseCode: d.datesheet?.course?.code,
+                        facultyName: d.faculty?.user?.name || "TBA",
+                        facultyDept: d.faculty?.department?.name || d.faculty?.designation || undefined,
+                        dutyType: d.dutyType,
+                        isMandatory: Boolean(d.isMandatory),
+                        hall: d.room || examHallName,
+                      }))}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="overflow-x-auto border rounded-xl mt-2 relative">
+                  {(collegeBackground || collegeWatermark || collegeLogo) && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
+                      <img
+                        src={collegeBackground || collegeWatermark || collegeLogo}
+                        alt="Watermark"
+                        className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
+                      />
+                    </div>
+                  )}
+                  <div className="relative z-10">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b">
+                          <th className="p-3 font-semibold text-gray-600">Exam Date</th>
+                          <th className="p-3 font-semibold text-gray-600">Course</th>
+                          <th className="p-3 font-semibold text-gray-600">Shift</th>
+                          <th className="p-3 font-semibold text-gray-600">Faculty / Invigilator</th>
+                          <th className="p-3 font-semibold text-gray-600">Duty Type</th>
+                          <th className="p-3 font-semibold text-gray-600">Room</th>
+                          <th className="p-3 font-semibold text-gray-600 print:hidden">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dbDuties.map(duty => (
+                          <tr key={duty.id} className={`border-b hover:bg-gray-50 ${duty.isOverride ? "bg-amber-50/40" : ""}`}>
+                            <td className="p-3 font-bold text-gray-900">
+                              {new Date(duty.datesheet?.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                            </td>
+                            <td className="p-3">
+                              <div className="font-bold text-gray-900 text-sm">{duty.datesheet?.course?.title}</div>
+                              <div className="text-xs text-gray-400 font-mono">{duty.datesheet?.course?.code}</div>
+                            </td>
+                            <td className="p-3 font-mono text-xs text-gray-600 font-semibold">{duty.shiftTime || `${duty.datesheet?.startTime} - ${duty.datesheet?.endTime}`}</td>
+                            <td className="p-3">
+                              <div className="font-bold text-gray-900">{duty.faculty?.user?.name}</div>
+                              <div className="text-xs text-gray-400">{duty.faculty?.department?.name || duty.faculty?.designation}</div>
+                            </td>
+                            <td className="p-3">
+                              <div className="flex flex-col gap-1">
+                                <span className={`px-2.5 py-1 text-xs font-extrabold rounded-full inline-block w-fit ${
+                                  duty.isMandatory
+                                    ? "bg-red-100 text-red-700 border border-red-300"
+                                    : "bg-blue-100 text-blue-700 border border-blue-200"
+                                }`}>
+                                  {duty.isMandatory ? "🔴 MANDATORY" : "🔵 INVIGILATOR"}
+                                </span>
+                                {duty.isOverride && (
+                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 rounded-full inline-block w-fit">
+                                    ⚠️ Override
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-3 text-xs text-gray-600">{duty.room || "—"}</td>
+                            <td className="p-3 print:hidden">
+                              <button
+                                onClick={() => handleDeleteDuty(duty.id)}
+                                className="text-red-500 text-xs font-semibold hover:underline"
+                              >
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1697,7 +2001,7 @@ export default function BSTimetableDatesheetPage() {
           {activeTab === "superintendent" && (
 
             <div className="space-y-6">
-              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white p-6 rounded-2xl shadow-md flex items-center justify-between flex-wrap gap-4">
+              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white p-6 rounded-2xl shadow-md flex items-center justify-between flex-wrap gap-4 print:hidden">
                 <div>
                   <h2 className="text-xl font-black flex items-center gap-2">
                     <span>👨‍⚖️ Standalone Chief Superintendent & Hall Allotment Roster</span>
@@ -1752,25 +2056,49 @@ export default function BSTimetableDatesheetPage() {
               </div>
 
               {/* Mode Selector */}
-              <div className="flex items-center gap-2 bg-white p-3 rounded-xl border print:hidden">
-                <span className="text-xs font-extrabold text-purple-950 uppercase">Roster Display Mode:</span>
-                {[
-                  { id: "ALL", label: `ALL (${displaySuptList.length})` },
-                  { id: "AUTO", label: `⚡ Auto-Mapped (${autoSuptList.length})` },
-                  { id: "MANUAL", label: `✍️ Manual Entries (${manualSuptEntries.length})` },
-                ].map(mode => (
+              <div className="flex items-center justify-between flex-wrap gap-2 bg-white p-3 rounded-xl border print:hidden">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-extrabold text-purple-950 uppercase">Roster Display Mode:</span>
+                  {[
+                    { id: "ALL", label: `ALL (${displaySuptList.length})` },
+                    { id: "AUTO", label: `⚡ Auto-Mapped (${autoSuptList.length})` },
+                    { id: "MANUAL", label: `✍️ Manual Entries (${manualSuptEntries.length})` },
+                  ].map(mode => (
+                    <button
+                      key={mode.id}
+                      onClick={() => setSuptFilterMode(mode.id as any)}
+                      className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
+                        suptFilterMode === mode.id
+                          ? "bg-purple-800 text-white border-purple-800 shadow"
+                          : "bg-white text-gray-700 border-purple-200 hover:bg-purple-50"
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
                   <button
-                    key={mode.id}
-                    onClick={() => setSuptFilterMode(mode.id as any)}
-                    className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
-                      suptFilterMode === mode.id
-                        ? "bg-purple-800 text-white border-purple-800 shadow"
-                        : "bg-white text-gray-700 border-purple-200 hover:bg-purple-50"
-                    }`}
+                    type="button"
+                    onClick={() => setSuptViewMode("official")}
+                    className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${suptViewMode === "official"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-600 hover:bg-white"
+                      }`}
                   >
-                    {mode.label}
+                    📄 Official Center Sheet
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setSuptViewMode("list")}
+                    className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${suptViewMode === "list"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-600 hover:bg-white"
+                      }`}
+                  >
+                    📋 Editable Roster Table
+                  </button>
+                </div>
               </div>
 
               {/* Chief Superintendent Setup Parameters & Multi-Selections Form */}
@@ -1843,13 +2171,45 @@ export default function BSTimetableDatesheetPage() {
                     />
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Center No</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
+                      value={centerNumber}
+                      onChange={(e) => setCenterNumber(e.target.value)}
+                      placeholder="e.g. 5"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Examination Center / Main Hall</label>
                     <input
                       type="text"
                       className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
                       value={examHallName}
                       onChange={(e) => setExamHallName(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Mobile Collector Officer</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
+                      value={mobileCollector}
+                      onChange={(e) => setMobileCollector(e.target.value)}
+                      placeholder="e.g. Mr. Munir Ahmed (Botany LAB)"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Official Note (Printed Footer)</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-lg text-xs font-semibold text-gray-800"
+                      value={dutyNote}
+                      onChange={(e) => setDutyNote(e.target.value)}
                     />
                   </div>
                 </div>
@@ -1994,158 +2354,201 @@ export default function BSTimetableDatesheetPage() {
               </div>
 
               {/* Official Superintendent Roster Document */}
-              <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
-                <div className="text-center border-b-2 border-gray-800 pb-4 space-y-1">
-                  {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
-                  <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
-                  <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
-                  <h2 className="text-base font-extrabold text-gray-900 uppercase pt-2">
-                    OFFICIAL CHIEF SUPERINTENDENT EXAM HALL ALLOTMENT ROSTER
-                  </h2>
-                </div>
+              {displaySuptList.length > 0 && suptViewMode === "official" ? (
+                (() => {
+                  const targetProgIds =
+                    selectedSuptPrograms.length > 0
+                      ? allPrograms.filter((p) => selectedSuptPrograms.includes(p.name)).map((p) => p.id)
+                      : allPrograms.map((p) => p.id);
+                  const { semesterLabel, programCounts } = buildCenterSummaryMeta(targetProgIds, selectedSuptSemesters);
+                  return (
+                    <OfficialExamCenterReport
+                      variant="duty"
+                      collegeName={collegeName}
+                      collegeLogo={collegeLogo}
+                      collegeTagline={collegeTagline}
+                      centerNumber={centerNumber}
+                      centerLocation={examHallName}
+                      superintendentName={superintendentName}
+                      superintendentDepartment={superintendentDepartment}
+                      deputySuperintendent={deputySuperintendent}
+                      mobileCollector={mobileCollector}
+                      dutyNote={dutyNote}
+                      sessionLabel={selectedSuptSessions.join(", ") || undefined}
+                      semesterLabel={semesterLabel}
+                      programCounts={programCounts}
+                      dutyRows={displaySuptList.map((d) => {
+                        const matchedDuty = duties.find((item) => `auto_supt_${item.id}` === d.id);
+                        const personName = matchedDuty?.invigilator || d.chief || superintendentName;
+                        const facMatch = faculties.find((f) => f.user?.name === personName);
+                        const dept = facMatch?.department?.name || d.department || superintendentDepartment;
+                        return {
+                          id: d.id,
+                          date: d.date,
+                          shiftTime: d.time,
+                          courseTitle: d.course,
+                          facultyName: personName,
+                          facultyDept: dept,
+                          hall: d.hall,
+                        };
+                      })}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
+                  <div className="text-center border-b-2 border-gray-800 pb-4 space-y-1">
+                    {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                    <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
+                    <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
+                    <h2 className="text-base font-extrabold text-gray-900 uppercase pt-2">
+                      OFFICIAL CHIEF SUPERINTENDENT EXAM HALL ALLOTMENT ROSTER
+                    </h2>
+                  </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl border text-xs">
-                  <div>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Chief Superintendent</span>
-                    <strong className="text-gray-900 font-bold">{superintendentName} ({superintendentDesignation})</strong>
-                    <span className="text-[10px] text-gray-500 block">Dept: {superintendentDepartment}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Deputy Superintendent</span>
-                    <strong className="text-gray-900 font-bold">{deputySuperintendent}</strong>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Allotted Center / Hall</span>
-                    <strong className="text-purple-900 font-bold">{examHallName}</strong>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase block">Allotted Sessions & Semesters</span>
-                    <strong className="text-blue-900 font-bold">
-                      Sessions: {selectedSuptSessions.join(", ") || "All"} | Sems: {selectedSuptSemesters.join(", ") || "All"}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto border rounded-xl">
-                  {displaySuptList.length > 0 ? (
-                    <table className="w-full text-left border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-gray-100 border-b">
-                          <th className="p-3 font-bold text-gray-800">Date & Shift</th>
-                          <th className="p-3 font-bold text-gray-800">Exam Subject / Code</th>
-                          <th className="p-3 font-bold text-gray-800">Chief Superintendent</th>
-                          <th className="p-3 font-bold text-gray-800">Allotted Exam Hall</th>
-                          <th className="p-3 font-bold text-gray-800">Assigned Programs</th>
-                          <th className="p-3 font-bold text-gray-800">Type</th>
-                          <th className="p-3 font-bold text-gray-800 text-center print:hidden">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {displaySuptList.map((d) => (
-                          <tr key={d.id} className="border-b hover:bg-gray-50">
-                            <td className="p-3 font-bold text-gray-900">
-                              <div>{new Date(d.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                              <div className="font-mono text-xs text-purple-700 font-bold">{d.time}</div>
-                            </td>
-                            <td className="p-3 font-bold text-gray-900">{d.course}</td>
-                            <td className="p-3 text-xs">
-                              <div className="font-bold text-gray-900">👨‍⚖️ {d.chief || superintendentName}</div>
-                              <div className="text-[10px] text-gray-500">{d.designation || superintendentDesignation} ({d.department || superintendentDepartment})</div>
-                            </td>
-                            <td className="p-3 font-bold text-purple-900">{d.hall}</td>
-                            <td className="p-3 text-xs font-semibold text-blue-900">{d.programName}</td>
-                            <td className="p-3">
-                              <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${d.isManual ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-blue-100 text-blue-800 border border-blue-200'}`}>
-                                {d.isManual ? '✍️ Manual' : '⚡ Auto'}
-                              </span>
-                            </td>
-                            <td className="p-3 text-center print:hidden">
-                              <div className="flex justify-center gap-2">
-                                <button
-                                  onClick={() => {
-                                    setEditingSuptEntry(d);
-                                    setSuptForm({
-                                      date: new Date(d.date).toISOString().split('T')[0],
-                                      time: d.time,
-                                      course: d.course,
-                                      hall: d.hall,
-                                      programName: d.programName,
-                                      chief: d.chief || superintendentName,
-                                      designation: d.designation || superintendentDesignation,
-                                      department: d.department || superintendentDepartment,
-                                      deputy: d.deputy || deputySuperintendent,
-                                      sessions: d.sessions || selectedSuptSessions,
-                                      semesters: d.semesters || selectedSuptSemesters,
-                                      programs: d.programs || selectedSuptPrograms
-                                    });
-                                    setShowSuptModal(true);
-                                  }}
-                                  className="text-blue-600 text-xs font-bold hover:underline"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteSuptEntry(d)}
-                                  className="text-red-500 text-xs font-semibold hover:underline"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="text-center py-12 space-y-3">
-                      <p className="text-gray-500 text-sm font-semibold">No superintendent roster entries found.</p>
-                      <div className="flex justify-center gap-3">
-                        <button
-                          onClick={loadDatesheet}
-                          className="px-5 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow transition-all"
-                        >
-                          ⚡ Auto-Generate Roster
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingSuptEntry(null);
-                            setSuptForm({
-                              date: new Date().toISOString().split("T")[0],
-                              time: "09:00 - 12:00",
-                              course: "",
-                              hall: examHallName,
-                              programName: selectedSuptPrograms.length > 0 ? selectedSuptPrograms.join(" + ") : (isHallMerged ? selectedMergedPrograms.join(" + ") : "BS Programs"),
-                              chief: superintendentName,
-                              designation: superintendentDesignation,
-                              department: superintendentDepartment,
-                              deputy: deputySuperintendent,
-                              sessions: selectedSuptSessions,
-                              semesters: selectedSuptSemesters,
-                              programs: selectedSuptPrograms
-                            });
-                            setShowSuptModal(true);
-                          }}
-                          className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                        >
-                          ➕ Add Manual Entry
-                        </button>
-                      </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl border text-xs">
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Chief Superintendent</span>
+                      <strong className="text-gray-900 font-bold">{superintendentName} ({superintendentDesignation})</strong>
+                      <span className="text-[10px] text-gray-500 block">Dept: {superintendentDepartment}</span>
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Deputy Superintendent</span>
+                      <strong className="text-gray-900 font-bold">{deputySuperintendent}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Allotted Center / Hall</span>
+                      <strong className="text-purple-900 font-bold">{examHallName}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Allotted Sessions & Semesters</span>
+                      <strong className="text-blue-900 font-bold">
+                        Sessions: {selectedSuptSessions.join(", ") || "All"} | Sems: {selectedSuptSemesters.join(", ") || "All"}
+                      </strong>
+                    </div>
+                  </div>
 
-                {/* Signature Block */}
-                <div className="pt-12 grid grid-cols-2 gap-8 text-center text-xs">
-                  <div className="space-y-8">
-                    <div className="border-b border-gray-400"></div>
-                    <div className="font-bold text-gray-800">Chief Superintendent Signature & Stamp</div>
+                  <div className="overflow-x-auto border rounded-xl">
+                    {displaySuptList.length > 0 ? (
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-gray-100 border-b">
+                            <th className="p-3 font-bold text-gray-800">Date & Shift</th>
+                            <th className="p-3 font-bold text-gray-800">Exam Subject / Code</th>
+                            <th className="p-3 font-bold text-gray-800">Chief Superintendent</th>
+                            <th className="p-3 font-bold text-gray-800">Allotted Exam Hall</th>
+                            <th className="p-3 font-bold text-gray-800">Assigned Programs</th>
+                            <th className="p-3 font-bold text-gray-800">Type</th>
+                            <th className="p-3 font-bold text-gray-800 text-center print:hidden">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displaySuptList.map((d) => (
+                            <tr key={d.id} className="border-b hover:bg-gray-50">
+                              <td className="p-3 font-bold text-gray-900">
+                                <div>{new Date(d.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                <div className="font-mono text-xs text-purple-700 font-bold">{d.time}</div>
+                              </td>
+                              <td className="p-3 font-bold text-gray-900">{d.course}</td>
+                              <td className="p-3 text-xs">
+                                <div className="font-bold text-gray-900">👨‍⚖️ {d.chief || superintendentName}</div>
+                                <div className="text-[10px] text-gray-500">{d.designation || superintendentDesignation} ({d.department || superintendentDepartment})</div>
+                              </td>
+                              <td className="p-3 font-bold text-purple-900">{d.hall}</td>
+                              <td className="p-3 text-xs font-semibold text-blue-900">{d.programName}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${d.isManual ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-blue-100 text-blue-800 border border-blue-200'}`}>
+                                  {d.isManual ? '✍️ Manual' : '⚡ Auto'}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center print:hidden">
+                                <div className="flex justify-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingSuptEntry(d);
+                                      setSuptForm({
+                                        date: new Date(d.date).toISOString().split('T')[0],
+                                        time: d.time,
+                                        course: d.course,
+                                        hall: d.hall,
+                                        programName: d.programName,
+                                        chief: d.chief || superintendentName,
+                                        designation: d.designation || superintendentDesignation,
+                                        department: d.department || superintendentDepartment,
+                                        deputy: d.deputy || deputySuperintendent,
+                                        sessions: d.sessions || selectedSuptSessions,
+                                        semesters: d.semesters || selectedSuptSemesters,
+                                        programs: d.programs || selectedSuptPrograms
+                                      });
+                                      setShowSuptModal(true);
+                                    }}
+                                    className="text-blue-600 text-xs font-bold hover:underline"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSuptEntry(d)}
+                                    className="text-red-500 text-xs font-semibold hover:underline"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="text-center py-12 space-y-3 print:hidden">
+                        <p className="text-gray-500 text-sm font-semibold">No superintendent roster entries found.</p>
+                        <div className="flex justify-center gap-3">
+                          <button
+                            onClick={loadDatesheet}
+                            className="px-5 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow transition-all"
+                          >
+                            ⚡ Auto-Generate Roster
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingSuptEntry(null);
+                              setSuptForm({
+                                date: new Date().toISOString().split("T")[0],
+                                time: "09:00 - 12:00",
+                                course: "",
+                                hall: examHallName,
+                                programName: selectedSuptPrograms.length > 0 ? selectedSuptPrograms.join(" + ") : (isHallMerged ? selectedMergedPrograms.join(" + ") : "BS Programs"),
+                                chief: superintendentName,
+                                designation: superintendentDesignation,
+                                department: superintendentDepartment,
+                                deputy: deputySuperintendent,
+                                sessions: selectedSuptSessions,
+                                semesters: selectedSuptSemesters,
+                                programs: selectedSuptPrograms
+                              });
+                              setShowSuptModal(true);
+                            }}
+                            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                          >
+                            ➕ Add Manual Entry
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-8">
-                    <div className="border-b border-gray-400"></div>
-                    <div className="font-bold text-gray-800">Principal / Controller of Examinations</div>
+
+                  {/* Signature Block */}
+                  <div className="pt-12 grid grid-cols-2 gap-8 text-center text-xs">
+                    <div className="space-y-8">
+                      <div className="border-b border-gray-400"></div>
+                      <div className="font-bold text-gray-800">Chief Superintendent Signature & Stamp</div>
+                    </div>
+                    <div className="space-y-8">
+                      <div className="border-b border-gray-400"></div>
+                      <div className="font-bold text-gray-800">Principal / Controller of Examinations</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -2226,11 +2629,33 @@ export default function BSTimetableDatesheetPage() {
                       </button>
                     ))}
                   </div>
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-blue-200">
+                    <button
+                      type="button"
+                      onClick={() => setStaffDutyViewMode("official")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${staffDutyViewMode === "official"
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                    >
+                      📄 Official Center Sheet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStaffDutyViewMode("list")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${staffDutyViewMode === "list"
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                        }`}
+                    >
+                      📋 Editable Duty List
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
                   <div>
-                    <label className="block font-bold text-blue-900 uppercase mb-1">Max Duties Per Invigilator</label>
+                    <label className="block font-bold text-blue-900 uppercase mb-1">Max Duties / Faculty</label>
                     <select
                       className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
                       value={maxDutiesPerInvigilator}
@@ -2248,6 +2673,15 @@ export default function BSTimetableDatesheetPage() {
                       <option value={10}>Max 10 Duties (High Capacity)</option>
                       <option value={999}>Unlimited Duties</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-blue-900 uppercase mb-1">Center No</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
+                      value={centerNumber}
+                      onChange={(e) => setCenterNumber(e.target.value)}
+                    />
                   </div>
                   <div>
                     <label className="block font-bold text-blue-900 uppercase mb-1">Default Chief Superintendent</label>
@@ -2280,152 +2714,203 @@ export default function BSTimetableDatesheetPage() {
                       onChange={(e) => setExamHallName(e.target.value)}
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* Printable Official Duty Roster Header */}
-              <div className="hidden print:block text-center border-b-2 border-gray-800 pb-4 space-y-1">
-                {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
-                <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
-                <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
-                <h2 className="text-base font-extrabold text-gray-800 uppercase pt-1">
-                  Official Examination Invigilation Duty Roster
-                </h2>
-                <div className="text-xs text-gray-600 flex justify-center gap-6 pt-1">
-                  <span><strong>Chief Superintendent:</strong> {superintendentName} ({superintendentDesignation})</span>
-                  <span><strong>Deputy Superintendent:</strong> {deputySuperintendent}</span>
-                  <span><strong>Exam Center:</strong> {examHallName}</span>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto border rounded-xl mt-4 relative">
-                {(collegeBackground || collegeWatermark || collegeLogo) && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
-                    <img
-                      src={collegeBackground || collegeWatermark || collegeLogo}
-                      alt="Watermark"
-                      className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
+                  <div>
+                    <label className="block font-bold text-blue-900 uppercase mb-1">Mobile Collector Officer</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
+                      value={mobileCollector}
+                      onChange={(e) => setMobileCollector(e.target.value)}
                     />
                   </div>
-                )}
-                <div className="relative z-10">
-                {displayDuties.length > 0 ? (
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="p-3 font-semibold text-gray-600">Exam Date</th>
-                        <th className="p-3 font-semibold text-gray-600">Time Window</th>
-                        <th className="p-3 font-semibold text-gray-600">Course / Exam Paper</th>
-                        <th className="p-3 font-semibold text-gray-600">Assigned Invigilator (Faculty)</th>
-                        <th className="p-3 font-semibold text-gray-600">Assigned Superintendent</th>
-                        <th className="p-3 font-semibold text-gray-600">Exam Hall Center</th>
-                        <th className="p-3 font-semibold text-gray-600">Type</th>
-                        <th className="p-3 font-semibold text-gray-600">Status</th>
-                        <th className="p-3 font-semibold text-gray-600 text-center print:hidden">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayDuties.map((duty) => (
-                        <tr key={duty.id} className="border-b hover:bg-gray-50">
-                          <td className="p-3 font-bold text-gray-900">{new Date(duty.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                          <td className="p-3 font-mono text-gray-700 font-bold">{duty.time}</td>
-                          <td className="p-3 font-bold text-gray-900">{duty.course} {duty.courseCode && <span className="text-xs text-gray-500 font-mono">({duty.courseCode})</span>}</td>
-                          <td className="p-3 font-bold text-indigo-900 flex items-center gap-1.5">
-                            <span>👨‍🏫</span> {duty.invigilator}
-                          </td>
-                          <td className="p-3 text-xs font-bold text-purple-900">
-                            <span>👨‍⚖️</span> {duty.superintendent || superintendentName}
-                          </td>
-                          <td className="p-3 text-xs font-semibold text-gray-700">{duty.hall}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${duty.isManual ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-200'}`}>
-                              {duty.isManual ? '✍️ Manual' : '⚡ Auto'}
-                            </span>
-                          </td>
-                          <td className="p-3">
-                            <span className="px-2.5 py-1 text-xs rounded-full font-extrabold bg-green-100 text-green-800 border border-green-200">
-                              {duty.status || 'ASSIGNED'}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center print:hidden">
-                            <div className="flex justify-center gap-2">
-                              <button
-                                onClick={() => {
-                                  setEditingStaffDuty(duty);
-                                  setDutyForm({
-                                    date: new Date(duty.date).toISOString().split('T')[0],
-                                    time: duty.time,
-                                    course: duty.course,
-                                    courseCode: duty.courseCode || "",
-                                    invigilator: duty.invigilator,
-                                    superintendent: duty.superintendent || superintendentName,
-                                    hall: duty.hall,
-                                    status: duty.status || "ASSIGNED"
-                                  });
-                                  setShowStaffDutyModal(true);
-                                }}
-                                className="text-blue-600 text-xs font-bold hover:underline"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteStaffDuty(duty)}
-                                className="text-red-500 text-xs font-semibold hover:underline"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-center py-12 space-y-3">
-                    <p className="text-gray-500 text-sm font-semibold">No invigilation duties found.</p>
-                    <div className="flex justify-center gap-3">
-                      <button
-                        onClick={handleAutoGenerateDatesheet}
-                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                      >
-                        ⚡ Auto-Generate Exam Dates & Duties
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingStaffDuty(null);
-                          setDutyForm({
-                            date: new Date().toISOString().split("T")[0],
-                            time: "09:00 - 12:00",
-                            course: "",
-                            courseCode: "",
-                            invigilator: faculties[0]?.user?.name || "",
-                            superintendent: `${superintendentName} (${superintendentDesignation})`,
-                            hall: examHallName,
-                            status: "ASSIGNED"
-                          });
-                          setShowStaffDutyModal(true);
-                        }}
-                        className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                      >
-                        ➕ Add Manual Invigilation Duty
-                      </button>
-                    </div>
-                  </div>
-                )}
                 </div>
               </div>
 
-              {/* Printable Signature & Guidelines Block */}
-              <div className="hidden print:grid grid-cols-2 gap-8 text-center text-xs pt-12">
-                <div className="space-y-8">
-                  <div className="border-b border-gray-400"></div>
-                  <div className="font-bold text-gray-800">Deputy Superintendent Signature</div>
-                </div>
-                <div className="space-y-8">
-                  <div className="border-b border-gray-400"></div>
-                  <div className="font-bold text-gray-800">Chief Superintendent / Principal Signature & Stamp</div>
-                </div>
-              </div>
+              {displayDuties.length > 0 && staffDutyViewMode === "official" ? (
+                (() => {
+                  const targetProgIds =
+                    isHallMerged && selectedMergedPrograms.length > 0
+                      ? allPrograms.filter((p) => selectedMergedPrograms.includes(p.name)).map((p) => p.id)
+                      : allPrograms.map((p) => p.id);
+                  const { semesterLabel, programCounts } = buildCenterSummaryMeta(targetProgIds, selectedSuptSemesters);
+                  return (
+                    <OfficialExamCenterReport
+                      variant="duty"
+                      collegeName={collegeName}
+                      collegeLogo={collegeLogo}
+                      collegeTagline={collegeTagline}
+                      centerNumber={centerNumber}
+                      centerLocation={examHallName}
+                      superintendentName={superintendentName}
+                      superintendentDepartment={superintendentDepartment}
+                      deputySuperintendent={deputySuperintendent}
+                      mobileCollector={mobileCollector}
+                      dutyNote={dutyNote}
+                      semesterLabel={semesterLabel}
+                      programCounts={programCounts}
+                      dutyRows={displayDuties.map((d) => {
+                        const facMatch = faculties.find((f) => f.user?.name === d.invigilator);
+                        return {
+                          id: d.id,
+                          date: d.date,
+                          shiftTime: d.time,
+                          courseTitle: d.course,
+                          courseCode: d.courseCode,
+                          facultyName: d.invigilator || "TBA",
+                          facultyDept: facMatch?.department?.name || facMatch?.designation || undefined,
+                          hall: d.hall,
+                        };
+                      })}
+                    />
+                  );
+                })()
+              ) : (
+                <>
+                  {/* Printable Official Duty Roster Header */}
+                  <div className="hidden print:block text-center border-b-2 border-gray-800 pb-4 space-y-1">
+                    {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
+                    <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
+                    <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
+                    <h2 className="text-base font-extrabold text-gray-800 uppercase pt-1">
+                      Official Examination Invigilation Duty Roster
+                    </h2>
+                    <div className="text-xs text-gray-600 flex justify-center gap-6 pt-1">
+                      <span><strong>Chief Superintendent:</strong> {superintendentName} ({superintendentDesignation})</span>
+                      <span><strong>Deputy Superintendent:</strong> {deputySuperintendent}</span>
+                      <span><strong>Exam Center:</strong> {examHallName}</span>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto border rounded-xl mt-4 relative">
+                    {(collegeBackground || collegeWatermark || collegeLogo) && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
+                        <img
+                          src={collegeBackground || collegeWatermark || collegeLogo}
+                          alt="Watermark"
+                          className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
+                        />
+                      </div>
+                    )}
+                    <div className="relative z-10">
+                    {displayDuties.length > 0 ? (
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="p-3 font-semibold text-gray-600">Exam Date</th>
+                            <th className="p-3 font-semibold text-gray-600">Time Window</th>
+                            <th className="p-3 font-semibold text-gray-600">Course / Exam Paper</th>
+                            <th className="p-3 font-semibold text-gray-600">Assigned Invigilator (Faculty)</th>
+                            <th className="p-3 font-semibold text-gray-600">Assigned Superintendent</th>
+                            <th className="p-3 font-semibold text-gray-600">Exam Hall Center</th>
+                            <th className="p-3 font-semibold text-gray-600">Type</th>
+                            <th className="p-3 font-semibold text-gray-600">Status</th>
+                            <th className="p-3 font-semibold text-gray-600 text-center print:hidden">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayDuties.map((duty) => (
+                            <tr key={duty.id} className="border-b hover:bg-gray-50">
+                              <td className="p-3 font-bold text-gray-900">{new Date(duty.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                              <td className="p-3 font-mono text-gray-700 font-bold">{duty.time}</td>
+                              <td className="p-3 font-bold text-gray-900">{duty.course} {duty.courseCode && <span className="text-xs text-gray-500 font-mono">({duty.courseCode})</span>}</td>
+                              <td className="p-3 font-bold text-indigo-900 flex items-center gap-1.5">
+                                <span>👨‍🏫</span> {duty.invigilator}
+                              </td>
+                              <td className="p-3 text-xs font-bold text-purple-900">
+                                <span>👨‍⚖️</span> {duty.superintendent || superintendentName}
+                              </td>
+                              <td className="p-3 text-xs font-semibold text-gray-700">{duty.hall}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${duty.isManual ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-200'}`}>
+                                  {duty.isManual ? '✍️ Manual' : '⚡ Auto'}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <span className="px-2.5 py-1 text-xs rounded-full font-extrabold bg-green-100 text-green-800 border border-green-200">
+                                  {duty.status || 'ASSIGNED'}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center print:hidden">
+                                <div className="flex justify-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setEditingStaffDuty(duty);
+                                      setDutyForm({
+                                        date: new Date(duty.date).toISOString().split('T')[0],
+                                        time: duty.time,
+                                        course: duty.course,
+                                        courseCode: duty.courseCode || "",
+                                        invigilator: duty.invigilator,
+                                        superintendent: duty.superintendent || superintendentName,
+                                        hall: duty.hall,
+                                        status: duty.status || "ASSIGNED"
+                                      });
+                                      setShowStaffDutyModal(true);
+                                    }}
+                                    className="text-blue-600 text-xs font-bold hover:underline"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteStaffDuty(duty)}
+                                    className="text-red-500 text-xs font-semibold hover:underline"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="text-center py-12 space-y-3 print:hidden">
+                        <p className="text-gray-500 text-sm font-semibold">No invigilation duties found.</p>
+                        <div className="flex justify-center gap-3">
+                          <button
+                            onClick={handleAutoGenerateDatesheet}
+                            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                          >
+                            ⚡ Auto-Generate Exam Dates &amp; Duties
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingStaffDuty(null);
+                              setDutyForm({
+                                date: new Date().toISOString().split("T")[0],
+                                time: "09:00 - 12:00",
+                                course: "",
+                                courseCode: "",
+                                invigilator: faculties[0]?.user?.name || "",
+                                superintendent: `${superintendentName} (${superintendentDesignation})`,
+                                hall: examHallName,
+                                status: "ASSIGNED"
+                              });
+                              setShowStaffDutyModal(true);
+                            }}
+                            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all"
+                          >
+                            ➕ Add Manual Invigilation Duty
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    </div>
+                  </div>
+
+                  {/* Printable Signature & Guidelines Block */}
+                  <div className="hidden print:grid grid-cols-2 gap-8 text-center text-xs pt-12">
+                    <div className="space-y-8">
+                      <div className="border-b border-gray-400"></div>
+                      <div className="font-bold text-gray-800">Deputy Superintendent Signature</div>
+                    </div>
+                    <div className="space-y-8">
+                      <div className="border-b border-gray-400"></div>
+                      <div className="font-bold text-gray-800">Chief Superintendent / Principal Signature &amp; Stamp</div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

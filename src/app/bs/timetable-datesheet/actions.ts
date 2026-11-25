@@ -16,8 +16,21 @@ const TIMETABLE_SLOTS = [
 export async function getFilterData() {
   const programs = await prisma.program.findMany({ where: { isActive: true } });
   const departments = await prisma.department.findMany({ where: { isActive: true } });
-  const faculties = await prisma.faculty.findMany({ where: { isActive: true }, include: { user: true } });
-  return { programs, departments, faculties, rooms: [] };
+  const faculties = await prisma.faculty.findMany({
+    where: { isActive: true },
+    include: { user: true, department: true }
+  });
+  const studentGroups = await prisma.student.groupBy({
+    by: ["programId", "currentSemester"],
+    where: { educationLevel: "BS", isActive: true },
+    _count: { id: true }
+  });
+  const studentCounts = studentGroups.map((g) => ({
+    programId: g.programId,
+    semester: g.currentSemester,
+    count: g._count.id
+  }));
+  return { programs, departments, faculties, rooms: [], studentCounts };
 }
 
 export async function getTimetables(
@@ -38,7 +51,7 @@ export async function getTimetables(
       ...(cleanSemester ? { semester: cleanSemester } : {}),
       ...(cleanDeptId ? { departmentId: cleanDeptId } : {}),
     },
-    include: { course: true, faculty: { include: { user: true } }, program: true, department: true },
+    include: { course: true, faculty: { include: { user: true, department: true } }, program: true, department: true },
     orderBy: [{ session: 'desc' }, { dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
 }
@@ -733,7 +746,7 @@ export async function getDuties(
   return prisma.examDuty.findMany({
     where: { datesheetId: { in: dsIds } },
     include: {
-      faculty: { include: { user: true } },
+      faculty: { include: { user: true, department: true } },
       datesheet: { include: { course: true, program: true } }
     },
     orderBy: [{ datesheet: { date: "asc" } }, { isMandatory: "desc" }]
