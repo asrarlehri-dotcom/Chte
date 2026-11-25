@@ -102,8 +102,12 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     bodyBgColor: "#070d19" as string | FillConfig,
     sidebarColor: "#090E24" as string | FillConfig, // Sidebar ERP background color
     pageBannerBg: "/gpgcq-campus-banner.jpg" as string | FillConfig, // Official Campus Panoramic Banner
-    pageBannerWaveColor: "#047857" as string | FillConfig, // Balochistan Emerald Green wave curve
+    pageBannerWaveColor: "#047857" as string | FillConfig, // Side Wave Ribbons ("Patii") color or gradient
+    pageBannerWaveOpacity: 100, // Side Wave Ribbons opacity (0 to 100%)
     pageBannerWaveShow: true, // Show decorative wave swoosh
+    pageBannerHeight: 170, // Page header banner height in px (120 to 300)
+    pageBannerImgWidth: 100, // Banner picture width area % from right (45 to 100)
+    pageBannerFade: 85, // Left-side white fade veil intensity (0 to 100%)
     collegeNameColor: "#0f172a", // Custom College Name font color
     collegeFontFamily: "'Times New Roman', Times, serif",
     collegeFontWeight: "700",
@@ -203,8 +207,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
   // Live real-time sync with Sidebar & Global Theme
   const syncThemeField = (field: string, val: any) => {
     const isFillField = ["ribbonColor", "primaryColor", "bodyBgColor", "sidebarColor", "collegeHeaderBg", "collegeNameColor", "pageBannerBg", "pageBannerWaveColor"].includes(field);
+    const isImageString =
+      typeof val === "string" &&
+      (val.startsWith("/") || /^https?:\/\//i.test(val) || val.startsWith("data:image"));
     const cleanVal = isFillField
-      ? (typeof val === "string" ? normalizeHex(val) : val)
+      ? (typeof val === "string" ? (isImageString ? val : normalizeHex(val)) : val)
       : (field === "portalSubtitleColor" ? normalizeHex(String(val || "")) : val);
 
     setFormData((prev) => {
@@ -216,7 +223,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
           if (field === "pageBannerBg") localStorage.setItem("college_banner_bg", stringified);
           if (field === "pageBannerWaveColor") localStorage.setItem("college_banner_wave_color", stringified);
+          if (field === "pageBannerWaveOpacity") localStorage.setItem("college_banner_wave_opacity", String(cleanVal));
           if (field === "pageBannerWaveShow") localStorage.setItem("college_banner_wave_show", String(cleanVal));
+          if (field === "pageBannerHeight") localStorage.setItem("college_banner_height", String(cleanVal));
+          if (field === "pageBannerImgWidth") localStorage.setItem("college_banner_img_width", String(cleanVal));
+          if (field === "pageBannerFade") localStorage.setItem("college_banner_fade", String(cleanVal));
 
           if (field === "sidebarColor") {
             localStorage.setItem("college_sidebar_active", stringified);
@@ -267,7 +278,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               ribbonColor: updated.ribbonColor,
               pageBannerBg: updated.pageBannerBg,
               pageBannerWaveColor: updated.pageBannerWaveColor,
+              pageBannerWaveOpacity: updated.pageBannerWaveOpacity,
               pageBannerWaveShow: updated.pageBannerWaveShow,
+              pageBannerHeight: updated.pageBannerHeight,
+              pageBannerImgWidth: updated.pageBannerImgWidth,
+              pageBannerFade: updated.pageBannerFade,
             }
           }));
         } catch { }
@@ -629,7 +644,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           sidebarColor: data.sidebarColor || "#090E24",
           pageBannerBg: data.pageBannerBg || "/gpgcq-campus-banner.jpg",
           pageBannerWaveColor: data.pageBannerWaveColor || "#047857",
+          pageBannerWaveOpacity: typeof data.pageBannerWaveOpacity === "number" ? data.pageBannerWaveOpacity : 100,
           pageBannerWaveShow: data.pageBannerWaveShow !== false,
+          pageBannerHeight: typeof data.pageBannerHeight === "number" ? data.pageBannerHeight : 170,
+          pageBannerImgWidth: typeof data.pageBannerImgWidth === "number" ? data.pageBannerImgWidth : 100,
+          pageBannerFade: typeof data.pageBannerFade === "number" ? data.pageBannerFade : 85,
           collegeNameColor: data.collegeNameColor || "#0f172a",
           collegeFontFamily: data.collegeFontFamily || "'Times New Roman', Times, serif",
           collegeFontWeight: data.collegeFontWeight || "700",
@@ -719,7 +738,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       sidebarColor: formData.sidebarColor,
       pageBannerBg: formData.pageBannerBg,
       pageBannerWaveColor: formData.pageBannerWaveColor,
+      pageBannerWaveOpacity: formData.pageBannerWaveOpacity,
       pageBannerWaveShow: formData.pageBannerWaveShow,
+      pageBannerHeight: formData.pageBannerHeight,
+      pageBannerImgWidth: formData.pageBannerImgWidth,
+      pageBannerFade: formData.pageBannerFade,
       collegeNameColor: formData.collegeNameColor,
       collegeHeaderBg: formData.collegeHeaderBg,
       portalSubtitle: formData.portalSubtitle,
@@ -774,7 +797,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
             localStorage.setItem("college_banner_bg", bannerBgStr);
             localStorage.setItem("college_banner_wave_color", waveColorStr);
+            localStorage.setItem("college_banner_wave_opacity", String(formData.pageBannerWaveOpacity));
             localStorage.setItem("college_banner_wave_show", String(formData.pageBannerWaveShow));
+            localStorage.setItem("college_banner_height", String(formData.pageBannerHeight));
+            localStorage.setItem("college_banner_img_width", String(formData.pageBannerImgWidth));
+            localStorage.setItem("college_banner_fade", String(formData.pageBannerFade));
 
             if (selectedCollege.code) {
               const cCode = selectedCollege.code.toLowerCase();
@@ -828,6 +855,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 collegeLetterSpacing: formData.collegeLetterSpacing,
                 collegeFontSize: formData.collegeFontSize,
                 collegeTextShadow: formData.collegeTextShadow,
+                pageBannerBg: formData.pageBannerBg,
+                pageBannerWaveColor: formData.pageBannerWaveColor,
+                pageBannerWaveOpacity: formData.pageBannerWaveOpacity,
+                pageBannerWaveShow: formData.pageBannerWaveShow,
+                pageBannerHeight: formData.pageBannerHeight,
+                pageBannerImgWidth: formData.pageBannerImgWidth,
+                pageBannerFade: formData.pageBannerFade,
               }
             }));
           } catch { }
@@ -1325,8 +1359,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               {/* Card 7: Page Header Banner ("Campus Banner" / کیمپس بینر) */}
               <CorelFillPickerCard
                 cardId="pageBannerBg"
-                title='Page Header Banner ("Campus Banner")'
-                subtitleUrdu="کیمپس بینر کا بیک گراؤنڈ (تصویر، رنگ، گریڈینٹ یا ٹیکسچر)"
+                title='Page Header Banner ("Campus Picture & Layout")'
+                subtitleUrdu="کیمپس بینر کی تصویر تبدیل کریں، سائز، زوم، پوزیشن (X/Y) اور فیڈ سیٹ کریں"
                 value={formData.pageBannerBg}
                 onChange={(val) => syncThemeField("pageBannerBg", val)}
                 defaultColor="/gpgcq-campus-banner.jpg"
@@ -1358,7 +1392,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   },
                 ]}
                 quickPresets={[
-                  { name: "Default Photo", hex: "#ffffff" },
+                  { name: "White Clean", hex: "#ffffff" },
                   { name: "Emerald 800", hex: "#064e3b" },
                   { name: "Emerald 600", hex: "#059669" },
                   { name: "Navy 900", hex: "#0f172a" },
@@ -1367,13 +1401,128 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 ]}
                 customColors={formData.customColors}
                 onAddCustomColor={handleAddCustomColor}
+                extraControls={
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-900/75 p-3 rounded-xl border border-slate-800/90">
+                    {/* Banner Box Height (Size) */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                        <span>Banner Height (سائز / اونچائی):</span>
+                        <span className="font-mono text-amber-300">{formData.pageBannerHeight}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={120}
+                        max={280}
+                        step={5}
+                        value={formData.pageBannerHeight}
+                        onChange={(e) => syncThemeField("pageBannerHeight", Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                      />
+                      <div className="flex gap-1">
+                        {[
+                          { label: "Compact", h: 135 },
+                          { label: "Default", h: 170 },
+                          { label: "Tall", h: 220 },
+                          { label: "Extra", h: 260 },
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => syncThemeField("pageBannerHeight", p.h)}
+                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
+                              formData.pageBannerHeight === p.h
+                                ? "bg-amber-500 text-slate-950"
+                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Picture Width Area */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                        <span>Picture Area Width (تصویر کی چوڑائی):</span>
+                        <span className="font-mono text-amber-300">{formData.pageBannerImgWidth}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={45}
+                        max={100}
+                        step={5}
+                        value={formData.pageBannerImgWidth}
+                        onChange={(e) => syncThemeField("pageBannerImgWidth", Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                      />
+                      <div className="flex gap-1">
+                        {[
+                          { label: "Right 55%", w: 55 },
+                          { label: "Wide 75%", w: 75 },
+                          { label: "Full 100%", w: 100 },
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => syncThemeField("pageBannerImgWidth", p.w)}
+                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
+                              formData.pageBannerImgWidth === p.w
+                                ? "bg-amber-500 text-slate-950"
+                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Left White Fade Veil */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                        <span>Left White Fade (بائیں سفید دھندلاہٹ):</span>
+                        <span className="font-mono text-amber-300">{formData.pageBannerFade}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={formData.pageBannerFade}
+                        onChange={(e) => syncThemeField("pageBannerFade", Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                      />
+                      <div className="flex gap-1">
+                        {[
+                          { label: "None 0%", f: 0 },
+                          { label: "Soft 55%", f: 55 },
+                          { label: "Default 85%", f: 85 },
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => syncThemeField("pageBannerFade", p.f)}
+                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
+                              formData.pageBannerFade === p.f
+                                ? "bg-amber-500 text-slate-950"
+                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                }
               />
 
-              {/* Card 8: Decorative Wave Accent ("Wave Patii" / لہر دار پٹی) */}
+              {/* Card 8: Side Wave Ribbons ("Wave Patii" / سائیڈ ربن پٹیاں) */}
               <CorelFillPickerCard
                 cardId="pageBannerWaveColor"
-                title='Decorative Wave Accent ("Wave Patii")'
-                subtitleUrdu="لہر دار پٹی کا رنگ (ڈیش بورڈ اور امتحانات کا بینر ڈیزائن)"
+                title='Side Wave Ribbons ("Wave Patii" & Custom Color)'
+                subtitleUrdu="سائیڈ ربن پٹیوں کا اپنی مرضی کا رنگ (Solid / Multi-Color Gradient) اور Opacity سیٹ کریں"
                 value={formData.pageBannerWaveColor}
                 onChange={(val) => syncThemeField("pageBannerWaveColor", val)}
                 defaultColor="#047857"
@@ -1416,27 +1565,103 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 ]}
                 customColors={formData.customColors}
                 onAddCustomColor={handleAddCustomColor}
+                extraControls={
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/75 p-3 rounded-xl border border-slate-800/90">
+                    {/* Side Ribbons Opacity Control */}
+                    <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-200">
+                        <span>Side Ribbons Opacity (سائیڈ پٹیوں کی شفافیت / کم یا زیادہ کریں):</span>
+                        <span className="font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
+                          {formData.pageBannerWaveOpacity}%
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={5}
+                          value={formData.pageBannerWaveOpacity}
+                          onChange={(e) => syncThemeField("pageBannerWaveOpacity", Number(e.target.value))}
+                          className="flex-1 h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                        />
+                        <div className="flex items-center gap-1">
+                          {[25, 50, 75, 100].map((op) => (
+                            <button
+                              key={op}
+                              type="button"
+                              onClick={() => syncThemeField("pageBannerWaveOpacity", op)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer transition-all ${
+                                formData.pageBannerWaveOpacity === op
+                                  ? "bg-amber-500 text-slate-950"
+                                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              }`}
+                            >
+                              {op}%
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Show / Hide Ribbons Toggle */}
+                    <div className="flex items-center gap-2 sm:border-l sm:border-slate-800 sm:pl-4">
+                      <span className="text-[11px] font-bold text-slate-300">Show Side Ribbons:</span>
+                      <button
+                        type="button"
+                        onClick={() => syncThemeField("pageBannerWaveShow", !formData.pageBannerWaveShow)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-extrabold cursor-pointer transition-all border ${
+                          formData.pageBannerWaveShow
+                            ? "bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400/50 shadow-xs"
+                            : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                        }`}
+                      >
+                        {formData.pageBannerWaveShow ? "Visible (ON)" : "Hidden (OFF)"}
+                      </button>
+                    </div>
+                  </div>
+                }
               />
 
               {/* ── LIVE REAL-TIME BANNER & WAVE PATII PREVIEW BOX ── */}
               <div className="bg-[#080d1a] p-4.5 rounded-2xl border border-slate-800 space-y-2.5 shadow-inner">
-                <div className="flex items-center justify-between text-xs text-slate-300 font-bold px-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300 font-bold px-1">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span>Live Header Banner & Wave Patii Preview (لائیو بینر اور لہر دار پٹی پریویو):</span>
                   </div>
-                  <span className="text-emerald-400 font-mono text-[11px] bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md">
-                    Real-Time Dynamic Sync
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        syncThemeField("pageBannerBg", "/gpgcq-campus-banner.jpg");
+                        syncThemeField("pageBannerWaveColor", "#047857");
+                        syncThemeField("pageBannerWaveOpacity", 100);
+                        syncThemeField("pageBannerWaveShow", true);
+                        syncThemeField("pageBannerHeight", 170);
+                        syncThemeField("pageBannerImgWidth", 100);
+                        syncThemeField("pageBannerFade", 85);
+                      }}
+                      className="text-[11px] font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-0.5 rounded-md cursor-pointer transition-all"
+                    >
+                      Reset Banner & Ribbons Default
+                    </button>
+                    <span className="text-emerald-400 font-mono text-[11px] bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md">
+                      Real-Time Dynamic Sync
+                    </span>
+                  </div>
                 </div>
                 <PortalPageHeader
                   title="Examinations & Results"
                   subtitle="Manage Exam Paper Attendance, Student Marks Entry, Result Compilation, and Promotions."
                   showAccentBar={true}
                   customBannerBg={formData.pageBannerBg}
-                  customWaveColor={typeof formData.pageBannerWaveColor === "string" ? formData.pageBannerWaveColor : getRepresentativeColor(formData.pageBannerWaveColor, "#047857")}
+                  customWaveColor={formData.pageBannerWaveColor}
+                  customWaveOpacity={formData.pageBannerWaveOpacity}
+                  customBannerHeight={formData.pageBannerHeight}
+                  customBannerImgWidth={formData.pageBannerImgWidth}
+                  customBannerFade={formData.pageBannerFade}
                   showWaves={formData.pageBannerWaveShow}
-                  heightClass="min-h-[140px]"
                 />
               </div>
             </div>

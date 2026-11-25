@@ -5,6 +5,7 @@ import {
   compileFillToStyle,
   FillConfig,
   getRepresentativeColor,
+  normalizeFillConfig,
 } from "@/lib/theme-fill-compiler";
 
 export interface PortalPageHeaderProps {
@@ -16,10 +17,38 @@ export interface PortalPageHeaderProps {
   badge?: React.ReactNode;
   children?: React.ReactNode;
   customBannerBg?: string | FillConfig;
-  customWaveColor?: string;
+  customWaveColor?: string | FillConfig;
+  customWaveOpacity?: number;
+  customBannerHeight?: number;
+  customBannerImgWidth?: number;
+  customBannerFade?: number;
   showWaves?: boolean;
   heightClass?: string;
   className?: string;
+}
+
+function parseWaveStops(
+  waveInput: string | FillConfig,
+  fallbackColor = "#047857"
+): { stops: { color: string; position: number }[]; representative: string; isMultiColor: boolean } {
+  const conf = normalizeFillConfig(waveInput, fallbackColor);
+  if (conf.mode === "gradient" && conf.gradient?.stops?.length >= 2) {
+    const sorted = [...conf.gradient.stops].sort((a, b) => a.position - b.position);
+    return {
+      stops: sorted,
+      representative: sorted[0]?.color || fallbackColor,
+      isMultiColor: true,
+    };
+  }
+  const rep = getRepresentativeColor(waveInput, fallbackColor);
+  return {
+    stops: [
+      { color: rep, position: 0 },
+      { color: rep, position: 100 },
+    ],
+    representative: rep,
+    isMultiColor: false,
+  };
 }
 
 export function PortalPageHeader({
@@ -32,6 +61,10 @@ export function PortalPageHeader({
   children,
   customBannerBg,
   customWaveColor,
+  customWaveOpacity,
+  customBannerHeight,
+  customBannerImgWidth,
+  customBannerFade,
   showWaves = true,
   heightClass = "min-h-[155px] md:min-h-[180px]",
   className = "",
@@ -42,22 +75,62 @@ export function PortalPageHeader({
   const [bannerBg, setBannerBg] = useState<string | FillConfig>(
     customBannerBg || "/gpgcq-campus-banner.jpg"
   );
-  const [waveColor, setWaveColor] = useState<string>(
-    getRepresentativeColor(customWaveColor, "#047857")
+  const [waveColor, setWaveColor] = useState<string | FillConfig>(
+    customWaveColor || "#047857"
+  );
+  const [waveOpacity, setWaveOpacity] = useState<number>(
+    typeof customWaveOpacity === "number" ? customWaveOpacity : 100
+  );
+  const [bannerHeight, setBannerHeight] = useState<number | undefined>(
+    typeof customBannerHeight === "number" ? customBannerHeight : undefined
+  );
+  const [bannerImgWidth, setBannerImgWidth] = useState<number>(
+    typeof customBannerImgWidth === "number" ? customBannerImgWidth : 100
+  );
+  const [bannerFade, setBannerFade] = useState<number>(
+    typeof customBannerFade === "number" ? customBannerFade : 85
   );
   const [wavesVisible, setWavesVisible] = useState<boolean>(showWaves);
 
   useEffect(() => {
-    if (customBannerBg) {
-      setBannerBg(customBannerBg);
-    }
+    if (customBannerBg) setBannerBg(customBannerBg);
   }, [customBannerBg]);
 
   useEffect(() => {
-    if (customWaveColor) {
-      setWaveColor(getRepresentativeColor(customWaveColor, "#047857"));
-    }
+    if (customWaveColor !== undefined) setWaveColor(customWaveColor);
   }, [customWaveColor]);
+
+  useEffect(() => {
+    if (typeof customWaveOpacity === "number") {
+      setWaveOpacity(Math.max(0, Math.min(100, customWaveOpacity)));
+    }
+  }, [customWaveOpacity]);
+
+  useEffect(() => {
+    if (typeof customBannerHeight === "number") {
+      setBannerHeight(Math.max(110, Math.min(340, customBannerHeight)));
+    }
+  }, [customBannerHeight]);
+
+  useEffect(() => {
+    if (typeof customBannerImgWidth === "number") {
+      setBannerImgWidth(Math.max(35, Math.min(100, customBannerImgWidth)));
+    }
+  }, [customBannerImgWidth]);
+
+  useEffect(() => {
+    if (typeof customBannerFade === "number") {
+      setBannerFade(Math.max(0, Math.min(100, customBannerFade)));
+    }
+  }, [customBannerFade]);
+
+  useEffect(() => {
+    if (customWaveColor === undefined) {
+      setWavesVisible(showWaves);
+    } else {
+      setWavesVisible(showWaves);
+    }
+  }, [showWaves, customWaveColor]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -80,18 +153,52 @@ export function PortalPageHeader({
         }
       }
 
-      if (!customWaveColor) {
+      if (customWaveColor === undefined) {
         const storedWave = localStorage.getItem("college_banner_wave_color");
-        if (storedWave) {
-          setWaveColor(getRepresentativeColor(storedWave, "#047857"));
+        if (storedWave && !storedWave.includes("[object")) {
+          try {
+            setWaveColor(storedWave.startsWith("{") ? JSON.parse(storedWave) : storedWave);
+          } catch {
+            setWaveColor(storedWave);
+          }
         } else {
           setWaveColor("#047857");
         }
       }
 
-      const storedShow = localStorage.getItem("college_banner_wave_show");
-      if (storedShow !== null) {
-        setWavesVisible(storedShow === "true");
+      if (typeof customWaveOpacity !== "number") {
+        const storedOp = localStorage.getItem("college_banner_wave_opacity");
+        if (storedOp !== null && !isNaN(Number(storedOp))) {
+          setWaveOpacity(Math.max(0, Math.min(100, Number(storedOp))));
+        }
+      }
+
+      if (typeof customBannerHeight !== "number") {
+        const storedH = localStorage.getItem("college_banner_height");
+        if (storedH !== null && !isNaN(Number(storedH)) && Number(storedH) >= 110) {
+          setBannerHeight(Math.max(110, Math.min(340, Number(storedH))));
+        }
+      }
+
+      if (typeof customBannerImgWidth !== "number") {
+        const storedW = localStorage.getItem("college_banner_img_width");
+        if (storedW !== null && !isNaN(Number(storedW))) {
+          setBannerImgWidth(Math.max(35, Math.min(100, Number(storedW))));
+        }
+      }
+
+      if (typeof customBannerFade !== "number") {
+        const storedF = localStorage.getItem("college_banner_fade");
+        if (storedF !== null && !isNaN(Number(storedF))) {
+          setBannerFade(Math.max(0, Math.min(100, Number(storedF))));
+        }
+      }
+
+      if (customWaveColor === undefined) {
+        const storedShow = localStorage.getItem("college_banner_wave_show");
+        if (storedShow !== null) {
+          setWavesVisible(storedShow === "true");
+        }
       }
     };
 
@@ -99,62 +206,80 @@ export function PortalPageHeader({
 
     const handleThemeChange = (e: any) => {
       if (e?.detail) {
-        if (e.detail.pageBannerBg && !customBannerBg) {
+        if (e.detail.pageBannerBg !== undefined && !customBannerBg) {
           setBannerBg(e.detail.pageBannerBg);
         }
-        if (e.detail.pageBannerWaveColor && !customWaveColor) {
-          setWaveColor(getRepresentativeColor(e.detail.pageBannerWaveColor, "#047857"));
+        if (e.detail.pageBannerWaveColor !== undefined && customWaveColor === undefined) {
+          setWaveColor(e.detail.pageBannerWaveColor);
         }
-        if (e.detail.pageBannerWaveShow !== undefined) {
-          setWavesVisible(e.detail.pageBannerWaveShow);
+        if (typeof e.detail.pageBannerWaveOpacity === "number" && typeof customWaveOpacity !== "number") {
+          setWaveOpacity(Math.max(0, Math.min(100, e.detail.pageBannerWaveOpacity)));
+        }
+        if (typeof e.detail.pageBannerHeight === "number" && typeof customBannerHeight !== "number") {
+          setBannerHeight(Math.max(110, Math.min(340, e.detail.pageBannerHeight)));
+        }
+        if (typeof e.detail.pageBannerImgWidth === "number" && typeof customBannerImgWidth !== "number") {
+          setBannerImgWidth(Math.max(35, Math.min(100, e.detail.pageBannerImgWidth)));
+        }
+        if (typeof e.detail.pageBannerFade === "number" && typeof customBannerFade !== "number") {
+          setBannerFade(Math.max(0, Math.min(100, e.detail.pageBannerFade)));
+        }
+        if (e.detail.pageBannerWaveShow !== undefined && customWaveColor === undefined) {
+          setWavesVisible(Boolean(e.detail.pageBannerWaveShow));
         }
       }
     };
 
     window.addEventListener("college-theme-change", handleThemeChange);
     return () => window.removeEventListener("college-theme-change", handleThemeChange);
-  }, [customBannerBg, customWaveColor]);
+  }, [
+    customBannerBg,
+    customWaveColor,
+    customWaveOpacity,
+    customBannerHeight,
+    customBannerImgWidth,
+    customBannerFade,
+  ]);
 
-  // Compile banner background style
-  let bannerStyle: React.CSSProperties = {};
-  if (typeof bannerBg === "string") {
-    if (
-      bannerBg.startsWith("/") ||
-      bannerBg.startsWith("http") ||
-      bannerBg.startsWith("data:image")
-    ) {
-      bannerStyle = {
-        backgroundImage: `url('${bannerBg}')`,
-        backgroundSize: "cover",
-        backgroundPosition: "center right",
-        backgroundRepeat: "no-repeat",
-      };
-    } else {
-      bannerStyle = compileFillToStyle(bannerBg, "#ffffff");
-    }
-  } else if (bannerBg && typeof bannerBg === "object") {
-    bannerStyle = compileFillToStyle(bannerBg, "#ffffff");
-  }
+  // Compile banner background style via normalized FillConfig
+  const bannerStyle: React.CSSProperties = compileFillToStyle(bannerBg, "#ffffff");
 
-  const safeWaveColor = getRepresentativeColor(waveColor, "#047857");
+  const waveParsed = parseWaveStops(waveColor, "#047857");
+  const safeWaveColor = waveParsed.representative;
   const activeAccentBarColor = getRepresentativeColor(accentBarColor, safeWaveColor);
+  const clampedWaveOpacity = Math.max(0, Math.min(100, waveOpacity)) / 100;
+  const fadeRatio = Math.max(0, Math.min(100, bannerFade)) / 100;
 
   return (
     <div
-      className={`relative w-full ${heightClass} rounded-2xl md:rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden flex flex-col justify-center px-6 md:px-10 py-5 transition-all duration-300 bg-white print:hidden ${className}`}
+      className={`relative w-full ${bannerHeight ? "" : heightClass} rounded-2xl md:rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden flex flex-col justify-center px-6 md:px-10 py-5 transition-all duration-300 bg-white print:hidden ${className}`}
+      style={bannerHeight ? { minHeight: `${bannerHeight}px` } : undefined}
     >
       {/* ── Background Banner Image / Fill ── */}
       <div
-        className="absolute inset-0 transition-all duration-500 ease-out"
-        style={bannerStyle}
+        className="absolute right-0 top-0 bottom-0 transition-all duration-300 ease-out"
+        style={{
+          ...bannerStyle,
+          width: `${bannerImgWidth}%`,
+        }}
       />
 
-      {/* ── Left-to-Right Smooth White Fade Overlay ── */}
-      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 sm:via-white/85 md:via-white/75 to-transparent pointer-events-none z-10" />
+      {/* ── Left-to-Right Smooth White Fade Overlay (Adjustable) ── */}
+      {fadeRatio > 0 && (
+        <div
+          className="absolute inset-0 pointer-events-none z-10 transition-all duration-300"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(255,255,255,${Math.min(1, fadeRatio * 1.15).toFixed(2)}) 0%, rgba(255,255,255,${(fadeRatio * 0.92).toFixed(2)}) 42%, rgba(255,255,255,${(fadeRatio * 0.45).toFixed(2)}) 68%, rgba(255,255,255,0) 100%)`,
+          }}
+        />
+      )}
 
-      {/* ── Corel-Style Multi-Layer Organic Wave Curves ("Patii") ── */}
-      {wavesVisible && (
-        <div className="absolute right-0 top-0 bottom-0 h-full w-[52%] max-w-[540px] pointer-events-none z-15 overflow-hidden">
+      {/* ── Corel-Style Multi-Layer Organic Wave Curves ("Side Ribbons / Patii") ── */}
+      {wavesVisible && clampedWaveOpacity > 0 && (
+        <div
+          className="absolute right-0 top-0 bottom-0 h-full w-[52%] max-w-[540px] pointer-events-none z-15 overflow-hidden transition-opacity duration-200"
+          style={{ opacity: clampedWaveOpacity }}
+        >
           <svg
             className="w-full h-full"
             viewBox="0 0 500 220"
@@ -164,16 +289,55 @@ export function PortalPageHeader({
           >
             <defs>
               <linearGradient id={`waveGrad1-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={safeWaveColor} stopOpacity="0.88" />
-                <stop offset="100%" stopColor={safeWaveColor} stopOpacity="1" />
+                {waveParsed.isMultiColor ? (
+                  waveParsed.stops.map((st, idx) => (
+                    <stop
+                      key={idx}
+                      offset={`${st.position}%`}
+                      stopColor={st.color}
+                      stopOpacity={idx === 0 ? "0.90" : "1"}
+                    />
+                  ))
+                ) : (
+                  <>
+                    <stop offset="0%" stopColor={safeWaveColor} stopOpacity="0.88" />
+                    <stop offset="100%" stopColor={safeWaveColor} stopOpacity="1" />
+                  </>
+                )}
               </linearGradient>
               <linearGradient id={`waveGrad2-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={safeWaveColor} stopOpacity="0.32" />
-                <stop offset="100%" stopColor={safeWaveColor} stopOpacity="0.62" />
+                {waveParsed.isMultiColor ? (
+                  waveParsed.stops.map((st, idx) => (
+                    <stop
+                      key={idx}
+                      offset={`${st.position}%`}
+                      stopColor={st.color}
+                      stopOpacity={idx === 0 ? "0.34" : "0.62"}
+                    />
+                  ))
+                ) : (
+                  <>
+                    <stop offset="0%" stopColor={safeWaveColor} stopOpacity="0.32" />
+                    <stop offset="100%" stopColor={safeWaveColor} stopOpacity="0.62" />
+                  </>
+                )}
               </linearGradient>
               <linearGradient id={`waveGrad3-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={safeWaveColor} stopOpacity="0.14" />
-                <stop offset="100%" stopColor={safeWaveColor} stopOpacity="0.28" />
+                {waveParsed.isMultiColor ? (
+                  waveParsed.stops.map((st, idx) => (
+                    <stop
+                      key={idx}
+                      offset={`${st.position}%`}
+                      stopColor={st.color}
+                      stopOpacity={idx === 0 ? "0.14" : "0.28"}
+                    />
+                  ))
+                ) : (
+                  <>
+                    <stop offset="0%" stopColor={safeWaveColor} stopOpacity="0.14" />
+                    <stop offset="100%" stopColor={safeWaveColor} stopOpacity="0.28" />
+                  </>
+                )}
               </linearGradient>
             </defs>
 
@@ -250,42 +414,80 @@ export function PortalPageHeader({
 }
 
 // Bottom matching decorative wave for page footers (as seen in Dashboard & Exams screenshots)
-export function PortalBottomWave({ waveColor = "#047857" }: { waveColor?: string }) {
-  const [activeColor, setActiveColor] = useState(
-    getRepresentativeColor(waveColor, "#047857")
-  );
+export function PortalBottomWave({ waveColor = "#047857" }: { waveColor?: string | FillConfig }) {
+  const uid = useId().replace(/:/g, "");
+  const [activeColor, setActiveColor] = useState<string | FillConfig>(waveColor);
+  const [waveOpacity, setWaveOpacity] = useState<number>(100);
+  const [visible, setVisible] = useState<boolean>(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = localStorage.getItem("college_banner_wave_color");
-    if (stored) setActiveColor(getRepresentativeColor(stored, "#047857"));
+    if (stored && !stored.includes("[object")) {
+      try {
+        setActiveColor(stored.startsWith("{") ? JSON.parse(stored) : stored);
+      } catch {
+        setActiveColor(stored);
+      }
+    }
+
+    const storedOp = localStorage.getItem("college_banner_wave_opacity");
+    if (storedOp !== null && !isNaN(Number(storedOp))) {
+      setWaveOpacity(Math.max(0, Math.min(100, Number(storedOp))));
+    }
+
+    const storedShow = localStorage.getItem("college_banner_wave_show");
+    if (storedShow !== null) setVisible(storedShow === "true");
 
     const handleTheme = (e: any) => {
-      if (e?.detail?.pageBannerWaveColor) {
-        setActiveColor(getRepresentativeColor(e.detail.pageBannerWaveColor, "#047857"));
+      if (e?.detail?.pageBannerWaveColor !== undefined) {
+        setActiveColor(e.detail.pageBannerWaveColor);
+      }
+      if (typeof e?.detail?.pageBannerWaveOpacity === "number") {
+        setWaveOpacity(Math.max(0, Math.min(100, e.detail.pageBannerWaveOpacity)));
+      }
+      if (e?.detail?.pageBannerWaveShow !== undefined) {
+        setVisible(Boolean(e.detail.pageBannerWaveShow));
       }
     };
     window.addEventListener("college-theme-change", handleTheme);
     return () => window.removeEventListener("college-theme-change", handleTheme);
   }, []);
 
+  if (!visible || waveOpacity <= 0) return null;
+
+  const parsed = parseWaveStops(activeColor, "#047857");
+
   return (
-    <div className="w-full h-10 overflow-hidden pointer-events-none relative mt-8 flex justify-end print:hidden">
+    <div
+      className="w-full h-10 overflow-hidden pointer-events-none relative mt-8 flex justify-end print:hidden transition-opacity duration-200"
+      style={{ opacity: Math.max(0, Math.min(100, waveOpacity)) / 100 }}
+    >
       <svg
         className="h-full w-96 max-w-full"
         viewBox="0 0 400 40"
         preserveAspectRatio="none"
         fill="none"
       >
+        <defs>
+          <linearGradient id={`bottomWave1-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            {parsed.stops.map((st, idx) => (
+              <stop key={idx} offset={`${st.position}%`} stopColor={st.color} stopOpacity="0.82" />
+            ))}
+          </linearGradient>
+          <linearGradient id={`bottomWave2-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            {parsed.stops.map((st, idx) => (
+              <stop key={idx} offset={`${st.position}%`} stopColor={st.color} stopOpacity="0.35" />
+            ))}
+          </linearGradient>
+        </defs>
         <path
           d="M 0 40 C 140 40, 240 8, 400 0 L 400 40 Z"
-          fill={activeColor}
-          fillOpacity="0.82"
+          fill={`url(#bottomWave1-${uid})`}
         />
         <path
           d="M 60 40 C 180 40, 280 14, 400 6 L 400 40 Z"
-          fill={activeColor}
-          fillOpacity="0.35"
+          fill={`url(#bottomWave2-${uid})`}
         />
       </svg>
     </div>

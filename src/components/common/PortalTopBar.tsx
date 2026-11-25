@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Bell, ChevronDown, ExternalLink, Megaphone } from "lucide-react";
-import { getRepresentativeColor } from "@/lib/theme-fill-compiler";
+import { getRepresentativeColor, isLightColor } from "@/lib/theme-fill-compiler";
 
 export function PortalTopBar() {
   const { data: session } = useSession();
@@ -59,18 +59,22 @@ export function PortalTopBar() {
       ? `Official Notice: ${ttCount} active Class Timetable schedule(s) published for the current semester.`
       : "Official Notice: Academic schedules, exam datesheets & portal services are active.";
 
+  const pillIsLight = isLightColor(accentColor);
+  const pillTextClass = pillIsLight ? "text-slate-900" : "text-white";
+  const pillSubTextClass = pillIsLight ? "text-slate-800 hover:text-slate-950 border-slate-900/20" : "text-white/85 hover:text-white border-white/25";
+
   return (
     <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 md:px-8 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-30 shadow-2xs print:hidden">
-      {/* Left: Green Official Notice Pill */}
+      {/* Left: Dynamic Accent Official Notice Pill */}
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
         <Link
           href="/bs/timetable-datesheet"
-          className="inline-flex items-center gap-2 text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs hover:brightness-110 truncate max-w-full"
+          className={`inline-flex items-center gap-2 ${pillTextClass} px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs hover:brightness-110 truncate max-w-full`}
           style={{ backgroundColor: accentColor }}
         >
-          <Megaphone className="w-3.5 h-3.5 flex-shrink-0 text-white/90" />
+          <Megaphone className="w-3.5 h-3.5 flex-shrink-0 opacity-90" />
           <span className="truncate">{noticeText}</span>
-          <span className="text-white/85 hover:text-white flex items-center gap-1 text-[11px] font-semibold border-l border-white/25 pl-2.5 ml-1 flex-shrink-0">
+          <span className={`${pillSubTextClass} flex items-center gap-1 text-[11px] font-semibold border-l pl-2.5 ml-1 flex-shrink-0`}>
             View Details <ExternalLink className="w-3 h-3" />
           </span>
         </Link>
@@ -91,14 +95,17 @@ export function PortalTopBar() {
 
         <div className="flex items-center gap-2.5 pl-2.5 border-l border-slate-200">
           <div
-            className="w-8 h-8 rounded-full text-white font-bold text-xs flex items-center justify-center uppercase shadow-xs ring-2 ring-slate-100"
+            className={`w-8 h-8 rounded-full ${pillTextClass} font-bold text-xs flex items-center justify-center uppercase shadow-xs ring-2 ring-slate-100`}
             style={{ backgroundColor: accentColor }}
           >
             {initials}
           </div>
           <div className="text-left hidden sm:block">
             <div className="text-xs font-black text-slate-900 leading-none">{userName}</div>
-            <div className="text-[10px] font-semibold mt-0.5 uppercase tracking-wide" style={{ color: accentColor }}>
+            <div
+              className="text-[10px] font-semibold mt-0.5 uppercase tracking-wide"
+              style={{ color: pillIsLight ? "#334155" : accentColor }}
+            >
               {userRole}
             </div>
           </div>

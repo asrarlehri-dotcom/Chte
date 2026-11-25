@@ -20,7 +20,11 @@ const DEFAULT_PORTAL_SETTINGS = {
   sidebarColor: "#090E24", // Sidebar background color for Campus ERP
   pageBannerBg: "/gpgcq-campus-banner.jpg", // Default campus panoramic building banner
   pageBannerWaveColor: "#047857", // Balochistan emerald green decorative wave swoosh ("patii")
+  pageBannerWaveOpacity: 100, // Decorative wave ribbon opacity (0 to 100%)
   pageBannerWaveShow: true, // Whether decorative wave ribbon is displayed on page headers
+  pageBannerHeight: 170, // Page header banner height in px (120 to 300)
+  pageBannerImgWidth: 100, // Background image area width % from right edge (45 to 100)
+  pageBannerFade: 85, // White gradient fade intensity on the left side behind title (0 to 100%)
   collegeNameColor: "#0f172a", // Custom College Name color in sidebar & header
   collegeFontFamily: "'Times New Roman', Times, serif",
   collegeFontWeight: "700",

@@ -379,6 +379,54 @@ export function Sidebar() {
           if (data?.collegeLetterSpacing) setCollegeLetterSpacing(data.collegeLetterSpacing);
           if (data?.collegeFontSize) setCollegeFontSize(data.collegeFontSize);
           if (data?.collegeTextShadow) setCollegeTextShadow(data.collegeTextShadow);
+
+          // Hydrate Page Header Banner & Side Wave Ribbon settings into localStorage + live listeners
+          if (typeof window !== "undefined" && data) {
+            try {
+              const bannerVal = data.pageBannerBg;
+              const waveVal = data.pageBannerWaveColor;
+              if (bannerVal !== undefined) {
+                localStorage.setItem(
+                  "college_banner_bg",
+                  typeof bannerVal === "object" ? JSON.stringify(bannerVal) : String(bannerVal)
+                );
+              }
+              if (waveVal !== undefined) {
+                localStorage.setItem(
+                  "college_banner_wave_color",
+                  typeof waveVal === "object" ? JSON.stringify(waveVal) : String(waveVal)
+                );
+              }
+              if (typeof data.pageBannerWaveOpacity === "number") {
+                localStorage.setItem("college_banner_wave_opacity", String(data.pageBannerWaveOpacity));
+              }
+              if (typeof data.pageBannerWaveShow === "boolean") {
+                localStorage.setItem("college_banner_wave_show", String(data.pageBannerWaveShow));
+              }
+              if (typeof data.pageBannerHeight === "number") {
+                localStorage.setItem("college_banner_height", String(data.pageBannerHeight));
+              }
+              if (typeof data.pageBannerImgWidth === "number") {
+                localStorage.setItem("college_banner_img_width", String(data.pageBannerImgWidth));
+              }
+              if (typeof data.pageBannerFade === "number") {
+                localStorage.setItem("college_banner_fade", String(data.pageBannerFade));
+              }
+              window.dispatchEvent(
+                new CustomEvent("college-theme-change", {
+                  detail: {
+                    pageBannerBg: data.pageBannerBg,
+                    pageBannerWaveColor: data.pageBannerWaveColor,
+                    pageBannerWaveOpacity: data.pageBannerWaveOpacity,
+                    pageBannerWaveShow: data.pageBannerWaveShow,
+                    pageBannerHeight: data.pageBannerHeight,
+                    pageBannerImgWidth: data.pageBannerImgWidth,
+                    pageBannerFade: data.pageBannerFade,
+                  },
+                })
+              );
+            } catch {}
+          }
         })
         .catch(() => {});
     }

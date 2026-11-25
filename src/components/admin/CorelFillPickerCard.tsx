@@ -157,6 +157,7 @@ export interface CorelFillPickerCardProps {
   isTextColorOnly?: boolean;
   typography?: TypographyConfig;
   onTypographyChange?: (typo: TypographyConfig) => void;
+  extraControls?: React.ReactNode;
 }
 
 export default function CorelFillPickerCard({
@@ -174,6 +175,7 @@ export default function CorelFillPickerCard({
   isTextColorOnly = false,
   typography,
   onTypographyChange,
+  extraControls,
 }: CorelFillPickerCardProps) {
   const conf = normalizeFillConfig(value, defaultColor);
 
@@ -435,6 +437,16 @@ export default function CorelFillPickerCard({
       image: {
         ...conf.image,
         tintOpacity: Math.max(0, Math.min(95, tintOpacity)),
+      },
+    });
+  };
+
+  const handleImageOpacity = (opacity: number) => {
+    onChange({
+      ...conf,
+      image: {
+        ...conf.image,
+        opacity: Math.max(0, Math.min(100, Math.round(opacity))),
       },
     });
   };
@@ -713,15 +725,16 @@ export default function CorelFillPickerCard({
           ) : (
             <div
               onClick={handlePreviewBoxClick}
-              className={`w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center ${conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""
-                }`}
-              style={liveCardStyle}
+              className={`w-full h-24 sm:h-28 rounded-xl border border-slate-700/80 shadow-inner relative overflow-hidden transition-all duration-200 flex items-center justify-center ${
+                conf.mode === "image" ? "bg-white" : "bg-slate-950"
+              } ${conf.mode === "image" && conf.image.url ? "cursor-crosshair" : ""}`}
               title={
                 conf.mode === "image" && conf.image.url
                   ? "Click anywhere to set focus / Pan position (کلک کر کے فوکس پوائنٹ منتخب کریں)"
                   : "Live Fill Preview"
               }
             >
+              <div className="absolute inset-0 transition-all duration-200" style={liveCardStyle} />
               <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-xl pointer-events-none" />
 
               {/* Reticle Crosshair Marker on Picture */}
@@ -743,7 +756,13 @@ export default function CorelFillPickerCard({
                   <div className="absolute bottom-1.5 right-1.5 bg-slate-950/90 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] font-mono text-amber-300 border border-slate-700 pointer-events-none flex items-center gap-1.5 shadow-sm">
                     <span className="font-bold">Zoom: {conf.image.zoom ?? 100}%</span>
                     <span className="text-slate-500">•</span>
-                    <span>Crop: ({conf.image.focalPoint?.x ?? 50}%, {conf.image.focalPoint?.y ?? 50}%)</span>
+                    <span>Pos: ({conf.image.focalPoint?.x ?? 50}%, {conf.image.focalPoint?.y ?? 50}%)</span>
+                    {(conf.image.opacity ?? 100) < 100 && (
+                      <>
+                        <span className="text-slate-500">•</span>
+                        <span>Opacity: {conf.image.opacity}%</span>
+                      </>
+                    )}
                   </div>
 
                   <div className="absolute top-1.5 left-1.5 bg-slate-950/80 backdrop-blur-xs px-1.5 py-0.5 rounded text-[8px] font-mono text-slate-300 border border-slate-700 pointer-events-none flex items-center gap-1">
@@ -1564,36 +1583,65 @@ export default function CorelFillPickerCard({
                 </div>
               </div>
 
-              {/* ── SECTION 3: TINT OVERLAY COLOR & OPACITY ── */}
-              <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between text-[11px] font-bold text-slate-400">
-                <div className="flex items-center gap-2">
-                  <span>Tint Overlay (ٹنٹ اوورلے):</span>
-                  <input
-                    type="color"
-                    value={conf.image.tintColor || "#000000"}
-                    onChange={(e) => handleImageTint(e.target.value)}
-                    className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
-                  />
+              {/* ── SECTION 3: PICTURE OPACITY & TINT OVERLAY ── */}
+              <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 space-y-2.5">
+                {/* Picture Opacity */}
+                <div className="flex items-center justify-between gap-3 text-[11px] font-bold text-slate-300">
+                  <span>Picture Opacity (تصویر کی شفافیت):</span>
+                  <div className="flex items-center gap-2 flex-1 max-w-[200px]">
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      step={5}
+                      value={conf.image.opacity ?? 100}
+                      onChange={(e) => handleImageOpacity(Number(e.target.value))}
+                      className="flex-1 h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                    />
+                    <span className="font-mono text-amber-300 text-xs w-9 text-right">
+                      {conf.image.opacity ?? 100}%
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-400">Opacity:</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={90}
-                    value={conf.image.tintOpacity || 0}
-                    onChange={(e) => handleImageTintOpacity(Number(e.target.value))}
-                    className="w-24 h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
-                  />
-                  <span className="font-mono text-amber-300 text-xs w-7 text-right">
-                    {conf.image.tintOpacity || 0}%
-                  </span>
+
+                {/* Tint Overlay */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-[11px] font-bold text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <span>Tint Overlay (ٹنٹ اوورلے):</span>
+                    <input
+                      type="color"
+                      value={conf.image.tintColor || "#000000"}
+                      onChange={(e) => handleImageTint(e.target.value)}
+                      className="w-6 h-6 rounded cursor-pointer border border-slate-700 bg-transparent p-0"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400">Tint %:</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={90}
+                      value={conf.image.tintOpacity || 0}
+                      onChange={(e) => handleImageTintOpacity(Number(e.target.value))}
+                      className="w-24 h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
+                    />
+                    <span className="font-mono text-amber-300 text-xs w-8 text-right">
+                      {conf.image.tintOpacity || 0}%
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Optional Card-Specific Extra Controls */}
+      {extraControls && (
+        <div className="pt-3 border-t border-slate-800/80">
+          {extraControls}
+        </div>
+      )}
     </div>
   );
 }

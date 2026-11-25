@@ -53,6 +53,7 @@ export type ImageConfig = {
   position: ImagePosition;
   tintColor: string;
   tintOpacity: number; // 0 to 95%
+  opacity?: number; // 0 to 100%, default 100
   zoom?: number; // 25% to 400%, default 100
   focalPoint?: { x: number; y: number }; // 0% to 100%
   scaleMode?: "auto" | "width" | "height" | "both";
@@ -250,8 +251,29 @@ export function createDefaultFillConfig(defaultColor: string): FillConfig {
       position: "center",
       tintColor: "#000000",
       tintOpacity: 0,
+      opacity: 100,
       zoom: 100,
       focalPoint: { x: 50, y: 50 },
+      scaleMode: "auto",
+    },
+  };
+}
+
+// Default Banner FillConfig for Page Header Banner
+export function createDefaultBannerFill(url = "/gpgcq-campus-banner.jpg"): FillConfig {
+  const base = createDefaultFillConfig("#ffffff");
+  return {
+    ...base,
+    mode: "image",
+    image: {
+      url,
+      fit: "cover",
+      position: "100% 50%",
+      tintColor: "#ffffff",
+      tintOpacity: 0,
+      opacity: 100,
+      zoom: 100,
+      focalPoint: { x: 100, y: 50 },
       scaleMode: "auto",
     },
   };
@@ -261,7 +283,16 @@ export function createDefaultFillConfig(defaultColor: string): FillConfig {
 export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillConfig {
   const fallback = createDefaultFillConfig(defaultSolid);
 
-  if (!input) return fallback;
+  if (!input) {
+    if (
+      defaultSolid.startsWith("/") ||
+      /^https?:\/\//i.test(defaultSolid) ||
+      defaultSolid.startsWith("data:image")
+    ) {
+      return createDefaultBannerFill(defaultSolid);
+    }
+    return fallback;
+  }
 
   if (typeof input === "string") {
     const trimmed = input.trim();
@@ -271,6 +302,15 @@ export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillC
         const parsed = JSON.parse(trimmed);
         return normalizeFillConfig(parsed, defaultSolid);
       } catch { }
+    }
+
+    // If it's an image URL or path (e.g. /gpgcq-campus-banner.jpg, https://..., data:image/...)
+    if (
+      trimmed.startsWith("/") ||
+      /^https?:\/\//i.test(trimmed) ||
+      trimmed.startsWith("data:image")
+    ) {
+      return createDefaultBannerFill(trimmed);
     }
 
     return {
@@ -330,15 +370,7 @@ export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillC
       };
     } else if (typeof input.image?.position === "string") {
       const pos = input.image.position.toLowerCase();
-      if (pos.includes("top") && pos.includes("left")) focalPoint = { x: 0, y: 0 };
-      else if (pos.includes("top") && pos.includes("right")) focalPoint = { x: 100, y: 0 };
-      else if (pos.includes("bottom") && pos.includes("left")) focalPoint = { x: 0, y: 100 };
-      else if (pos.includes("bottom") && pos.includes("right")) focalPoint = { x: 100, y: 100 };
-      else if (pos === "top") focalPoint = { x: 50, y: 0 };
-      else if (pos === "bottom") focalPoint = { x: 50, y: 100 };
-      else if (pos === "left") focalPoint = { x: 0, y: 50 };
-      else if (pos === "right") focalPoint = { x: 100, y: 50 };
-      else if (pos.includes("%")) {
+      if (pos.includes("%")) {
         const parts = pos.split(/\s+/).map((p: string) => parseFloat(p));
         if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
           focalPoint = {
@@ -346,8 +378,17 @@ export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillC
             y: Math.max(0, Math.min(100, parts[1])),
           };
         }
+      } else {
+        const x = pos.includes("left") ? 0 : pos.includes("right") ? 100 : 50;
+        const y = pos.includes("top") ? 0 : pos.includes("bottom") ? 100 : 50;
+        focalPoint = { x, y };
       }
     }
+
+    const imgOpacity =
+      typeof input.image?.opacity === "number"
+        ? Math.max(0, Math.min(100, Math.round(input.image.opacity)))
+        : 100;
 
     const image: ImageConfig = {
       url: typeof input.image?.url === "string" ? input.image.url : "",
@@ -360,6 +401,7 @@ export function normalizeFillConfig(input: any, defaultSolid = "#000000"): FillC
         typeof input.image?.tintOpacity === "number"
           ? Math.max(0, Math.min(95, input.image.tintOpacity))
           : 0,
+      opacity: imgOpacity,
       zoom,
       focalPoint,
       scaleMode: ["auto", "width", "height", "both"].includes(input.image?.scaleMode)
@@ -469,13 +511,18 @@ export function compileFillToStyle(
       const focalX = conf.image.focalPoint?.x ?? 50;
       const focalY = conf.image.focalPoint?.y ?? 50;
       const backgroundPosition = `${focalX}% ${focalY}%`;
+      const imgOpacity =
+        typeof conf.image.opacity === "number"
+          ? Math.max(0, Math.min(100, conf.image.opacity))
+          : 100;
 
       return {
-        backgroundColor: conf.image.tintColor || defaultSolid,
+        backgroundColor: conf.image.tintOpacity > 0 ? conf.image.tintColor : defaultSolid,
         backgroundImage: `${tintLayer}url("${conf.image.url}")`,
         backgroundSize,
         backgroundRepeat,
         backgroundPosition,
+        opacity: imgOpacity < 100 ? Number((imgOpacity / 100).toFixed(2)) : undefined,
       };
     }
 
