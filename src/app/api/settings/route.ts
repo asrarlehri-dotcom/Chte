@@ -103,6 +103,7 @@ export async function GET(request: Request) {
       if (college.tagline) config.COLLEGE_TAGLINE = college.tagline;
       if (college.address) config.COLLEGE_ADDRESS = college.address;
       if (college.code) config.COLLEGE_CODE = college.code;
+      config.RESOLVED_COLLEGE_ID = college.id;
     }
 
     return NextResponse.json(config);

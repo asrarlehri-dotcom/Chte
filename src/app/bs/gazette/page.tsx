@@ -6,8 +6,15 @@ import { useSettings } from "@/lib/useSettings";
 import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
 import OfficialDMCDocument from "@/components/OfficialDMCDocument";
 import { sortStudentsByRoll } from "@/lib/domainParsers";
-import { Award } from "lucide-react";
+import { Award, Palette } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import GazetteBannerStudioModal from "@/components/bs/GazetteBannerStudioModal";
+import {
+  GazetteBannerConfigMap,
+  buildGazetteScrimStyle,
+  parseGazetteBannersSetting,
+  resolveGazetteBannerConfig,
+} from "@/lib/gazette-banner-themes";
 
 type MarkEntry = {
   courseId?: string;
@@ -481,7 +488,51 @@ function TranscriptPrintCard({
 }
 
 export default function GazetteCompilerPage() {
-  const { collegeName, collegeLogo, collegeTagline, collegeAddress, settings } = useSettings();
+  const { collegeName, collegeLogo, collegeTagline, collegeAddress, collegeId, settings } = useSettings();
+
+  const resolvedCollegeId = collegeId || settings.RESOLVED_COLLEGE_ID || "";
+  const gazetteBannerSettingKey = resolvedCollegeId ? `BS_GAZETTE_BANNERS_${resolvedCollegeId}` : "BS_GAZETTE_BANNERS";
+  const gazetteBannerLocalKey = resolvedCollegeId ? `bs_gazette_banners_${resolvedCollegeId}` : "bs_gazette_banners";
+
+  const [bannerModalOpen, setBannerModalOpen] = useState(false);
+  const [bannerModalScope, setBannerModalScope] = useState<string>("__GLOBAL__");
+  const [sessionBannerMap, setSessionBannerMap] = useState<GazetteBannerConfigMap | null>(null);
+
+  const serverBannerMap = parseGazetteBannersSetting(
+    settings[gazetteBannerSettingKey] || settings.BS_GAZETTE_BANNERS
+  );
+  const bannerConfigMap = sessionBannerMap ?? serverBannerMap;
+
+  const handleSaveGazetteBanners = async (nextMap: GazetteBannerConfigMap): Promise<{ ok: boolean; error?: string }> => {
+    setSessionBannerMap(nextMap);
+    const serialized = JSON.stringify(nextMap);
+    try {
+      localStorage.setItem(gazetteBannerLocalKey, serialized);
+    } catch { }
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(resolvedCollegeId ? { collegeId: resolvedCollegeId } : {}),
+          [gazetteBannerSettingKey]: serialized,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return {
+          ok: false,
+          error: errData.error || "Saved locally on this browser, but server save failed.",
+        };
+      }
+      return { ok: true };
+    } catch {
+      return {
+        ok: false,
+        error: "Saved locally on this browser, but network error prevented syncing to database.",
+      };
+    }
+  };
 
   const [allStudents, setAllStudents] = useState<StudentData[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -961,6 +1012,18 @@ export default function GazetteCompilerPage() {
           <button
             type="button"
             onClick={() => {
+              setBannerModalScope("__GLOBAL__");
+              setBannerModalOpen(true);
+            }}
+            className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-xs font-black shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Customize section banner background colors, gradients, and subject pictures"
+          >
+            <Palette className="w-3.5 h-3.5" />
+            <span>Banner Colors &amp; Pictures</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setCertModal(null);
               setTimeout(() => window.print(), 100);
             }}
@@ -1073,11 +1136,29 @@ export default function GazetteCompilerPage() {
             ? "w-[90px] min-w-[90px] max-w-[90px] print:w-[66px] print:min-w-[66px] print:max-w-[66px]"
             : "w-[83px] min-w-[83px] max-w-[83px] print:w-[58px] print:min-w-[58px] print:max-w-[58px]";
 
+          const resolvedBanner = resolveGazetteBannerConfig(bannerConfigMap, group.programId, programName);
+
           return (
             <div key={`${group.programId}-${session}-${groupIdx}`} className="gazette-section space-y-4">
               {/* Official Print & Web Section Banner */}
-              <div className={`gazette-banner rounded-2xl p-5 bg-gradient-to-r ${theme.bannerBg} text-white shadow-md border flex flex-wrap items-center justify-between gap-4 print:bg-none print:bg-white print:text-black print:border-b-2 print:border-black print:p-2 print:rounded-none print:shadow-none print:mb-2`}>
-                <div className="flex items-center gap-3">
+              <div
+                className={`gazette-banner relative overflow-hidden rounded-2xl p-5 shadow-md border flex flex-wrap items-center justify-between gap-4 print:bg-none print:bg-white print:text-black print:border-b-2 print:border-black print:p-2 print:rounded-none print:shadow-none print:mb-2 ${resolvedBanner.useDarkText
+                  ? "text-slate-900 border-slate-300"
+                  : "text-white border-white/15"
+                  }`}
+              >
+                <div
+                  className="absolute inset-0 pointer-events-none print:hidden"
+                  style={resolvedBanner.bgStyle}
+                />
+                {resolvedBanner.scrimOpacity > 0 && (
+                  <div
+                    className="absolute inset-0 pointer-events-none print:hidden"
+                    style={buildGazetteScrimStyle(resolvedBanner.scrimOpacity)}
+                  />
+                )}
+
+                <div className="relative z-10 flex items-center gap-3">
                   {collegeLogo ? (
                     <img src={collegeLogo} alt="Logo" className="gazette-logo w-12 h-12 object-contain print:w-11 print:h-11 shrink-0" />
                   ) : (
@@ -1086,24 +1167,40 @@ export default function GazetteCompilerPage() {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-lg font-black tracking-wide uppercase print:text-base print:text-black">{programName}</h2>
-                      <span className={`badge-bw px-2.5 py-0.5 rounded-full text-xs font-black border ${theme.badgeBg} print:bg-white print:text-black print:border-black print:text-[10px]`}>
+                      <span
+                        className={`badge-bw px-2.5 py-0.5 rounded-full text-xs font-black border ${resolvedBanner.useDarkText
+                          ? "bg-amber-100 text-amber-900 border-amber-300"
+                          : theme.badgeBg
+                          } print:bg-white print:text-black print:border-black print:text-[10px]`}
+                      >
                         Session: {session}
                       </span>
-                      <span className="badge-bw px-2.5 py-0.5 rounded-full text-xs font-black bg-white/10 text-white border border-white/20 print:bg-white print:text-black print:border-black print:text-[10px]">
+                      <span
+                        className={`badge-bw px-2.5 py-0.5 rounded-full text-xs font-black border ${resolvedBanner.useDarkText
+                          ? "bg-slate-200 text-slate-900 border-slate-300"
+                          : "bg-white/10 text-white border-white/20"
+                          } print:bg-white print:text-black print:border-black print:text-[10px]`}
+                      >
                         Semester {selectedSemester}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-300 font-semibold mt-0.5 print:text-slate-700 print:text-[9.5px]">
+                    <p
+                      className={`text-xs font-semibold mt-0.5 print:text-slate-700 print:text-[9.5px] ${resolvedBanner.useDarkText ? "text-slate-700" : "text-slate-200/90"
+                        }`}
+                    >
                       {collegeName} &nbsp;|&nbsp; {students.length} Student(s) &nbsp;|&nbsp; {courses.length} Exam Paper(s)
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 print:hidden flex-wrap">
+                <div className="relative z-10 flex items-center gap-2 print:hidden flex-wrap">
                   <button
                     type="button"
                     onClick={() => openBulkDMC(students.map((st) => ({ student: st, programName, session })))}
-                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-black border border-white/25 transition-all flex items-center gap-1 shadow-xs"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-all flex items-center gap-1 shadow-xs cursor-pointer ${resolvedBanner.useDarkText
+                      ? "bg-white/90 hover:bg-white text-slate-800 border-slate-300"
+                      : "bg-white/10 hover:bg-white/20 text-white border-white/25"
+                      }`}
                     title={`Print DMCs for all ${students.length} students in ${programName}`}
                   >
                     <span>📄</span>
@@ -1112,14 +1209,39 @@ export default function GazetteCompilerPage() {
                   <button
                     type="button"
                     onClick={() => openBulkTranscript(students.map((st) => ({ student: st, programName, session })))}
-                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-black border border-white/25 transition-all flex items-center gap-1 shadow-xs"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-all flex items-center gap-1 shadow-xs cursor-pointer ${resolvedBanner.useDarkText
+                      ? "bg-white/90 hover:bg-white text-slate-800 border-slate-300"
+                      : "bg-white/10 hover:bg-white/20 text-white border-white/25"
+                      }`}
                     title={`Print Transcripts for all ${students.length} students in ${programName}`}
                   >
                     <span>📜</span>
                     <span>Section Transcripts</span>
                   </button>
-                  <span className="text-xs font-bold text-slate-300 ml-1">Total Marks:</span>
-                  <span className="px-3 py-1 bg-white/10 rounded-lg text-xs font-black text-white border border-white/20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBannerModalScope(group.programId);
+                      setBannerModalOpen(true);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-black border transition-all flex items-center gap-1 shadow-xs cursor-pointer ${resolvedBanner.useDarkText
+                      ? "bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
+                      : "bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border-amber-400/50"
+                      }`}
+                    title={`Change background color or picture for ${programName}`}
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    <span>Theme / Pic</span>
+                  </button>
+                  <span className={`text-xs font-bold ml-1 ${resolvedBanner.useDarkText ? "text-slate-700" : "text-slate-200"}`}>
+                    Total Marks:
+                  </span>
+                  <span
+                    className={`px-3 py-1 rounded-lg text-xs font-black border ${resolvedBanner.useDarkText
+                      ? "bg-white/90 text-slate-900 border-slate-300"
+                      : "bg-white/10 text-white border-white/20"
+                      }`}
+                  >
                     {grandTotalMax || 0}
                   </span>
                 </div>
@@ -2292,6 +2414,27 @@ export default function GazetteCompilerPage() {
         );
       })()}
 
+
+      {bannerModalOpen && (
+        <GazetteBannerStudioModal
+          key={bannerModalScope}
+          isOpen={bannerModalOpen}
+          onClose={() => setBannerModalOpen(false)}
+          programs={Array.from(
+            new Map(
+              [...programs, ...programSessionGroups.map((g) => ({ id: g.programId, name: g.programName }))].map((p) => [
+                p.id,
+                { id: p.id, name: p.name },
+              ])
+            ).values()
+          )}
+          initialScope={bannerModalScope}
+          bannerConfig={bannerConfigMap}
+          collegeName={collegeName}
+          collegeLogo={collegeLogo}
+          onSave={handleSaveGazetteBanners}
+        />
+      )}
 
     </div>
   );
