@@ -571,6 +571,7 @@ export default function CorelFillPickerCard({
   ];
 
   return (
+
     <div
       id={cardId ? `portal-card-${cardId}` : undefined}
       className="p-4 sm:p-5 rounded-2xl bg-[#0c1220]/90 border border-slate-800/90 shadow-xl transition-all space-y-3 relative overflow-hidden"
