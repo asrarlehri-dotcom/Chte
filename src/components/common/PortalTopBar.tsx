@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bell, ChevronDown, ExternalLink, Megaphone } from "lucide-react";
 import { getRepresentativeColor, isLightColor } from "@/lib/theme-fill-compiler";
+import { normalizeModulePath, parseStoredModuleOverrides } from "@/lib/portal-banner-config";
 
 export function PortalTopBar() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const [dutyData, setDutyData] = useState<any>(null);
   const [accentColor, setAccentColor] = useState<string>("#047857");
 
@@ -24,19 +27,33 @@ export function PortalTopBar() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedWave = localStorage.getItem("college_banner_wave_color");
-      if (storedWave) {
-        setAccentColor(getRepresentativeColor(storedWave, "#047857"));
-      }
-      const handleTheme = (e: any) => {
-        if (e?.detail?.pageBannerWaveColor) {
-          setAccentColor(getRepresentativeColor(e.detail.pageBannerWaveColor, "#047857"));
+      const readEffectiveAccent = (overrideMapInput?: Record<string, any>, globalWaveInput?: any) => {
+        const normPath = normalizeModulePath(pathname);
+        const overrides =
+          overrideMapInput ??
+          parseStoredModuleOverrides(localStorage.getItem("college_banner_module_overrides"));
+        const modWave = normPath ? overrides?.[normPath]?.pageBannerWaveColor : undefined;
+        const baseWave = globalWaveInput ?? localStorage.getItem("college_banner_wave_color");
+        const active = modWave !== undefined ? modWave : baseWave;
+        if (active) {
+          setAccentColor(getRepresentativeColor(active, "#047857"));
+        } else {
+          setAccentColor("#047857");
         }
+      };
+
+      readEffectiveAccent();
+
+      const handleTheme = (e: any) => {
+        readEffectiveAccent(
+          e?.detail?.moduleBannerOverrides,
+          e?.detail?.pageBannerWaveColor
+        );
       };
       window.addEventListener("college-theme-change", handleTheme);
       return () => window.removeEventListener("college-theme-change", handleTheme);
     }
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -45,7 +62,7 @@ export function PortalTopBar() {
       .then((data) => {
         if (data) setDutyData(data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [session]);
 
   const ttCount = dutyData?.publishedTimetablesCount || 0;
@@ -56,8 +73,8 @@ export function PortalTopBar() {
     dsCount > 0
       ? `Official Notice: ${dsCount} Exam Datesheet session(s) & ${ttCount} Timetable schedule(s) published.`
       : ttCount > 0
-      ? `Official Notice: ${ttCount} active Class Timetable schedule(s) published for the current semester.`
-      : "Official Notice: Academic schedules, exam datesheets & portal services are active.";
+        ? `Official Notice: ${ttCount} active Class Timetable schedule(s) published for the current semester.`
+        : "Official Notice: Academic schedules, exam datesheets & portal services are active.";
 
   const pillIsLight = isLightColor(accentColor);
   const pillTextClass = pillIsLight ? "text-slate-900" : "text-white";

@@ -25,6 +25,7 @@ const DEFAULT_PORTAL_SETTINGS = {
   pageBannerHeight: 170, // Page header banner height in px (120 to 300)
   pageBannerImgWidth: 100, // Background image area width % from right edge (45 to 100)
   pageBannerFade: 85, // White gradient fade intensity on the left side behind title (0 to 100%)
+  moduleBannerOverrides: {} as Record<string, any>, // Per-module custom banner picture, size, wave color & opacity overrides
   collegeNameColor: "#0f172a", // Custom College Name color in sidebar & header
   collegeFontFamily: "'Times New Roman', Times, serif",
   collegeFontWeight: "700",

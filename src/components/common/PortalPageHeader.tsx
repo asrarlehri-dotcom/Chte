@@ -1,12 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useId } from "react";
+import { usePathname } from "next/navigation";
 import {
   compileFillToStyle,
   FillConfig,
   getRepresentativeColor,
   normalizeFillConfig,
 } from "@/lib/theme-fill-compiler";
+import {
+  DEFAULT_PORTAL_BANNER_CONFIG,
+  ModuleBannerOverridesMap,
+  PortalBannerConfig,
+  parseStoredModuleOverrides,
+  resolveBannerForPath,
+} from "@/lib/portal-banner-config";
 
 export interface PortalPageHeaderProps {
   title: React.ReactNode;
@@ -16,6 +24,7 @@ export interface PortalPageHeaderProps {
   accentBarColor?: string;
   badge?: React.ReactNode;
   children?: React.ReactNode;
+  moduleKey?: string;
   customBannerBg?: string | FillConfig;
   customWaveColor?: string | FillConfig;
   customWaveOpacity?: number;
@@ -25,6 +34,67 @@ export interface PortalPageHeaderProps {
   showWaves?: boolean;
   heightClass?: string;
   className?: string;
+}
+
+function readGlobalBannerFromStorage(): PortalBannerConfig {
+  if (typeof window === "undefined") return DEFAULT_PORTAL_BANNER_CONFIG;
+
+  let pageBannerBg: string | FillConfig = DEFAULT_PORTAL_BANNER_CONFIG.pageBannerBg;
+  const storedBanner = localStorage.getItem("college_banner_bg");
+  if (storedBanner && !storedBanner.includes("[object")) {
+    try {
+      pageBannerBg = storedBanner.startsWith("{") ? JSON.parse(storedBanner) : storedBanner;
+    } catch {
+      pageBannerBg = storedBanner;
+    }
+  }
+
+  let pageBannerWaveColor: string | FillConfig = DEFAULT_PORTAL_BANNER_CONFIG.pageBannerWaveColor;
+  const storedWave = localStorage.getItem("college_banner_wave_color");
+  if (storedWave && !storedWave.includes("[object")) {
+    try {
+      pageBannerWaveColor = storedWave.startsWith("{") ? JSON.parse(storedWave) : storedWave;
+    } catch {
+      pageBannerWaveColor = storedWave;
+    }
+  }
+
+  const storedOp = localStorage.getItem("college_banner_wave_opacity");
+  const pageBannerWaveOpacity =
+    storedOp !== null && !isNaN(Number(storedOp))
+      ? Math.max(0, Math.min(100, Number(storedOp)))
+      : 100;
+
+  const storedShow = localStorage.getItem("college_banner_wave_show");
+  const pageBannerWaveShow = storedShow !== null ? storedShow === "true" : true;
+
+  const storedH = localStorage.getItem("college_banner_height");
+  const pageBannerHeight =
+    storedH !== null && !isNaN(Number(storedH)) && Number(storedH) >= 110
+      ? Math.max(110, Math.min(340, Number(storedH)))
+      : 170;
+
+  const storedW = localStorage.getItem("college_banner_img_width");
+  const pageBannerImgWidth =
+    storedW !== null && !isNaN(Number(storedW))
+      ? Math.max(35, Math.min(100, Number(storedW)))
+      : 100;
+
+  const storedF = localStorage.getItem("college_banner_fade");
+  const pageBannerFade =
+    storedF !== null && !isNaN(Number(storedF))
+      ? Math.max(0, Math.min(100, Number(storedF)))
+      : 85;
+
+  return {
+    pageBannerBg,
+    pageBannerWaveColor,
+    pageBannerWaveOpacity,
+    pageBannerWaveShow,
+    pageBannerHeight,
+    pageBannerImgWidth,
+    pageBannerFade,
+  };
 }
 
 function parseWaveStops(
@@ -59,6 +129,7 @@ export function PortalPageHeader({
   accentBarColor,
   badge,
   children,
+  moduleKey,
   customBannerBg,
   customWaveColor,
   customWaveOpacity,
@@ -70,6 +141,9 @@ export function PortalPageHeader({
   className = "",
 }: PortalPageHeaderProps) {
   const uid = useId().replace(/:/g, "");
+  const routePath = usePathname();
+  const effectivePath = moduleKey || routePath;
+  const isPreviewControlled = customBannerBg !== undefined || customWaveColor !== undefined;
 
   // Default values matching uploaded campus design
   const [bannerBg, setBannerBg] = useState<string | FillConfig>(
@@ -125,114 +199,76 @@ export function PortalPageHeader({
   }, [customBannerFade]);
 
   useEffect(() => {
-    if (customWaveColor === undefined) {
-      setWavesVisible(showWaves);
-    } else {
-      setWavesVisible(showWaves);
-    }
-  }, [showWaves, customWaveColor]);
+    setWavesVisible(showWaves);
+  }, [showWaves]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || isPreviewControlled) return;
 
-    const readSettings = () => {
-      if (!customBannerBg) {
-        const storedBanner = localStorage.getItem("college_banner_bg");
-        if (storedBanner && !storedBanner.includes("[object")) {
-          try {
-            if (storedBanner.startsWith("{")) {
-              setBannerBg(JSON.parse(storedBanner));
-            } else {
-              setBannerBg(storedBanner);
-            }
-          } catch {
-            setBannerBg(storedBanner);
-          }
-        } else {
-          setBannerBg("/gpgcq-campus-banner.jpg");
-        }
-      }
+    const applyResolvedSettings = (
+      eventGlobal?: Partial<PortalBannerConfig>,
+      eventOverrides?: ModuleBannerOverridesMap
+    ) => {
+      const storageGlobal = readGlobalBannerFromStorage();
+      const mergedGlobal: PortalBannerConfig = {
+        pageBannerBg:
+          eventGlobal?.pageBannerBg !== undefined
+            ? eventGlobal.pageBannerBg
+            : storageGlobal.pageBannerBg,
+        pageBannerWaveColor:
+          eventGlobal?.pageBannerWaveColor !== undefined
+            ? eventGlobal.pageBannerWaveColor
+            : storageGlobal.pageBannerWaveColor,
+        pageBannerWaveOpacity:
+          typeof eventGlobal?.pageBannerWaveOpacity === "number"
+            ? eventGlobal.pageBannerWaveOpacity
+            : storageGlobal.pageBannerWaveOpacity,
+        pageBannerWaveShow:
+          typeof eventGlobal?.pageBannerWaveShow === "boolean"
+            ? eventGlobal.pageBannerWaveShow
+            : storageGlobal.pageBannerWaveShow,
+        pageBannerHeight:
+          typeof eventGlobal?.pageBannerHeight === "number"
+            ? eventGlobal.pageBannerHeight
+            : storageGlobal.pageBannerHeight,
+        pageBannerImgWidth:
+          typeof eventGlobal?.pageBannerImgWidth === "number"
+            ? eventGlobal.pageBannerImgWidth
+            : storageGlobal.pageBannerImgWidth,
+        pageBannerFade:
+          typeof eventGlobal?.pageBannerFade === "number"
+            ? eventGlobal.pageBannerFade
+            : storageGlobal.pageBannerFade,
+      };
 
-      if (customWaveColor === undefined) {
-        const storedWave = localStorage.getItem("college_banner_wave_color");
-        if (storedWave && !storedWave.includes("[object")) {
-          try {
-            setWaveColor(storedWave.startsWith("{") ? JSON.parse(storedWave) : storedWave);
-          } catch {
-            setWaveColor(storedWave);
-          }
-        } else {
-          setWaveColor("#047857");
-        }
-      }
+      const overrides =
+        eventOverrides ??
+        parseStoredModuleOverrides(localStorage.getItem("college_banner_module_overrides"));
 
-      if (typeof customWaveOpacity !== "number") {
-        const storedOp = localStorage.getItem("college_banner_wave_opacity");
-        if (storedOp !== null && !isNaN(Number(storedOp))) {
-          setWaveOpacity(Math.max(0, Math.min(100, Number(storedOp))));
-        }
-      }
+      const resolved = resolveBannerForPath(mergedGlobal, overrides, effectivePath);
 
-      if (typeof customBannerHeight !== "number") {
-        const storedH = localStorage.getItem("college_banner_height");
-        if (storedH !== null && !isNaN(Number(storedH)) && Number(storedH) >= 110) {
-          setBannerHeight(Math.max(110, Math.min(340, Number(storedH))));
-        }
-      }
-
-      if (typeof customBannerImgWidth !== "number") {
-        const storedW = localStorage.getItem("college_banner_img_width");
-        if (storedW !== null && !isNaN(Number(storedW))) {
-          setBannerImgWidth(Math.max(35, Math.min(100, Number(storedW))));
-        }
-      }
-
-      if (typeof customBannerFade !== "number") {
-        const storedF = localStorage.getItem("college_banner_fade");
-        if (storedF !== null && !isNaN(Number(storedF))) {
-          setBannerFade(Math.max(0, Math.min(100, Number(storedF))));
-        }
-      }
-
-      if (customWaveColor === undefined) {
-        const storedShow = localStorage.getItem("college_banner_wave_show");
-        if (storedShow !== null) {
-          setWavesVisible(storedShow === "true");
-        }
-      }
+      if (!customBannerBg) setBannerBg(resolved.pageBannerBg);
+      if (customWaveColor === undefined) setWaveColor(resolved.pageBannerWaveColor);
+      if (typeof customWaveOpacity !== "number") setWaveOpacity(resolved.pageBannerWaveOpacity);
+      if (typeof customBannerHeight !== "number") setBannerHeight(resolved.pageBannerHeight);
+      if (typeof customBannerImgWidth !== "number") setBannerImgWidth(resolved.pageBannerImgWidth);
+      if (typeof customBannerFade !== "number") setBannerFade(resolved.pageBannerFade);
+      setWavesVisible(resolved.pageBannerWaveShow);
     };
 
-    readSettings();
+    applyResolvedSettings();
 
     const handleThemeChange = (e: any) => {
       if (e?.detail) {
-        if (e.detail.pageBannerBg !== undefined && !customBannerBg) {
-          setBannerBg(e.detail.pageBannerBg);
-        }
-        if (e.detail.pageBannerWaveColor !== undefined && customWaveColor === undefined) {
-          setWaveColor(e.detail.pageBannerWaveColor);
-        }
-        if (typeof e.detail.pageBannerWaveOpacity === "number" && typeof customWaveOpacity !== "number") {
-          setWaveOpacity(Math.max(0, Math.min(100, e.detail.pageBannerWaveOpacity)));
-        }
-        if (typeof e.detail.pageBannerHeight === "number" && typeof customBannerHeight !== "number") {
-          setBannerHeight(Math.max(110, Math.min(340, e.detail.pageBannerHeight)));
-        }
-        if (typeof e.detail.pageBannerImgWidth === "number" && typeof customBannerImgWidth !== "number") {
-          setBannerImgWidth(Math.max(35, Math.min(100, e.detail.pageBannerImgWidth)));
-        }
-        if (typeof e.detail.pageBannerFade === "number" && typeof customBannerFade !== "number") {
-          setBannerFade(Math.max(0, Math.min(100, e.detail.pageBannerFade)));
-        }
-        if (e.detail.pageBannerWaveShow !== undefined && customWaveColor === undefined) {
-          setWavesVisible(Boolean(e.detail.pageBannerWaveShow));
-        }
+        applyResolvedSettings(e.detail, e.detail.moduleBannerOverrides);
       }
     };
 
     window.addEventListener("college-theme-change", handleThemeChange);
     return () => window.removeEventListener("college-theme-change", handleThemeChange);
   }, [
+    effectivePath,
+    isPreviewControlled,
     customBannerBg,
     customWaveColor,
     customWaveOpacity,
@@ -416,43 +452,50 @@ export function PortalPageHeader({
 // Bottom matching decorative wave for page footers (as seen in Dashboard & Exams screenshots)
 export function PortalBottomWave({ waveColor = "#047857" }: { waveColor?: string | FillConfig }) {
   const uid = useId().replace(/:/g, "");
+  const routePath = usePathname();
   const [activeColor, setActiveColor] = useState<string | FillConfig>(waveColor);
   const [waveOpacity, setWaveOpacity] = useState<number>(100);
   const [visible, setVisible] = useState<boolean>(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = localStorage.getItem("college_banner_wave_color");
-    if (stored && !stored.includes("[object")) {
-      try {
-        setActiveColor(stored.startsWith("{") ? JSON.parse(stored) : stored);
-      } catch {
-        setActiveColor(stored);
-      }
-    }
 
-    const storedOp = localStorage.getItem("college_banner_wave_opacity");
-    if (storedOp !== null && !isNaN(Number(storedOp))) {
-      setWaveOpacity(Math.max(0, Math.min(100, Number(storedOp))));
-    }
+    const applyResolved = (
+      eventGlobal?: Partial<PortalBannerConfig>,
+      eventOverrides?: ModuleBannerOverridesMap
+    ) => {
+      const storageGlobal = readGlobalBannerFromStorage();
+      const mergedGlobal: PortalBannerConfig = {
+        ...storageGlobal,
+        ...(eventGlobal?.pageBannerWaveColor !== undefined
+          ? { pageBannerWaveColor: eventGlobal.pageBannerWaveColor }
+          : {}),
+        ...(typeof eventGlobal?.pageBannerWaveOpacity === "number"
+          ? { pageBannerWaveOpacity: eventGlobal.pageBannerWaveOpacity }
+          : {}),
+        ...(typeof eventGlobal?.pageBannerWaveShow === "boolean"
+          ? { pageBannerWaveShow: eventGlobal.pageBannerWaveShow }
+          : {}),
+      };
+      const overrides =
+        eventOverrides ??
+        parseStoredModuleOverrides(localStorage.getItem("college_banner_module_overrides"));
+      const resolved = resolveBannerForPath(mergedGlobal, overrides, routePath);
+      setActiveColor(resolved.pageBannerWaveColor);
+      setWaveOpacity(resolved.pageBannerWaveOpacity);
+      setVisible(resolved.pageBannerWaveShow);
+    };
 
-    const storedShow = localStorage.getItem("college_banner_wave_show");
-    if (storedShow !== null) setVisible(storedShow === "true");
+    applyResolved();
 
     const handleTheme = (e: any) => {
-      if (e?.detail?.pageBannerWaveColor !== undefined) {
-        setActiveColor(e.detail.pageBannerWaveColor);
-      }
-      if (typeof e?.detail?.pageBannerWaveOpacity === "number") {
-        setWaveOpacity(Math.max(0, Math.min(100, e.detail.pageBannerWaveOpacity)));
-      }
-      if (e?.detail?.pageBannerWaveShow !== undefined) {
-        setVisible(Boolean(e.detail.pageBannerWaveShow));
+      if (e?.detail) {
+        applyResolved(e.detail, e.detail.moduleBannerOverrides);
       }
     };
     window.addEventListener("college-theme-change", handleTheme);
     return () => window.removeEventListener("college-theme-change", handleTheme);
-  }, []);
+  }, [routePath]);
 
   if (!visible || waveOpacity <= 0) return null;
 

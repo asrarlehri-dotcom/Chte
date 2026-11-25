@@ -46,6 +46,13 @@ import {
   MS_WORD_COLOR_PALETTE,
   TypographyConfig,
 } from "@/lib/theme-fill-compiler";
+import {
+  PORTAL_BANNER_MODULES,
+  ModuleBannerOverridesMap,
+  ModuleBannerOverride,
+  PortalBannerConfig,
+  resolveBannerForPath,
+} from "@/lib/portal-banner-config";
 
 type CollegeOption = {
   id: string;
@@ -108,6 +115,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
     pageBannerHeight: 170, // Page header banner height in px (120 to 300)
     pageBannerImgWidth: 100, // Banner picture width area % from right (45 to 100)
     pageBannerFade: 85, // Left-side white fade veil intensity (0 to 100%)
+    moduleBannerOverrides: {} as ModuleBannerOverridesMap, // Per-module banner picture, size, wave color & opacity overrides
     collegeNameColor: "#0f172a", // Custom College Name font color
     collegeFontFamily: "'Times New Roman', Times, serif",
     collegeFontWeight: "700",
@@ -167,6 +175,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
   // Custom Color Palette State & Helpers
   const [newCustomColor, setNewCustomColor] = useState<string>("#2653FF");
+  // Banner Scope ("__GLOBAL__" for all modules OR specific module path e.g. "/bs/exams-results")
+  const [selectedBannerScope, setSelectedBannerScope] = useState<string>("__GLOBAL__");
 
   const normalizeHex = (val: string): string => {
     let clean = (val || "").trim();
@@ -288,6 +298,100 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
         } catch { }
       }
       return updated;
+    });
+  };
+
+  // Pick initial banner scope from ?module= if provided
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const modParam = new URLSearchParams(window.location.search).get("module");
+    if (modParam && PORTAL_BANNER_MODULES.some((m) => m.path === modParam)) {
+      setSelectedBannerScope(modParam);
+    }
+  }, []);
+
+  // Resolved Global & Per-Module Banner Config Helpers
+  const globalBannerConfig: PortalBannerConfig = {
+    pageBannerBg: formData.pageBannerBg,
+    pageBannerWaveColor: formData.pageBannerWaveColor,
+    pageBannerWaveOpacity: formData.pageBannerWaveOpacity,
+    pageBannerWaveShow: formData.pageBannerWaveShow,
+    pageBannerHeight: formData.pageBannerHeight,
+    pageBannerImgWidth: formData.pageBannerImgWidth,
+    pageBannerFade: formData.pageBannerFade,
+  };
+
+  const isGlobalScope = selectedBannerScope === "__GLOBAL__";
+  const activeScopeMeta = !isGlobalScope
+    ? PORTAL_BANNER_MODULES.find((m) => m.path === selectedBannerScope)
+    : undefined;
+  const activeModuleOverride: ModuleBannerOverride | undefined = !isGlobalScope
+    ? formData.moduleBannerOverrides[selectedBannerScope]
+    : undefined;
+  const effectiveBannerConfig: PortalBannerConfig = isGlobalScope
+    ? globalBannerConfig
+    : resolveBannerForPath(globalBannerConfig, formData.moduleBannerOverrides, selectedBannerScope);
+
+  const persistModuleOverrides = (nextOverrides: ModuleBannerOverridesMap) => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem("college_banner_module_overrides", JSON.stringify(nextOverrides));
+      window.dispatchEvent(
+        new CustomEvent("college-theme-change", {
+          detail: { moduleBannerOverrides: nextOverrides },
+        })
+      );
+    } catch {}
+  };
+
+  const updateActiveBannerField = (field: keyof PortalBannerConfig & string, rawVal: any) => {
+    if (isGlobalScope) {
+      syncThemeField(field, rawVal);
+      return;
+    }
+
+    const isFillField = field === "pageBannerBg" || field === "pageBannerWaveColor";
+    const isImageString =
+      typeof rawVal === "string" &&
+      (rawVal.startsWith("/") || /^https?:\/\//i.test(rawVal) || rawVal.startsWith("data:image"));
+    const cleanVal =
+      isFillField && typeof rawVal === "string"
+        ? isImageString
+          ? rawVal
+          : normalizeHex(rawVal)
+        : rawVal;
+
+    setFormData((prev) => {
+      const existing = prev.moduleBannerOverrides[selectedBannerScope] || {};
+      const nextOverrides: ModuleBannerOverridesMap = {
+        ...prev.moduleBannerOverrides,
+        [selectedBannerScope]: {
+          ...existing,
+          [field]: cleanVal,
+        },
+      };
+      persistModuleOverrides(nextOverrides);
+      return { ...prev, moduleBannerOverrides: nextOverrides };
+    });
+  };
+
+  const copyGlobalToModule = (modPath: string) => {
+    setFormData((prev) => {
+      const nextOverrides: ModuleBannerOverridesMap = {
+        ...prev.moduleBannerOverrides,
+        [modPath]: { ...globalBannerConfig },
+      };
+      persistModuleOverrides(nextOverrides);
+      return { ...prev, moduleBannerOverrides: nextOverrides };
+    });
+  };
+
+  const clearModuleOverride = (modPath: string) => {
+    setFormData((prev) => {
+      const nextOverrides = { ...prev.moduleBannerOverrides };
+      delete nextOverrides[modPath];
+      persistModuleOverrides(nextOverrides);
+      return { ...prev, moduleBannerOverrides: nextOverrides };
     });
   };
 
@@ -649,6 +753,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           pageBannerHeight: typeof data.pageBannerHeight === "number" ? data.pageBannerHeight : 170,
           pageBannerImgWidth: typeof data.pageBannerImgWidth === "number" ? data.pageBannerImgWidth : 100,
           pageBannerFade: typeof data.pageBannerFade === "number" ? data.pageBannerFade : 85,
+          moduleBannerOverrides:
+            data.moduleBannerOverrides && typeof data.moduleBannerOverrides === "object"
+              ? data.moduleBannerOverrides
+              : {},
           collegeNameColor: data.collegeNameColor || "#0f172a",
           collegeFontFamily: data.collegeFontFamily || "'Times New Roman', Times, serif",
           collegeFontWeight: data.collegeFontWeight || "700",
@@ -743,6 +851,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
       pageBannerHeight: formData.pageBannerHeight,
       pageBannerImgWidth: formData.pageBannerImgWidth,
       pageBannerFade: formData.pageBannerFade,
+      moduleBannerOverrides: formData.moduleBannerOverrides,
       collegeNameColor: formData.collegeNameColor,
       collegeHeaderBg: formData.collegeHeaderBg,
       portalSubtitle: formData.portalSubtitle,
@@ -802,6 +911,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             localStorage.setItem("college_banner_height", String(formData.pageBannerHeight));
             localStorage.setItem("college_banner_img_width", String(formData.pageBannerImgWidth));
             localStorage.setItem("college_banner_fade", String(formData.pageBannerFade));
+            localStorage.setItem(
+              "college_banner_module_overrides",
+              JSON.stringify(formData.moduleBannerOverrides || {})
+            );
 
             if (selectedCollege.code) {
               const cCode = selectedCollege.code.toLowerCase();
@@ -862,6 +975,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 pageBannerHeight: formData.pageBannerHeight,
                 pageBannerImgWidth: formData.pageBannerImgWidth,
                 pageBannerFade: formData.pageBannerFade,
+                moduleBannerOverrides: formData.moduleBannerOverrides,
               }
             }));
           } catch { }
@@ -1356,13 +1470,158 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 onAddCustomColor={handleAddCustomColor}
               />
 
+              {/* ── PER-MODULE BANNER & SIDE RIBBON TARGET SCOPE SELECTOR ── */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#0f172a] via-[#0c1220] to-[#081512] border border-emerald-500/30 shadow-xl space-y-3">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        Global vs Per-Module Studio
+                      </span>
+                      <h4 className="text-sm font-bold text-white">
+                        Customize Banner Picture & Ribbons Per Module (ہر ماڈیول کی الگ تصویر، سائز اور ربن سیٹنگ)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Choose <strong className="text-slate-200">All Modules (Global Default)</strong> to update every page at once, OR pick any individual module (Dashboard, BS Exams, Fees, Admissions, etc.) to give it its own separate picture, zoom, size, position, ribbon color, and opacity.
+                    </p>
+                  </div>
+
+                  {/* Quick Scope Switcher Controls */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBannerScope("__GLOBAL__")}
+                      className={`px-3 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
+                        isGlobalScope
+                          ? "bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-600/25"
+                          : "bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800"
+                      }`}
+                    >
+                      🌐 All Modules (Global Default)
+                    </button>
+
+                    <select
+                      value={selectedBannerScope}
+                      onChange={(e) => setSelectedBannerScope(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 hover:border-emerald-500/60 rounded-xl px-3 py-2 text-xs font-bold text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer max-w-xs"
+                    >
+                      <option value="__GLOBAL__">🌐 All Modules (Global Default)</option>
+                      {(["Dashboard", "BS Program", "Intermediate", "Admin", "Faculty", "CHTE"] as const).map(
+                        (grp) => (
+                          <optgroup key={grp} label={`── ${grp} Modules ──`}>
+                            {PORTAL_BANNER_MODULES.filter((m) => m.group === grp).map((m) => {
+                              const hasCustom = Boolean(formData.moduleBannerOverrides[m.path]);
+                              return (
+                                <option key={m.path} value={m.path}>
+                                  {hasCustom ? "★ [Custom] " : ""}
+                                  {m.label} ({m.path})
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        )
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Selected Module Status & Actions */}
+                {!isGlobalScope && activeScopeMeta && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-slate-800/90 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-[11px] bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-amber-300">
+                        {activeScopeMeta.path}
+                      </span>
+                      <span className="font-bold text-slate-200">{activeScopeMeta.label}</span>
+                      {activeModuleOverride ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          ★ Custom Module Design Active
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                          Inheriting Global Default (change any setting below to customize)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => copyGlobalToModule(activeScopeMeta.path)}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-[11px] font-bold cursor-pointer transition-all"
+                      >
+                        Copy Current Global Here
+                      </button>
+                      {activeModuleOverride && (
+                        <button
+                          type="button"
+                          onClick={() => clearModuleOverride(activeScopeMeta.path)}
+                          className="px-2.5 py-1 rounded-lg bg-rose-950/70 hover:bg-rose-900 border border-rose-700/60 text-rose-200 text-[11px] font-bold cursor-pointer transition-all"
+                        >
+                          Remove Override (Use Global)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Module Pills Strip */}
+                {Object.keys(formData.moduleBannerOverrides).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800/80">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                      Customized Modules ({Object.keys(formData.moduleBannerOverrides).length}):
+                    </span>
+                    {Object.keys(formData.moduleBannerOverrides).map((modPath) => {
+                      const meta = PORTAL_BANNER_MODULES.find((m) => m.path === modPath);
+                      const isActive = selectedBannerScope === modPath;
+                      return (
+                        <div
+                          key={modPath}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                            isActive
+                              ? "bg-amber-500/20 border-amber-400 text-amber-200"
+                              : "bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBannerScope(modPath)}
+                            className="cursor-pointer hover:underline"
+                          >
+                            {meta?.label || modPath}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => clearModuleOverride(modPath)}
+                            title="Remove custom override for this module"
+                            className="text-rose-400 hover:text-rose-300 font-black cursor-pointer pl-1"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* Card 7: Page Header Banner ("Campus Banner" / کیمپس بینر) */}
               <CorelFillPickerCard
+                key={`banner-card-${selectedBannerScope}`}
                 cardId="pageBannerBg"
-                title='Page Header Banner ("Campus Picture & Layout")'
-                subtitleUrdu="کیمپس بینر کی تصویر تبدیل کریں، سائز، زوم، پوزیشن (X/Y) اور فیڈ سیٹ کریں"
-                value={formData.pageBannerBg}
-                onChange={(val) => syncThemeField("pageBannerBg", val)}
+                title={
+                  isGlobalScope
+                    ? 'Page Header Banner ("Campus Picture & Layout") — Global Default'
+                    : `Banner Picture & Layout — ${activeScopeMeta?.label || selectedBannerScope}`
+                }
+                subtitleUrdu={
+                  isGlobalScope
+                    ? "تمام ماڈیولز کے بینر کی تصویر تبدیل کریں، سائز، زوم، پوزیشن (X/Y) اور فیڈ سیٹ کریں"
+                    : `صرف "${activeScopeMeta?.label || selectedBannerScope}" ماڈیول کے لیے الگ تصویر، سائز، زوم اور پوزیشن سیٹ کریں`
+                }
+                value={effectiveBannerConfig.pageBannerBg}
+                onChange={(val) => updateActiveBannerField("pageBannerBg", val)}
                 defaultColor="/gpgcq-campus-banner.jpg"
                 gradientPresets={[
                   {
@@ -1407,15 +1666,15 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
                         <span>Banner Height (سائز / اونچائی):</span>
-                        <span className="font-mono text-amber-300">{formData.pageBannerHeight}px</span>
+                        <span className="font-mono text-amber-300">{effectiveBannerConfig.pageBannerHeight}px</span>
                       </div>
                       <input
                         type="range"
                         min={120}
                         max={280}
                         step={5}
-                        value={formData.pageBannerHeight}
-                        onChange={(e) => syncThemeField("pageBannerHeight", Number(e.target.value))}
+                        value={effectiveBannerConfig.pageBannerHeight}
+                        onChange={(e) => updateActiveBannerField("pageBannerHeight", Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
                       />
                       <div className="flex gap-1">
@@ -1428,9 +1687,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             key={p.label}
                             type="button"
-                            onClick={() => syncThemeField("pageBannerHeight", p.h)}
+                            onClick={() => updateActiveBannerField("pageBannerHeight", p.h)}
                             className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                              formData.pageBannerHeight === p.h
+                              effectiveBannerConfig.pageBannerHeight === p.h
                                 ? "bg-amber-500 text-slate-950"
                                 : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                             }`}
@@ -1445,15 +1704,15 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
                         <span>Picture Area Width (تصویر کی چوڑائی):</span>
-                        <span className="font-mono text-amber-300">{formData.pageBannerImgWidth}%</span>
+                        <span className="font-mono text-amber-300">{effectiveBannerConfig.pageBannerImgWidth}%</span>
                       </div>
                       <input
                         type="range"
                         min={45}
                         max={100}
                         step={5}
-                        value={formData.pageBannerImgWidth}
-                        onChange={(e) => syncThemeField("pageBannerImgWidth", Number(e.target.value))}
+                        value={effectiveBannerConfig.pageBannerImgWidth}
+                        onChange={(e) => updateActiveBannerField("pageBannerImgWidth", Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
                       />
                       <div className="flex gap-1">
@@ -1465,9 +1724,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             key={p.label}
                             type="button"
-                            onClick={() => syncThemeField("pageBannerImgWidth", p.w)}
+                            onClick={() => updateActiveBannerField("pageBannerImgWidth", p.w)}
                             className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                              formData.pageBannerImgWidth === p.w
+                              effectiveBannerConfig.pageBannerImgWidth === p.w
                                 ? "bg-amber-500 text-slate-950"
                                 : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                             }`}
@@ -1482,15 +1741,15 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
                         <span>Left White Fade (بائیں سفید دھندلاہٹ):</span>
-                        <span className="font-mono text-amber-300">{formData.pageBannerFade}%</span>
+                        <span className="font-mono text-amber-300">{effectiveBannerConfig.pageBannerFade}%</span>
                       </div>
                       <input
                         type="range"
                         min={0}
                         max={100}
                         step={5}
-                        value={formData.pageBannerFade}
-                        onChange={(e) => syncThemeField("pageBannerFade", Number(e.target.value))}
+                        value={effectiveBannerConfig.pageBannerFade}
+                        onChange={(e) => updateActiveBannerField("pageBannerFade", Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
                       />
                       <div className="flex gap-1">
@@ -1502,9 +1761,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           <button
                             key={p.label}
                             type="button"
-                            onClick={() => syncThemeField("pageBannerFade", p.f)}
+                            onClick={() => updateActiveBannerField("pageBannerFade", p.f)}
                             className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                              formData.pageBannerFade === p.f
+                              effectiveBannerConfig.pageBannerFade === p.f
                                 ? "bg-amber-500 text-slate-950"
                                 : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                             }`}
@@ -1520,11 +1779,20 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
               {/* Card 8: Side Wave Ribbons ("Wave Patii" / سائیڈ ربن پٹیاں) */}
               <CorelFillPickerCard
+                key={`wave-card-${selectedBannerScope}`}
                 cardId="pageBannerWaveColor"
-                title='Side Wave Ribbons ("Wave Patii" & Custom Color)'
-                subtitleUrdu="سائیڈ ربن پٹیوں کا اپنی مرضی کا رنگ (Solid / Multi-Color Gradient) اور Opacity سیٹ کریں"
-                value={formData.pageBannerWaveColor}
-                onChange={(val) => syncThemeField("pageBannerWaveColor", val)}
+                title={
+                  isGlobalScope
+                    ? 'Side Wave Ribbons ("Wave Patii" & Custom Color) — Global Default'
+                    : `Side Wave Ribbons & Opacity — ${activeScopeMeta?.label || selectedBannerScope}`
+                }
+                subtitleUrdu={
+                  isGlobalScope
+                    ? "سائیڈ ربن پٹیوں کا اپنی مرضی کا رنگ (Solid / Multi-Color Gradient) اور Opacity سیٹ کریں"
+                    : `صرف "${activeScopeMeta?.label || selectedBannerScope}" ماڈیول کی سائیڈ پٹیوں کا رنگ اور Opacity سیٹ کریں`
+                }
+                value={effectiveBannerConfig.pageBannerWaveColor}
+                onChange={(val) => updateActiveBannerField("pageBannerWaveColor", val)}
                 defaultColor="#047857"
                 gradientPresets={[
                   {
@@ -1572,7 +1840,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-200">
                         <span>Side Ribbons Opacity (سائیڈ پٹیوں کی شفافیت / کم یا زیادہ کریں):</span>
                         <span className="font-mono text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
-                          {formData.pageBannerWaveOpacity}%
+                          {effectiveBannerConfig.pageBannerWaveOpacity}%
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
@@ -1581,8 +1849,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                           min={0}
                           max={100}
                           step={5}
-                          value={formData.pageBannerWaveOpacity}
-                          onChange={(e) => syncThemeField("pageBannerWaveOpacity", Number(e.target.value))}
+                          value={effectiveBannerConfig.pageBannerWaveOpacity}
+                          onChange={(e) => updateActiveBannerField("pageBannerWaveOpacity", Number(e.target.value))}
                           className="flex-1 h-1.5 bg-slate-800 rounded accent-amber-500 cursor-pointer"
                         />
                         <div className="flex items-center gap-1">
@@ -1590,9 +1858,9 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                             <button
                               key={op}
                               type="button"
-                              onClick={() => syncThemeField("pageBannerWaveOpacity", op)}
+                              onClick={() => updateActiveBannerField("pageBannerWaveOpacity", op)}
                               className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer transition-all ${
-                                formData.pageBannerWaveOpacity === op
+                                effectiveBannerConfig.pageBannerWaveOpacity === op
                                   ? "bg-amber-500 text-slate-950"
                                   : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                               }`}
@@ -1609,14 +1877,14 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       <span className="text-[11px] font-bold text-slate-300">Show Side Ribbons:</span>
                       <button
                         type="button"
-                        onClick={() => syncThemeField("pageBannerWaveShow", !formData.pageBannerWaveShow)}
+                        onClick={() => updateActiveBannerField("pageBannerWaveShow", !effectiveBannerConfig.pageBannerWaveShow)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-extrabold cursor-pointer transition-all border ${
-                          formData.pageBannerWaveShow
+                          effectiveBannerConfig.pageBannerWaveShow
                             ? "bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400/50 shadow-xs"
                             : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
                         }`}
                       >
-                        {formData.pageBannerWaveShow ? "Visible (ON)" : "Hidden (OFF)"}
+                        {effectiveBannerConfig.pageBannerWaveShow ? "Visible (ON)" : "Hidden (OFF)"}
                       </button>
                     </div>
                   </div>
@@ -1626,25 +1894,34 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               {/* ── LIVE REAL-TIME BANNER & WAVE PATII PREVIEW BOX ── */}
               <div className="bg-[#080d1a] p-4.5 rounded-2xl border border-slate-800 space-y-2.5 shadow-inner">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300 font-bold px-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Live Header Banner & Wave Patii Preview (لائیو بینر اور لہر دار پٹی پریویو):</span>
+                    <span>
+                      Live Preview:{" "}
+                      <strong className="text-amber-300">
+                        {isGlobalScope ? "All Modules (Global Default)" : activeScopeMeta?.label || selectedBannerScope}
+                      </strong>
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => {
-                        syncThemeField("pageBannerBg", "/gpgcq-campus-banner.jpg");
-                        syncThemeField("pageBannerWaveColor", "#047857");
-                        syncThemeField("pageBannerWaveOpacity", 100);
-                        syncThemeField("pageBannerWaveShow", true);
-                        syncThemeField("pageBannerHeight", 170);
-                        syncThemeField("pageBannerImgWidth", 100);
-                        syncThemeField("pageBannerFade", 85);
+                        if (isGlobalScope) {
+                          syncThemeField("pageBannerBg", "/gpgcq-campus-banner.jpg");
+                          syncThemeField("pageBannerWaveColor", "#047857");
+                          syncThemeField("pageBannerWaveOpacity", 100);
+                          syncThemeField("pageBannerWaveShow", true);
+                          syncThemeField("pageBannerHeight", 170);
+                          syncThemeField("pageBannerImgWidth", 100);
+                          syncThemeField("pageBannerFade", 85);
+                        } else {
+                          clearModuleOverride(selectedBannerScope);
+                        }
                       }}
                       className="text-[11px] font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-0.5 rounded-md cursor-pointer transition-all"
                     >
-                      Reset Banner & Ribbons Default
+                      {isGlobalScope ? "Reset Global Banner & Ribbons Default" : "Revert Module to Global Default"}
                     </button>
                     <span className="text-emerald-400 font-mono text-[11px] bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md">
                       Real-Time Dynamic Sync
@@ -1652,16 +1929,19 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   </div>
                 </div>
                 <PortalPageHeader
-                  title="Examinations & Results"
-                  subtitle="Manage Exam Paper Attendance, Student Marks Entry, Result Compilation, and Promotions."
+                  title={activeScopeMeta?.label || "Examinations & Results"}
+                  subtitle={
+                    activeScopeMeta?.subtitle ||
+                    "Manage Exam Paper Attendance, Student Marks Entry, Result Compilation, and Promotions."
+                  }
                   showAccentBar={true}
-                  customBannerBg={formData.pageBannerBg}
-                  customWaveColor={formData.pageBannerWaveColor}
-                  customWaveOpacity={formData.pageBannerWaveOpacity}
-                  customBannerHeight={formData.pageBannerHeight}
-                  customBannerImgWidth={formData.pageBannerImgWidth}
-                  customBannerFade={formData.pageBannerFade}
-                  showWaves={formData.pageBannerWaveShow}
+                  customBannerBg={effectiveBannerConfig.pageBannerBg}
+                  customWaveColor={effectiveBannerConfig.pageBannerWaveColor}
+                  customWaveOpacity={effectiveBannerConfig.pageBannerWaveOpacity}
+                  customBannerHeight={effectiveBannerConfig.pageBannerHeight}
+                  customBannerImgWidth={effectiveBannerConfig.pageBannerImgWidth}
+                  customBannerFade={effectiveBannerConfig.pageBannerFade}
+                  showWaves={effectiveBannerConfig.pageBannerWaveShow}
                 />
               </div>
             </div>

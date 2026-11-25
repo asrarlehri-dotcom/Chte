@@ -412,6 +412,12 @@ export function Sidebar() {
               if (typeof data.pageBannerFade === "number") {
                 localStorage.setItem("college_banner_fade", String(data.pageBannerFade));
               }
+              if (data.moduleBannerOverrides && typeof data.moduleBannerOverrides === "object") {
+                localStorage.setItem(
+                  "college_banner_module_overrides",
+                  JSON.stringify(data.moduleBannerOverrides)
+                );
+              }
               window.dispatchEvent(
                 new CustomEvent("college-theme-change", {
                   detail: {
@@ -422,6 +428,7 @@ export function Sidebar() {
                     pageBannerHeight: data.pageBannerHeight,
                     pageBannerImgWidth: data.pageBannerImgWidth,
                     pageBannerFade: data.pageBannerFade,
+                    moduleBannerOverrides: data.moduleBannerOverrides || {},
                   },
                 })
               );
