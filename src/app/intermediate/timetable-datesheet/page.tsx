@@ -9,6 +9,8 @@ import {
   deleteTimetableEntry,
   getDatesheets,
 } from "../../bs/timetable-datesheet/actions";
+import { Calendar } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 const SELECT_CLS =
   "px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white";
@@ -146,17 +148,16 @@ export default function InterTimetableDatesheetPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Intermediate Timetable, Datesheets & Duty List</h1>
-          <p className="text-gray-500 mt-1">
-            Manage weekly class schedules, exams, datesheets, and staff invigilation duties.
-          </p>
-        </div>
-        <div className="text-sm font-bold px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200">
-          Intermediate Module
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Intermediate Timetable, Datesheets & Duty List"
+        subtitle="Manage weekly class schedules, exams, datesheets, and staff invigilation duties."
+        icon={<Calendar className="w-6 h-6" />}
+        badge={
+          <span className="text-[11px] font-extrabold px-2.5 py-0.5 bg-amber-50 text-amber-800 rounded-full border border-amber-200">
+            Intermediate Module
+          </span>
+        }
+      />
 
       {error && <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-100">{error}</div>}
       {success && <div className="bg-green-50 text-green-600 p-4 rounded-lg border border-green-100">{success}</div>}

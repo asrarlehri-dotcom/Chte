@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { History } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type AuditLog = {
   id: string;
@@ -63,19 +65,11 @@ export default function AuditLogsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 text-xl">
-            📋
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Audit Logs</h1>
-            <p className="text-gray-500 mt-0.5 text-sm">
-              Track all system activity — who did what and when.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Audit Logs"
+        subtitle="Track all system activity — who did what and when."
+        icon={<History className="w-6 h-6" />}
+      />
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

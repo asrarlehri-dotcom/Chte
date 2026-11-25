@@ -11,6 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { MODULES } from "@/lib/permissions";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 interface RolePerm {
   id: string;
@@ -201,47 +202,43 @@ export default function RolePermissionsPage() {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
-            <ShieldCheck className="w-4 h-4" />
+      <PortalPageHeader
+        title={isChte ? "Role Permissions Control" : "College Staff Role Permissions"}
+        subtitle="Configure system-wide module-level and action-level credentials for campus and directorate staff roles."
+        icon={<ShieldCheck className="w-6 h-6" />}
+        badge={
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-black uppercase tracking-wider">
             {isChte ? "Central Governance Matrix" : "College Security & Access Matrix"}
-          </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">
-            {isChte ? "Role Permissions Control" : "College Staff Role Permissions"}
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Configure system-wide module-level and action-level credentials for HEMIS Directorate Admin.
-          </p>
-        </div>
-
+          </span>
+        }
+      >
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setAllForRole(true)}
             disabled={saving || loading}
-            className="px-3.5 py-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-xl transition-all disabled:opacity-50"
+            className="px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
           >
-            Grant All for HEMIS Directorate Admin
+            Grant All
           </button>
           <button
             type="button"
             onClick={() => setAllForRole(false)}
             disabled={saving || loading}
-            className="px-3.5 py-2 text-xs font-bold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-xl transition-all disabled:opacity-50"
+            className="px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
           >
             Revoke All
           </button>
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all hover:scale-105 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white font-bold text-xs rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
           >
             {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span>{saving ? "Saving Changes..." : "Save Role Permissions"}</span>
           </button>
         </div>
-      </div>
+      </PortalPageHeader>
 
       {msg && (
         <div

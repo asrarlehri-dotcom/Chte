@@ -26,6 +26,8 @@ import { useSettings } from "@/lib/useSettings";
 import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
 import { parseGenericCSV, validateTimetableBatch, validateDatesheetBatch, getTimetableSampleCSV, getDatesheetSampleCSV } from "@/lib/domainParsers";
 import UniversalImportModal from "@/components/UniversalImportModal";
+import { Calendar } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 const SELECT_CLS =
   "w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-2xs transition-all";
@@ -809,34 +811,27 @@ export default function BSTimetableDatesheetPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between flex-wrap gap-4 print:hidden">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-full bg-[#0d4a22] text-white flex items-center justify-center text-2xl shadow-sm border-2 border-emerald-500/30 shrink-0 overflow-hidden bg-white">
-            {collegeLogo ? (
-              <img src={collegeLogo} alt="Logo" className="w-full h-full object-contain p-1" />
-            ) : (
-              <span>📅</span>
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-serif font-black text-[#073619] tracking-tight">
-                Timetable &amp; Datesheet
-              </h1>
-              <span className="px-2.5 py-0.5 text-[11px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full">
-                BS Academic Schedule &amp; Exams
-              </span>
-            </div>
-            <p className="text-slate-500 mt-0.5 font-medium text-xs">
-              Manage weekly class schedules, examination datesheets, faculty invigilation duties, and superintendent hall rosters.
-            </p>
-          </div>
-        </div>
-        <div className="text-xs font-bold px-4 py-1.5 bg-[#0d4a22] text-white rounded-full shadow-2xs flex items-center gap-1.5 shrink-0">
+      <PortalPageHeader
+        title={<>Timetable &amp; Datesheet</>}
+        subtitle="Manage weekly class schedules, examination datesheets, faculty invigilation duties, and superintendent hall rosters."
+        icon={
+          collegeLogo ? (
+            <img src={collegeLogo} alt="Logo" className="w-8 h-8 object-contain" />
+          ) : (
+            <Calendar className="w-6 h-6" />
+          )
+        }
+        badge={
+          <span className="px-2.5 py-0.5 text-[11px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full">
+            BS Academic Schedule &amp; Exams
+          </span>
+        }
+      >
+        <div className="text-xs font-bold px-3.5 py-1.5 bg-[#047857] text-white rounded-xl shadow-2xs flex items-center gap-1.5 shrink-0">
           <span>🏛️</span>
           <span>BS Academic ERP</span>
         </div>
-      </div>
+      </PortalPageHeader>
 
       {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 font-semibold text-xs">{error}</div>}
       {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 font-semibold text-xs">{success}</div>}

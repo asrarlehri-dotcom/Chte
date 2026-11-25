@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { ShieldAlert, Search, Check, X, ShieldCheck, Filter } from "lucide-react";
+import { ShieldAlert, Search, Check, X, ShieldCheck, Filter, Sliders, ExternalLink } from "lucide-react";
 import { MODULES, ACTIONS, ROLES } from "@/lib/permissions";
 import HomepageSettingsTab from "@/components/admin/HomepageSettingsTab";
 import CollegePortalSettingsTab from "@/components/admin/CollegePortalSettingsTab";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 // Type definitions
 type Subject = {
@@ -929,31 +930,29 @@ export default function UnifiedSettingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Title & Tab Navigation */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {isChteAdmin ? "⚙️ HEMIS Apex Control Center & System Settings" : "⚙️ College Settings & Administration"}
-            </h1>
-            <p className="text-gray-500 mt-1">
-              {isChteAdmin
-                ? "Configure HEMIS central branding & scenery, college portal themes, academic setup, fee structures, and permissions."
-                : "Manage campus portal, academic departments, fee structure, and staff role permissions."}
-            </p>
-          </div>
+      {/* Panoramic Banner Header */}
+      <PortalPageHeader
+        title={isChteAdmin ? "HEMIS Apex Control Center & System Settings" : "College Settings & Administration"}
+        subtitle={
+          isChteAdmin
+            ? "Configure HEMIS central branding & scenery, college portal themes, academic setup, fee structures, and permissions."
+            : "Manage campus portal, academic departments, fee structure, and staff role permissions."
+        }
+        icon={<Sliders className="w-6 h-6" />}
+      >
+        <a
+          href="/"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#047857] hover:bg-[#065f46] text-white text-xs font-bold transition-all shadow-xs"
+        >
+          <span>🌐 Public Portal</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </PortalPageHeader>
 
-          <div className="flex items-center gap-2">
-            <a
-              href="/"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200"
-            >
-              <span>🌐 Public Portal</span>
-            </a>
-          </div>
-        </div>
+      {/* Hover Dropdown Mega Menu Bar Container */}
+      <div className="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200/80 relative z-30">
 
         {/* Hover Dropdown Mega Menu Bar */}
         <div className="flex flex-wrap bg-gray-50 p-1.5 rounded-xl border border-gray-200/60 max-w-5xl gap-1.5 overflow-visible relative z-30">

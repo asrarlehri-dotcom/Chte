@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Receipt } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type FeeSetting = {
   id: string;
@@ -236,26 +238,26 @@ export default function BsFeesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">💰 BS Fees & Challans</h1>
-          <p className="text-gray-500 mt-1">Generate challans and approve fee payments.</p>
-        </div>
+      <PortalPageHeader
+        title="BS Fees & Challans"
+        subtitle="Generate challans and approve fee payments."
+        icon={<Receipt className="w-6 h-6" />}
+      >
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => { setTab("list"); setGenerated(null); }}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "list" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${tab === "list" ? "bg-[#047857] text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
             📋 Challans List
           </button>
           <button onClick={() => setTab("generate")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === "generate" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${tab === "generate" ? "bg-[#047857] text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
             🧾 Generate Challan
           </button>
           <button onClick={() => setShowFeeModal(true)}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer shadow-xs">
             + Add Fee Record
           </button>
         </div>
-      </div>
+      </PortalPageHeader>
 
       {msg.text && (
         <div className={`p-4 rounded-xl text-sm font-medium border ${msg.type === "success" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { parseCSVToRows, getSampleCSV, validateAdmissionsBatch } from "@/lib/admissionParser";
 import ImportValidationModal from "@/components/ImportValidationModal";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type Admission = {
   id: string;
@@ -464,22 +465,16 @@ export default function BsAdmissionsPage() {
       `}} />
 
       {/* Header Card */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-            <GraduationCap className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">BS Admissions</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Manage BS program admission applications.</p>
-          </div>
-        </div>
-
-        <div className="flex gap-2.5 items-center flex-wrap self-end sm:self-auto">
+      <PortalPageHeader
+        title="BS Admissions"
+        subtitle="Manage BS program admission applications."
+        icon={<GraduationCap className="w-6 h-6" />}
+      >
+        <div className="flex gap-2 items-center flex-wrap">
           {/* CSV/TSV File Import */}
-          <label className={`px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-2 shadow-xs ${isImporting ? "opacity-60 pointer-events-none" : ""}`}>
-            {isImporting ? <Loader2 className="w-4 h-4 text-blue-600 animate-spin" /> : <Upload className="w-4 h-4 text-blue-600" />}
-            {isImporting ? "Importing Admissions..." : "Import File"}
+          <label className={`px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-1.5 shadow-xs ${isImporting ? "opacity-60 pointer-events-none" : ""}`}>
+            {isImporting ? <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" /> : <Upload className="w-4 h-4 text-emerald-600" />}
+            {isImporting ? "Importing..." : "Import File"}
             <input
               ref={fileInputRef}
               type="file"
@@ -493,17 +488,17 @@ export default function BsAdmissionsPage() {
           {/* Paste Excel Data */}
           <button
             onClick={() => setPasteModalOpen(true)}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="Paste copied rows directly from Excel or Google Sheets"
           >
             <ClipboardList className="w-4 h-4 text-indigo-600" />
-            Paste Excel Data
+            Paste Excel
           </button>
 
           {/* Download Sample Template */}
           <button
             onClick={handleDownloadTemplate}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="Download CSV format template with sample rows"
           >
             <Download className="w-4 h-4 text-emerald-600" />
@@ -513,7 +508,7 @@ export default function BsAdmissionsPage() {
           {/* CSV Export */}
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-blue-600" />
             Export CSV
@@ -522,7 +517,7 @@ export default function BsAdmissionsPage() {
           {/* PDF Export */}
           <button
             onClick={handleExportPDF}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <FileText className="w-4 h-4 text-red-500" />
             Export PDF
@@ -533,7 +528,7 @@ export default function BsAdmissionsPage() {
             <button
               onClick={() => setDeleteAllModalOpen(true)}
               disabled={isDeleting}
-              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold transition-all border border-rose-200 flex items-center gap-2 shadow-xs cursor-pointer"
+              className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold transition-all border border-rose-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
               title="Delete all BS admission applications"
             >
               <Trash2 className="w-4 h-4 text-rose-600" />
@@ -544,14 +539,14 @@ export default function BsAdmissionsPage() {
           {canAdd && (
             <a
               href={userCollegeId ? `/admission?collegeId=${userCollegeId}` : "/admission"}
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs font-semibold transition-all shadow-sm shadow-blue-600/30 flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               New Application
             </a>
           )}
         </div>
-      </div>
+      </PortalPageHeader>
 
       {/* Paste Excel Data Modal */}
       {pasteModalOpen && (

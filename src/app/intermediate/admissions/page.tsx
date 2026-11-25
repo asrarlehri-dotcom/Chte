@@ -7,6 +7,7 @@ import { MODULES, ACTIONS } from "@/lib/permissions";
 import { Download, Upload, FileSpreadsheet, Loader2, CheckCircle2, X, ClipboardList } from "lucide-react";
 import { parseCSVToRows, getSampleCSV, validateAdmissionsBatch } from "@/lib/admissionParser";
 import ImportValidationModal from "@/components/ImportValidationModal";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type Admission = {
   id: string;
@@ -243,15 +244,15 @@ export default function IntermediateAdmissionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Intermediate Admissions</h1>
-          <p className="text-gray-500 mt-1">Manage F.Sc / F.A admission applications.</p>
-        </div>
-        <div className="flex gap-2.5 items-center flex-wrap self-end sm:self-auto">
+      <PortalPageHeader
+        title="Intermediate Admissions"
+        subtitle="Manage F.Sc / F.A admission applications."
+        icon={<ClipboardList className="w-6 h-6" />}
+      >
+        <div className="flex gap-2 items-center flex-wrap">
           {/* File Import */}
-          <label className={`px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-2 shadow-xs ${isImporting ? "opacity-60 pointer-events-none" : ""}`}>
-            {isImporting ? <Loader2 className="w-4 h-4 text-amber-600 animate-spin" /> : <Upload className="w-4 h-4 text-amber-600" />}
+          <label className={`px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 cursor-pointer flex items-center gap-1.5 shadow-xs ${isImporting ? "opacity-60 pointer-events-none" : ""}`}>
+            {isImporting ? <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" /> : <Upload className="w-4 h-4 text-emerald-600" />}
             {isImporting ? "Importing..." : "Import File"}
             <input
               ref={fileInputRef}
@@ -266,17 +267,17 @@ export default function IntermediateAdmissionsPage() {
           {/* Paste Excel Data */}
           <button
             onClick={() => setPasteModalOpen(true)}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="Paste copied rows directly from Excel or Google Sheets"
           >
             <ClipboardList className="w-4 h-4 text-amber-600" />
-            Paste Excel Data
+            Paste Excel
           </button>
 
           {/* Download Sample Template */}
           <button
             onClick={handleDownloadTemplate}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="Download CSV format template with sample rows"
           >
             <Download className="w-4 h-4 text-emerald-600" />
@@ -286,7 +287,7 @@ export default function IntermediateAdmissionsPage() {
           {/* CSV Export */}
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-lg text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-amber-600" />
             Export CSV
@@ -295,13 +296,13 @@ export default function IntermediateAdmissionsPage() {
           {canAdd && (
             <a
               href={userCollegeId ? `/admission?collegeId=${userCollegeId}` : "/admission"}
-              className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors"
+              className="px-3.5 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
             >
               + New Application
             </a>
           )}
         </div>
-      </div>
+      </PortalPageHeader>
 
       {/* Paste Excel Data Modal */}
       {pasteModalOpen && (

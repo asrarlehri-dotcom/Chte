@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
 import { parseGenericCSV, validateMarksBatch, getMarksSampleCSV, sortStudentsByRoll, distributeTotalMarks, parsePastedMarksText } from "@/lib/domainParsers";
 import UniversalImportModal from "@/components/UniversalImportModal";
+import { FileSpreadsheet } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 // GP calculation (4.0 scale) based on linear grading policy:
 // Linear HEC GP scale with Project / Thesis 200-marks rule (6 Credit Hours = 3+3 Cr)
@@ -1082,14 +1084,13 @@ export default function AddResultPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add & Manage Student Results</h1>
-          <p className="text-gray-500 mt-1">Enter marks, calculate GPA & grades, and manage result lock approvals.</p>
-        </div>
-
+      <PortalPageHeader
+        title="Add & Manage Student Results"
+        subtitle="Enter marks, calculate GPA & grades, and manage result lock approvals."
+        icon={<FileSpreadsheet className="w-6 h-6" />}
+      >
         {/* Status Badge */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {resultStatus === "APPROVED" && (
             <span className="px-3.5 py-1.5 bg-green-100 text-green-800 border border-green-300 font-extrabold text-xs rounded-full flex items-center gap-1.5 shadow-sm">
               <span>🔒 Approved & Locked</span>
@@ -1116,7 +1117,7 @@ export default function AddResultPage() {
             </span>
           )}
         </div>
-      </div>
+      </PortalPageHeader>
 
       {/* Tabs Navigation */}
       <div className="flex border-b border-gray-200 gap-2">

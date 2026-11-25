@@ -24,13 +24,9 @@ import {
   Search,
   BookOpen
 } from "lucide-react";
-import { PortalPageHeader, PortalBottomWave } from "@/components/common/PortalPageHeader";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 export default function ExamsResultsPage() {
-  const { data: session } = useSession();
-  const userName = session?.user?.name || "Asrar Ahmed";
-  const userRole = (session?.user as any)?.role || "Super Admin";
-
   const [activeTab, setActiveTab] = useState("paper_attendance");
   const [sharedFilters, setSharedFilters] = useState({
     session: "2024-2028",
@@ -70,98 +66,68 @@ export default function ExamsResultsPage() {
 
   return (
     <div className="space-y-5">
-      {/* ── TOP USER BAR (MATCHING USER SCREENSHOT) ── */}
-      <div className="flex items-center justify-end gap-3 print:hidden">
-        {/* Notification Bell with Red Badge 3 */}
-        <button className="p-2 text-slate-600 hover:text-emerald-700 bg-white hover:bg-emerald-50 rounded-xl border border-slate-200 transition-colors relative shadow-xs">
-          <Bell className="w-4 h-4 text-emerald-900" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white">
-            3
-          </span>
-        </button>
-
-        {/* User Profile: Asrar Ahmed / Super Admin */}
-        <div className="flex items-center gap-2.5 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold text-xs flex items-center justify-center uppercase shadow-xs ring-2 ring-emerald-100">
-            {userName.slice(0, 2)}
-          </div>
-          <div className="text-left hidden sm:block">
-            <div className="text-xs font-black text-slate-900 leading-none">{userName}</div>
-            <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">{userRole.replace(/_/g, " ")}</div>
-          </div>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-        </div>
-      </div>
-
       {/* ── PANORAMIC COLLEGE BUILDING BANNER WITH ORGANIC GREEN WAVES ── */}
       <PortalPageHeader
         title="Examinations & Results"
         subtitle="Manage Exam Paper Attendance, Student Marks Entry, Result Compilation, and Promotions."
         showAccentBar={true}
         accentBarColor="#047857"
-        heightClass="min-h-[170px] md:min-h-[200px]"
+        heightClass="min-h-[160px] md:min-h-[185px]"
       />
 
       {/* ── STEP NAVIGATION PILLS BAR (MATCHING USER SCREENSHOT) ── */}
       <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-2.5 overflow-x-auto print:hidden custom-scrollbar">
         <button
           onClick={() => setActiveTab('paper_attendance')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
-            activeTab === 'paper_attendance'
-              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
-          }`}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${activeTab === 'paper_attendance'
+            ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+            }`}
         >
           <ClipboardList className="w-4 h-4 text-emerald-700" />
           <span>Paper Attendance</span>
-          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
-            activeTab === 'paper_attendance' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
-          }`}>
+          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${activeTab === 'paper_attendance' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
+            }`}>
             Step 1
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('marks')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
-            activeTab === 'marks'
-              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
-          }`}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${activeTab === 'marks'
+            ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+            }`}
         >
           <Edit3 className="w-4 h-4 text-emerald-700" />
           <span>Marks Entry</span>
-          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
-            activeTab === 'marks' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
-          }`}>
+          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${activeTab === 'marks' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
+            }`}>
             Step 2
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('results')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
-            activeTab === 'results'
-              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
-          }`}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${activeTab === 'results'
+            ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+            }`}
         >
           <GraduationCap className="w-4 h-4 text-emerald-700" />
           <span>Results & Promotion</span>
-          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
-            activeTab === 'results' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
-          }`}>
+          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full ${activeTab === 'results' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-100 text-slate-600'
+            }`}>
             Step 3
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('academic_actions')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
-            activeTab === 'academic_actions'
-              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
-          }`}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${activeTab === 'academic_actions'
+            ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+            }`}
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-700" />
           <span>Status & Academic Actions</span>
@@ -169,11 +135,10 @@ export default function ExamsResultsPage() {
 
         <button
           onClick={() => setActiveTab('merit')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${
-            activeTab === 'merit'
-              ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
-          }`}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap ${activeTab === 'merit'
+            ? 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+            }`}
         >
           <Award className="w-4 h-4 text-amber-600" />
           <span>Merit & Reports</span>
@@ -226,7 +191,6 @@ export default function ExamsResultsPage() {
           )}
         </div>
       </div>
-      <PortalBottomWave />
     </div>
   );
 }
@@ -779,22 +743,20 @@ function PaperAttendanceModule({
                           <button
                             type="button"
                             onClick={() => toggleStudentAttendance(st.id, "PRESENT")}
-                            className={`px-4 py-1.5 text-xs font-extrabold rounded-lg transition-all ${
-                              !isAbsent
-                                ? "bg-green-600 text-white shadow-md scale-[1.02]"
-                                : "text-gray-600 hover:text-gray-900"
-                            }`}
+                            className={`px-4 py-1.5 text-xs font-extrabold rounded-lg transition-all ${!isAbsent
+                              ? "bg-green-600 text-white shadow-md scale-[1.02]"
+                              : "text-gray-600 hover:text-gray-900"
+                              }`}
                           >
                             🟢 Present (P)
                           </button>
                           <button
                             type="button"
                             onClick={() => toggleStudentAttendance(st.id, "ABSENT")}
-                            className={`px-4 py-1.5 text-xs font-black rounded-lg transition-all ${
-                              isAbsent
-                                ? "bg-red-600 text-white shadow-md scale-[1.02]"
-                                : "text-gray-600 hover:text-gray-900"
-                            }`}
+                            className={`px-4 py-1.5 text-xs font-black rounded-lg transition-all ${isAbsent
+                              ? "bg-red-600 text-white shadow-md scale-[1.02]"
+                              : "text-gray-600 hover:text-gray-900"
+                              }`}
                           >
                             🔴 Absent (A)
                           </button>
@@ -1635,7 +1597,7 @@ function MarksEntryTable({
             setSuccessMsg((prev) => `${prev} • 🚀 ${res.promotedCount} student(s) automatically pushed to next semester!`);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
       setErrorMsg(lastError ? `Failed to save marks: ${lastError}` : "Failed to update result status. Please try again.");
     }
@@ -1828,22 +1790,20 @@ function MarksEntryTable({
 
           <div className="flex bg-emerald-950/70 p-1 rounded-xl border border-emerald-800/60 shadow-inner">
             <button
-              className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                entryType === 'detailed'
-                  ? 'bg-white text-emerald-900 shadow-sm'
-                  : 'text-emerald-200 hover:text-white hover:bg-white/10'
-              }`}
+              className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all flex items-center gap-1.5 ${entryType === 'detailed'
+                ? 'bg-white text-emerald-900 shadow-sm'
+                : 'text-emerald-200 hover:text-white hover:bg-white/10'
+                }`}
               onClick={() => setEntryType('detailed')}
             >
               <span>📊</span>
               <span>Detailed Breakdown</span>
             </button>
             <button
-              className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all ${
-                entryType === 'total'
-                  ? 'bg-white text-emerald-900 shadow-sm'
-                  : 'text-emerald-200 hover:text-white hover:bg-white/10'
-              }`}
+              className={`px-3.5 py-1.5 text-xs rounded-lg font-bold transition-all ${entryType === 'total'
+                ? 'bg-white text-emerald-900 shadow-sm'
+                : 'text-emerald-200 hover:text-white hover:bg-white/10'
+                }`}
               onClick={() => setEntryType('total')}
             >
               Total Only
@@ -2042,11 +2002,10 @@ function MarksEntryTable({
               <button
                 type="button"
                 onClick={() => setExamScheme("MID_FINAL")}
-                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  examScheme === "MID_FINAL"
-                    ? "bg-[#064e3b] text-white shadow-sm"
-                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
-                }`}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${examScheme === "MID_FINAL"
+                  ? "bg-[#064e3b] text-white shadow-sm"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Mid (30/20) + Final (40)</span>
@@ -2054,11 +2013,10 @@ function MarksEntryTable({
               <button
                 type="button"
                 onClick={() => setExamScheme("TERMINAL")}
-                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  examScheme === "TERMINAL"
-                    ? "bg-[#064e3b] text-white shadow-sm"
-                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
-                }`}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${examScheme === "TERMINAL"
+                  ? "bg-[#064e3b] text-white shadow-sm"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
               >
                 <Award className="w-3.5 h-3.5" />
                 <span>Single Terminal Exam (70)</span>
@@ -2084,11 +2042,10 @@ function MarksEntryTable({
                   type="button"
                   onClick={() => setCourseTotalMarks(100)}
                   disabled={isFacultyLocked}
-                  className={`px-2 py-1 rounded text-xs font-bold border transition-all ${
-                    courseTotalMarks === 100
-                      ? "bg-purple-100 text-purple-900 border-purple-300 shadow-xs font-black"
-                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-                  }`}
+                  className={`px-2 py-1 rounded text-xs font-bold border transition-all ${courseTotalMarks === 100
+                    ? "bg-purple-100 text-purple-900 border-purple-300 shadow-xs font-black"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                    }`}
                 >
                   100
                 </button>
@@ -2096,11 +2053,10 @@ function MarksEntryTable({
                   type="button"
                   onClick={() => setCourseTotalMarks(200)}
                   disabled={isFacultyLocked}
-                  className={`px-2.5 py-1 rounded text-xs font-bold border transition-all ${
-                    courseTotalMarks === 200
-                      ? "bg-indigo-600 text-white border-indigo-700 shadow-xs font-black"
-                      : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
-                  }`}
+                  className={`px-2.5 py-1 rounded text-xs font-bold border transition-all ${courseTotalMarks === 200
+                    ? "bg-indigo-600 text-white border-indigo-700 shadow-xs font-black"
+                    : "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                    }`}
                 >
                   🎓 200 (Project / Thesis)
                 </button>
@@ -2292,13 +2248,12 @@ function MarksEntryTable({
                       <tr
                         id={`exam-student-row-${s.id}`}
                         key={s.id}
-                        className={`transition-all duration-300 ${
-                          isTargetStudent
-                            ? "bg-amber-100/70 ring-2 ring-amber-400 font-medium shadow-md"
-                            : isAbsent
+                        className={`transition-all duration-300 ${isTargetStudent
+                          ? "bg-amber-100/70 ring-2 ring-amber-400 font-medium shadow-md"
+                          : isAbsent
                             ? "bg-red-50/20"
                             : "hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -2319,11 +2274,10 @@ function MarksEntryTable({
                               disabled={isFacultyLocked}
                               onClick={() => toggleStudentAttendance(s.id, "PRESENT")}
                               title="Mark Present (P)"
-                              className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all ${
-                                !isAbsent
-                                  ? "bg-green-600 text-white shadow-sm"
-                                  : "text-gray-500 hover:text-gray-900"
-                              }`}
+                              className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all ${!isAbsent
+                                ? "bg-green-600 text-white shadow-sm"
+                                : "text-gray-500 hover:text-gray-900"
+                                }`}
                             >
                               🟢 P
                             </button>
@@ -2332,11 +2286,10 @@ function MarksEntryTable({
                               disabled={isFacultyLocked}
                               onClick={() => toggleStudentAttendance(s.id, "ABSENT")}
                               title="Mark Absent (A) - locks mark inputs to 0"
-                              className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all ${
-                                isAbsent
-                                  ? "bg-red-600 text-white shadow-sm"
-                                  : "text-gray-500 hover:text-gray-900"
-                              }`}
+                              className={`px-2.5 py-1 text-xs font-black rounded-lg transition-all ${isAbsent
+                                ? "bg-red-600 text-white shadow-sm"
+                                : "text-gray-500 hover:text-gray-900"
+                                }`}
                             >
                               🔴 A
                             </button>
@@ -2355,11 +2308,10 @@ function MarksEntryTable({
                                 disabled={isFacultyLocked || isAbsent}
                                 placeholder="0"
                                 title={isAbsent ? "Student is Absent. Cells locked!" : "Thesis Max 100"}
-                                className={`w-24 px-2 py-1 border rounded text-sm text-center font-bold focus:ring-2 focus:ring-indigo-400 ${
-                                  isAbsent
-                                    ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                    : "bg-white border-indigo-300 text-indigo-950 font-black shadow-sm"
-                                }`}
+                                className={`w-24 px-2 py-1 border rounded text-sm text-center font-bold focus:ring-2 focus:ring-indigo-400 ${isAbsent
+                                  ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                  : "bg-white border-indigo-300 text-indigo-950 font-black shadow-sm"
+                                  }`}
                                 value={isAbsent ? 0 : (s.thesis !== undefined ? s.thesis : (s.mid || ""))}
                                 onChange={e => handleMarkChange(s.id, "thesis", e.target.value)}
                               />
@@ -2374,11 +2326,10 @@ function MarksEntryTable({
                                 disabled={isFacultyLocked || isAbsent}
                                 placeholder="0"
                                 title={isAbsent ? "Student is Absent. Cells locked!" : "Viva Voce Max 100"}
-                                className={`w-24 px-2 py-1 border rounded text-sm text-center font-bold focus:ring-2 focus:ring-purple-400 ${
-                                  isAbsent
-                                    ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                    : "bg-white border-purple-300 text-purple-950 font-black shadow-sm"
-                                }`}
+                                className={`w-24 px-2 py-1 border rounded text-sm text-center font-bold focus:ring-2 focus:ring-purple-400 ${isAbsent
+                                  ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                  : "bg-white border-purple-300 text-purple-950 font-black shadow-sm"
+                                  }`}
                                 value={isAbsent ? 0 : (s.viva !== undefined ? s.viva : (s.final || ""))}
                                 onChange={e => handleMarkChange(s.id, "viva", e.target.value)}
                               />
@@ -2405,13 +2356,12 @@ function MarksEntryTable({
                                 step="0.5"
                                 disabled={isFacultyLocked || quizHasFullMarks || isAbsent}
                                 title={isAbsent ? "Student is Absent. Cells locked!" : (quizHasFullMarks ? `Quiz has taken full ${totalQuizAssignLimit} marks. Assignment auto-blocked!` : `Max allowed: ${Math.max(0, totalQuizAssignLimit - (s.quiz || 0))}`)}
-                                className={`w-20 px-2 py-1 border rounded text-sm text-center focus:ring-2 focus:ring-blue-400 ${
-                                  isAbsent
-                                    ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                    : quizHasFullMarks
+                                className={`w-20 px-2 py-1 border rounded text-sm text-center focus:ring-2 focus:ring-blue-400 ${isAbsent
+                                  ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                  : quizHasFullMarks
                                     ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
                                     : ""
-                                }`}
+                                  }`}
                                 value={isAbsent ? 0 : (quizHasFullMarks ? 0 : (s.assignment || ""))}
                                 onChange={e => handleMarkChange(s.id, "assignment", e.target.value)}
                               />
@@ -2424,13 +2374,12 @@ function MarksEntryTable({
                                 step="0.5"
                                 disabled={isFacultyLocked || assignHasFullMarks || isAbsent}
                                 title={isAbsent ? "Student is Absent. Cells locked!" : (assignHasFullMarks ? `Assignment has taken full ${totalQuizAssignLimit} marks. Quiz auto-blocked!` : `Max allowed: ${Math.max(0, totalQuizAssignLimit - (s.assignment || 0))}`)}
-                                className={`w-20 px-2 py-1 border rounded text-sm text-center focus:ring-2 focus:ring-blue-400 ${
-                                  isAbsent
-                                    ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                    : assignHasFullMarks
+                                className={`w-20 px-2 py-1 border rounded text-sm text-center focus:ring-2 focus:ring-blue-400 ${isAbsent
+                                  ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                  : assignHasFullMarks
                                     ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-300"
                                     : ""
-                                }`}
+                                  }`}
                                 value={isAbsent ? 0 : (assignHasFullMarks ? 0 : (s.quiz || ""))}
                                 onChange={e => handleMarkChange(s.id, "quiz", e.target.value)}
                               />
@@ -2444,11 +2393,10 @@ function MarksEntryTable({
                                   step="0.5"
                                   disabled={isFacultyLocked || isAbsent}
                                   title={isAbsent ? "Student is Absent. Cells locked!" : ""}
-                                  className={`w-20 px-2 py-1 border rounded text-sm font-black text-center ${
-                                    isAbsent
-                                      ? "bg-red-50 border-red-200 text-red-400 cursor-not-allowed"
-                                      : "border-blue-400 text-blue-900 bg-white focus:ring-2 focus:ring-blue-500 shadow-sm"
-                                  }`}
+                                  className={`w-20 px-2 py-1 border rounded text-sm font-black text-center ${isAbsent
+                                    ? "bg-red-50 border-red-200 text-red-400 cursor-not-allowed"
+                                    : "border-blue-400 text-blue-900 bg-white focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                    }`}
                                   value={isAbsent ? 0 : (s.practical || "")}
                                   onChange={e => handleMarkChange(s.id, "practical", e.target.value)}
                                 />
@@ -2462,13 +2410,12 @@ function MarksEntryTable({
                                 step="0.5"
                                 disabled={isFacultyLocked || examScheme === "TERMINAL" || isAbsent}
                                 title={isAbsent ? "Student is Absent. Cells locked!" : ""}
-                                className={`w-20 px-2 py-1 border rounded text-sm text-center focus:ring-2 focus:ring-blue-400 ${
-                                  isAbsent
-                                    ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                    : examScheme === "TERMINAL"
+                                className={`w-20 px-2 py-1 border rounded text-sm text-center focus:ring-2 focus:ring-blue-400 ${isAbsent
+                                  ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                  : examScheme === "TERMINAL"
                                     ? "bg-gray-100 text-gray-400 cursor-not-allowed font-bold"
                                     : ""
-                                }`}
+                                  }`}
                                 value={isAbsent || examScheme === "TERMINAL" ? 0 : (s.mid || "")}
                                 onChange={e => handleMarkChange(s.id, "mid", e.target.value)}
                               />
@@ -2481,13 +2428,12 @@ function MarksEntryTable({
                                 step="0.5"
                                 disabled={isFacultyLocked || isAbsent}
                                 title={isAbsent ? "Student is Absent. Cells locked!" : ""}
-                                className={`w-20 px-2 py-1 border rounded text-sm focus:ring-2 text-center disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                                  isAbsent
-                                    ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
-                                    : examScheme === "TERMINAL"
+                                className={`w-20 px-2 py-1 border rounded text-sm focus:ring-2 text-center disabled:bg-gray-100 disabled:cursor-not-allowed ${isAbsent
+                                  ? "bg-red-50 text-red-400 border-red-200 cursor-not-allowed"
+                                  : examScheme === "TERMINAL"
                                     ? "border-purple-400 font-black text-purple-950 focus:ring-purple-500 shadow-sm bg-white"
                                     : "focus:ring-blue-400"
-                                }`}
+                                  }`}
                                 value={isAbsent ? 0 : (s.final || "")}
                                 onChange={e => handleMarkChange(s.id, "final", e.target.value)}
                               />
@@ -2542,17 +2488,16 @@ function MarksEntryTable({
                         </td>
 
                         <td className={`px-4 py-3 text-center ${isAbsent ? "bg-red-50" : "bg-purple-50"}`}>
-                          <span className={`text-sm font-bold ${
-                            isAbsent
-                              ? "text-red-600"
-                              : gp >= 3.5
+                          <span className={`text-sm font-bold ${isAbsent
+                            ? "text-red-600"
+                            : gp >= 3.5
                               ? "text-green-600"
                               : gp >= 2.0
-                              ? "text-blue-600"
-                              : gp >= 1.0
-                              ? "text-yellow-600"
-                              : "text-red-500"
-                          }`}>
+                                ? "text-blue-600"
+                                : gp >= 1.0
+                                  ? "text-yellow-600"
+                                  : "text-red-500"
+                            }`}>
                             {isAbsent ? "0.00" : obtained === 0 ? "—" : gp.toFixed(2)}
                           </span>
                         </td>
@@ -2571,11 +2516,10 @@ function MarksEntryTable({
                               </span>
                             ) : (
                               <span
-                                className={`px-3 py-1 text-xs rounded-full font-bold transition-all ${
-                                  isTargetStudent
-                                    ? "bg-red-600 text-white ring-4 ring-red-400 ring-offset-2 animate-pulse shadow-lg scale-105"
-                                    : "bg-red-100 text-red-700 border border-red-200"
-                                }`}
+                                className={`px-3 py-1 text-xs rounded-full font-bold transition-all ${isTargetStudent
+                                  ? "bg-red-600 text-white ring-4 ring-red-400 ring-offset-2 animate-pulse shadow-lg scale-105"
+                                  : "bg-red-100 text-red-700 border border-red-200"
+                                  }`}
                               >
                                 ❌ Fail
                               </span>
@@ -3415,13 +3359,13 @@ function StatusAcademicActionsTab() {
           reason: actionType === "MIGRATION"
             ? (destinationCollege || "Outward Migration")
             : actionType === "QUIT"
-            ? (adaReason || reason || "Compulsory Work")
-            : (freezeReason || reason || "Medical Grounds"),
+              ? (adaReason || reason || "Compulsory Work")
+              : (freezeReason || reason || "Medical Grounds"),
           notes: actionType === "FREEZE"
             ? freezeRemarks
             : actionType === "MIGRATION"
-            ? reason
-            : (adaReason || "Compulsory Work"),
+              ? reason
+              : (adaReason || "Compulsory Work"),
         }),
       });
 
@@ -3489,8 +3433,8 @@ function StatusAcademicActionsTab() {
 
   const openFreezeOrderForStudent = (recordOrStudent: any) => {
     const student = recordOrStudent.student || recordOrStudent;
-    const statusObj = recordOrStudent.statusType 
-      ? recordOrStudent 
+    const statusObj = recordOrStudent.statusType
+      ? recordOrStudent
       : student.statuses?.find((s: any) => s.statusType === "FREEZE");
 
     let memoNo = generateFreezeMemoNo();
@@ -3536,8 +3480,8 @@ function StatusAcademicActionsTab() {
 
   const openDocumentsForStudent = (recordOrStudent: any, tab: "report" | "transcript" = "report") => {
     const student = recordOrStudent.student || recordOrStudent;
-    const migStatus = recordOrStudent.statusType 
-      ? recordOrStudent 
+    const migStatus = recordOrStudent.statusType
+      ? recordOrStudent
       : student.statuses?.find((st: any) => st.statusType === "MIGRATION" || st.statusType === "MIGRATION_OUT");
 
     let dest = migStatus?.reason || "Destination Institution";
@@ -3573,8 +3517,8 @@ function StatusAcademicActionsTab() {
 
   const openAdaMinutesForStudent = (recordOrStudent: any, tab: "minutes" | "transcript" = "minutes") => {
     const student = recordOrStudent.student || recordOrStudent;
-    const quitStatus = recordOrStudent.statusType 
-      ? recordOrStudent 
+    const quitStatus = recordOrStudent.statusType
+      ? recordOrStudent
       : student.statuses?.find((st: any) => st.statusType === "QUIT" || st.statusType === "ADP");
 
     const stats = computeStudentTwoYearStats(student);
@@ -3733,11 +3677,10 @@ function StatusAcademicActionsTab() {
               setActionType(act.key as any);
               setSuccess("");
             }}
-            className={`px-5 py-2.5 text-xs font-black rounded-xl border transition-all cursor-pointer ${
-              actionType === act.key
-                ? "bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-300"
-                : "bg-white text-gray-700 hover:bg-gray-100 border-gray-200"
-            }`}
+            className={`px-5 py-2.5 text-xs font-black rounded-xl border transition-all cursor-pointer ${actionType === act.key
+              ? "bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-300"
+              : "bg-white text-gray-700 hover:bg-gray-100 border-gray-200"
+              }`}
           >
             {act.label}
           </button>
@@ -3755,14 +3698,13 @@ function StatusAcademicActionsTab() {
       <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm max-w-2xl print:hidden">
         <h3 className="text-base font-black mb-4 text-gray-800 flex items-center gap-2">
           <span>⚙️ Update Academic Action:</span>
-          <span className={`px-3 py-1 text-xs rounded-full font-bold ${
-            actionType === "MIGRATION" ? "bg-amber-100 text-amber-800" :
+          <span className={`px-3 py-1 text-xs rounded-full font-bold ${actionType === "MIGRATION" ? "bg-amber-100 text-amber-800" :
             actionType === "FREEZE" ? "bg-cyan-100 text-cyan-800" :
-            "bg-blue-100 text-blue-800"
-          }`}>
+              "bg-blue-100 text-blue-800"
+            }`}>
             {actionType === "MIGRATION" ? "🔄 MIGRATION" :
-             actionType === "QUIT" ? "🎓 QUIT / ADA / ADS (2-YEAR EXIT)" :
-             "❄️ FREEZE"}
+              actionType === "QUIT" ? "🎓 QUIT / ADA / ADS (2-YEAR EXIT)" :
+                "❄️ FREEZE"}
           </span>
         </h3>
 
@@ -3910,22 +3852,20 @@ function StatusAcademicActionsTab() {
                     <button
                       type="button"
                       onClick={() => setAdaDegreeType("ADS")}
-                      className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                        adaDegreeType === "ADS"
-                          ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
-                      }`}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${adaDegreeType === "ADS"
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                        }`}
                     >
                       ADS (Science)
                     </button>
                     <button
                       type="button"
                       onClick={() => setAdaDegreeType("ADA")}
-                      className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                        adaDegreeType === "ADA"
-                          ? "bg-purple-600 text-white border-purple-600 shadow-sm"
-                          : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
-                      }`}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all cursor-pointer ${adaDegreeType === "ADA"
+                        ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                        : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+                        }`}
                     >
                       ADA (Arts)
                     </button>
@@ -4273,8 +4213,8 @@ function StatusAcademicActionsTab() {
                       }
                     }
                     const dateStr = rec.createdAt
-                        ? new Date(rec.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-                        : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+                      ? new Date(rec.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                      : new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
                     return (
                       <tr key={rec.id} className="hover:bg-cyan-50/40 transition-colors">
@@ -4413,9 +4353,8 @@ function StatusAcademicActionsTab() {
                           <div className="text-[11px] text-gray-500">{sess}</div>
                         </td>
                         <td className="px-4 py-3 text-xs">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                            isAda ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black ${isAda ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
+                            }`}>
                             {isAda ? "ADA (Arts)" : "ADS (Science)"}
                           </span>
                         </td>
@@ -4606,22 +4545,20 @@ function StatusAcademicActionsTab() {
                 <button
                   type="button"
                   onClick={() => setDocModalTab("report")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    docModalTab === "report"
-                      ? "bg-amber-500 text-slate-950 font-black shadow"
-                      : "text-slate-300 hover:text-white"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${docModalTab === "report"
+                    ? "bg-amber-500 text-slate-950 font-black shadow"
+                    : "text-slate-300 hover:text-white"
+                    }`}
                 >
                   📜 1. Migration Report / NOC
                 </button>
                 <button
                   type="button"
                   onClick={() => setDocModalTab("transcript")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    docModalTab === "transcript"
-                      ? "bg-blue-600 text-white font-black shadow"
-                      : "text-slate-300 hover:text-white"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${docModalTab === "transcript"
+                    ? "bg-blue-600 text-white font-black shadow"
+                    : "text-slate-300 hover:text-white"
+                    }`}
                 >
                   🎓 2. Official Academic Transcript
                 </button>
@@ -4782,22 +4719,20 @@ function StatusAcademicActionsTab() {
                   <button
                     type="button"
                     onClick={() => setAdaModalTab("minutes")}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                      adaModalTab === "minutes"
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-300 hover:text-white"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${adaModalTab === "minutes"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-300 hover:text-white"
+                      }`}
                   >
                     📜 1. Minutes of Meeting Report
                   </button>
                   <button
                     type="button"
                     onClick={() => setAdaModalTab("transcript")}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                      adaModalTab === "transcript"
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-300 hover:text-white"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${adaModalTab === "transcript"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-300 hover:text-white"
+                      }`}
                   >
                     🎓 2. Academic Transcript (Sem 1-4)
                   </button>

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { parseGenericCSV, validateDepartmentBatch, getDepartmentSampleCSV } from "@/lib/domainParsers";
 import UniversalImportModal from "@/components/UniversalImportModal";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 import { 
   getDepartments, 
   addDepartment, 
@@ -406,25 +407,17 @@ export default function DepartmentsProgramsPage() {
   return (
     <div className="space-y-5">
       {/* Top Header & Tab Switcher */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <Building2 className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Programs & Departments Setup</h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Manage academic departments, degree programs, and capacity settings.
-            </p>
-          </div>
-        </div>
-
+      <PortalPageHeader
+        title="Programs & Departments Setup"
+        subtitle="Manage academic departments, degree programs, and capacity settings."
+        icon={<Building2 className="w-6 h-6" />}
+      >
         {/* Tab Switcher */}
-        <div className="flex bg-gray-100/80 p-1 rounded-xl border border-gray-200/70 self-end sm:self-auto">
+        <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/70">
           <button 
             className={`px-4 py-2 font-semibold text-xs rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'departments' 
-                ? 'bg-white shadow-xs text-blue-600 font-bold border border-gray-200/50' 
+                ? 'bg-[#047857] shadow-xs text-white font-bold' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => {
@@ -438,7 +431,7 @@ export default function DepartmentsProgramsPage() {
           <button 
             className={`px-4 py-2 font-semibold text-xs rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'programs' 
-                ? 'bg-white shadow-xs text-blue-600 font-bold border border-gray-200/50' 
+                ? 'bg-[#047857] shadow-xs text-white font-bold' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => {
@@ -450,7 +443,7 @@ export default function DepartmentsProgramsPage() {
             <span>Programs</span>
           </button>
         </div>
-      </div>
+      </PortalPageHeader>
 
       {error && (
         <div className="bg-rose-50 text-rose-800 p-4 rounded-xl border border-rose-200 text-xs font-semibold flex items-center justify-between">

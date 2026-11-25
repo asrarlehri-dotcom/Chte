@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { UserCheck } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type FacultyRecord = {
   id: string;
@@ -891,28 +893,18 @@ export default function BSFacultyPage() {
         `}</style>
       )}
 
-      {/* Top Banner Card matching user's Screenshot 1 */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl shadow-sm border border-emerald-100 flex-shrink-0">
-            🎓
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <span>Faculty Members</span>
-            </h1>
-            <p className="text-gray-500 mt-0.5 text-sm font-medium">
-              Official faculty roster, additional charges, leave tracking, joining, and relieving history.
-            </p>
-          </div>
-        </div>
-
+      {/* Top Banner Card matching Campus Banner Design */}
+      <PortalPageHeader
+        title="Faculty Members"
+        subtitle="Official faculty roster, additional charges, leave tracking, joining, and relieving history."
+        icon={<UserCheck className="w-6 h-6" />}
+      >
         {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Faculty Joining Button */}
           <button
             onClick={() => handleOpenJoiningModal()}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-black transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             title="Issue Faculty Joining & Form T.R.I (Transfer of Charge)"
           >
             <span>👤+</span>
@@ -922,7 +914,7 @@ export default function BSFacultyPage() {
           {/* Faculty Relieved Button */}
           <button
             onClick={() => handleOpenRelievedModal()}
-            className="px-5 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-sm font-black transition-all shadow-md shadow-teal-900/20 flex items-center gap-2 cursor-pointer"
+            className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             title="Issue Faculty Relieved & Form T.R.1 Relieving Certificate"
           >
             <span>🚪</span>
@@ -941,7 +933,7 @@ export default function BSFacultyPage() {
             <span>Print List</span>
           </button>
         </div>
-      </div>
+      </PortalPageHeader>
 
       {error && <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm font-bold border border-red-200">{error}</div>}
       {success && <div className="bg-emerald-50 text-emerald-800 p-4 rounded-xl text-sm font-bold border border-emerald-200">{success}</div>}

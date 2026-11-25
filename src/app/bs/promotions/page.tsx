@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { sortStudentsByRoll } from "@/lib/domainParsers";
+import { ArrowUpRight } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type StudentData = {
   id: string;
@@ -55,14 +57,11 @@ export default function PromotionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Student Semester Promotions</h1>
-          <p className="text-gray-500 mt-1">
-            Promote eligible BS students to their next academic semesters.
-          </p>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Student Semester Promotions"
+        subtitle="Promote eligible BS students to their next academic semesters."
+        icon={<ArrowUpRight className="w-6 h-6" />}
+      />
 
       {success && (
         <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 text-sm font-semibold">

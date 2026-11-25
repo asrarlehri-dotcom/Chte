@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ClipboardCheck } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type Program = { id: string; name: string; educationLevel: string };
 type Course = { id: string; title: string; code: string; semester: number; programId: string; session: string };
@@ -131,12 +133,11 @@ export default function BsAttendancePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">🎓 BS Program Attendance</h1>
-          <p className="text-gray-500 mt-1">Mark and manage course-wise daily attendance records.</p>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="BS Program Attendance"
+        subtitle="Mark and manage course-wise daily attendance records."
+        icon={<ClipboardCheck className="w-6 h-6" />}
+      />
 
       {msg.text && (
         <div className={`p-4 rounded-xl text-sm font-medium border ${msg.type === "success" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>

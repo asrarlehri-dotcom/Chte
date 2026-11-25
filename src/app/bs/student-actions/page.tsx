@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSettings } from "@/lib/useSettings";
+import { ShieldCheck } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type StudentData = {
   id: string;
@@ -198,19 +200,16 @@ function StudentActionsContent() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Top Banner */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-gray-900">🔀 Student Academic Status & Actions</h1>
-            <span className="px-2.5 py-0.5 text-xs font-extrabold bg-amber-100 text-amber-800 rounded-full">
-              Academic Branch Operations
-            </span>
-          </div>
-          <p className="text-gray-500 mt-1 text-sm">
-            Manage semester freeze agreements, outward migration relieving certificates, and quit/ADP exits.
-          </p>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Student Academic Status & Actions"
+        subtitle="Manage semester freeze agreements, outward migration relieving certificates, and quit/ADP exits."
+        icon={<ShieldCheck className="w-6 h-6" />}
+        badge={
+          <span className="px-2.5 py-0.5 text-[11px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full">
+            Academic Branch Operations
+          </span>
+        }
+      />
 
       {error && <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm font-semibold border border-red-200">{error}</div>}
       {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl text-sm font-semibold border border-green-200">{success}</div>}

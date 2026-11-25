@@ -1,14 +1,16 @@
 "use client";
 
+import { ClipboardCheck } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+
 export default function AttendancePage() {
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Attendance Management</h1>
-          <p className="text-gray-500 mt-1">Mark daily attendance for classes (Intermediate) and courses (BS).</p>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Attendance Management"
+        subtitle="Mark daily attendance for classes (Intermediate) and courses (BS)."
+        icon={<ClipboardCheck className="w-6 h-6" />}
+      />
 
       <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Select Class/Section to Mark Attendance</h2>

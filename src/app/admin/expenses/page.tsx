@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
+import { Receipt } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type Expense = {
   id: string;
@@ -146,7 +148,7 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Toast */}
       {toast.text && (
         <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white transition-all ${toast.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`}>
@@ -155,17 +157,17 @@ export default function ExpensesPage() {
       )}
 
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">💰 Expense Management</h1>
-          <p className="text-slate-500 mt-1 font-medium">Track and manage all institutional expenses.</p>
-        </div>
+      <PortalPageHeader
+        title="Expense Management"
+        subtitle="Track and manage all institutional expenses."
+        icon={<Receipt className="w-6 h-6" />}
+      >
         {canAdd && (
-          <button onClick={openAdd} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2">
+          <button onClick={openAdd} className="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-2 cursor-pointer">
             + Add Expense
           </button>
         )}
-      </div>
+      </PortalPageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

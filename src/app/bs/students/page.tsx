@@ -18,6 +18,7 @@ import {
   Info,
   ClipboardList
 } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type StudentRecord = {
   id: string;
@@ -407,56 +408,45 @@ export default function BSStudentsPage() {
       />
 
       {/* Top Header Card */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center shrink-0">
-            <GraduationCap className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">BS Student Management</h1>
-              <span className="px-2.5 py-0.5 text-xs font-semibold bg-blue-50 text-blue-600 rounded-full border border-blue-100">
-                BS Academic Branch
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Manage student registrations, academic shifts, batches, and examination status records.
-            </p>
-          </div>
-        </div>
-
+      <PortalPageHeader
+        title="BS Student Management"
+        subtitle="Manage student registrations, academic shifts, batches, and examination status records."
+        icon={<GraduationCap className="w-6 h-6" />}
+        badge={
+          <span className="px-2.5 py-0.5 text-[11px] font-bold bg-emerald-50 text-emerald-800 rounded-full border border-emerald-200">
+            BS Academic Branch
+          </span>
+        }
+      >
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5 flex-wrap self-end sm:self-auto">
-          {/* Export CSV Button */}
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="Export list to CSV file"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             <span>Export CSV</span>
           </button>
 
-          {/* Print List Button */}
           <button
             onClick={handlePrintList}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-2 shadow-xs cursor-pointer"
+            className="px-3.5 py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center gap-1.5 shadow-xs cursor-pointer"
             title="Print formatted student list"
           >
             <Printer className="w-4 h-4 text-purple-600" />
             <span>Print List</span>
           </button>
 
-          {/* Add Student Button */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs font-semibold transition-all shadow-sm shadow-blue-600/30 flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Add Student</span>
           </button>
         </div>
-      </div>
+      </PortalPageHeader>
 
       {error && (
         <div className="bg-rose-50 text-rose-800 p-4 rounded-xl text-xs font-semibold border border-rose-200 flex items-center justify-between">

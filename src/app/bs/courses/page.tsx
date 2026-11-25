@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { parseGenericCSV, validateCourseBatch, getCourseSampleCSV } from "@/lib/domainParsers";
 import UniversalImportModal from "@/components/UniversalImportModal";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 // Types
 export type CourseType =
@@ -871,50 +872,24 @@ export default function SyllabusCourseManagementPage() {
           1. HEADER SECTION & FLOATING STATS BAR
       ───────────────────────────────────────────────────────────── */}
       <header className="relative z-10 space-y-6">
-        <div className={`flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 p-6 md:p-8 rounded-3xl border transition-all duration-300 ${
-          themeMode === "light"
-            ? "bg-white/60 backdrop-blur-2xl border-white/80 shadow-[0_10px_35px_rgba(0,0,0,0.05)] text-slate-900"
-            : "bg-slate-900/60 backdrop-blur-xl border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.12)] text-slate-100"
-        }`}>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className={`p-3 rounded-2xl border transition-all ${
-                themeMode === "light"
-                  ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-600 shadow-sm"
-                  : "bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border-cyan-500/40 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
-              } animate-float-medium`}>
-                <Atom className="w-8 h-8 animate-spin" style={{ animationDuration: "12s" }} />
-              </div>
-              <div>
-                <h1 className={`text-3xl md:text-4xl font-extrabold tracking-tight ${
-                  themeMode === "light"
-                    ? "bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-cyan-900 to-purple-900"
-                    : "bg-clip-text text-transparent bg-gradient-to-r from-white via-cyan-100 to-purple-300"
-                }`}>
-                  Course Scheme & Syllabus
-                </h1>
-              </div>
-            </div>
-          </div>
-
+        <PortalPageHeader
+          title="Course Scheme & Syllabus"
+          subtitle="Manage academic courses, theory/lab credit hours, and semester syllabi."
+          icon={<BookOpen className="w-6 h-6" />}
+        >
           {/* Action Toolbar */}
-          <div className="flex items-center gap-3 flex-wrap">
-            
-            {/* Theme Toggle Button (Light Glass vs Dark Levitating) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Theme Toggle Button */}
             <button
               type="button"
               onClick={() => setThemeMode(prev => prev === "dark" ? "light" : "dark")}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${
-                themeMode === "light"
-                  ? "bg-white/80 backdrop-blur-md text-slate-800 border-slate-300 shadow-sm hover:bg-white"
-                  : "bg-slate-800/80 text-amber-300 hover:bg-slate-800 border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
-              }`}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 bg-white text-slate-800 border-slate-300 shadow-2xs hover:bg-slate-50 cursor-pointer"
               title="Toggle Light Transparent Glass / Dark Levitating Mode"
             >
               {themeMode === "dark" ? (
                 <>
-                  <Sun className="w-4 h-4 text-amber-400" />
-                  <span>Light Glass Mode</span>
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  <span>Light Mode</span>
                 </>
               ) : (
                 <>
@@ -924,11 +899,7 @@ export default function SyllabusCourseManagementPage() {
               )}
             </button>
 
-            <label className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-2 ${
-              themeMode === "light"
-                ? "bg-white/80 text-cyan-800 border-cyan-500/30 hover:bg-white shadow-sm"
-                : "bg-slate-800/80 hover:bg-slate-800 text-cyan-300 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
-            }`}>
+            <label className="px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 bg-white text-cyan-800 border-cyan-500/30 hover:bg-slate-50 shadow-2xs">
               <Upload className="w-4 h-4" />
               <span>Import CSV</span>
               <input type="file" accept=".csv, .tsv, .txt" onChange={handleImportCSV} className="hidden" />
@@ -936,11 +907,7 @@ export default function SyllabusCourseManagementPage() {
 
             <button
               onClick={() => setPasteModalOpen(true)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
-                themeMode === "light"
-                  ? "bg-white/80 text-indigo-800 border-indigo-500/30 hover:bg-white shadow-sm"
-                  : "bg-slate-800/80 hover:bg-slate-800 text-indigo-300 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
-              }`}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 bg-white text-indigo-800 border-indigo-500/30 hover:bg-slate-50 shadow-2xs cursor-pointer"
               title="Paste copied rows directly from Excel or Google Sheets"
             >
               <ClipboardList className="w-4 h-4" />
@@ -949,11 +916,7 @@ export default function SyllabusCourseManagementPage() {
 
             <button
               onClick={handleDownloadCourseTemplate}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
-                themeMode === "light"
-                  ? "bg-white/80 text-emerald-800 border-emerald-500/30 hover:bg-white shadow-sm"
-                  : "bg-slate-800/80 hover:bg-slate-800 text-emerald-300 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
-              }`}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 bg-white text-emerald-800 border-emerald-500/30 hover:bg-slate-50 shadow-2xs cursor-pointer"
               title="Download course scheme format template"
             >
               <Download className="w-4 h-4" />
@@ -962,11 +925,7 @@ export default function SyllabusCourseManagementPage() {
 
             <button
               onClick={handleExportCSV}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
-                themeMode === "light"
-                  ? "bg-white/80 text-purple-800 border-purple-500/30 hover:bg-white shadow-sm"
-                  : "bg-slate-800/80 hover:bg-slate-800 text-purple-300 border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
-              }`}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 bg-white text-purple-800 border-purple-500/30 hover:bg-slate-50 shadow-2xs cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>Export Scheme</span>
@@ -974,11 +933,7 @@ export default function SyllabusCourseManagementPage() {
 
             <button
               onClick={() => window.print()}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 ${
-                themeMode === "light"
-                  ? "bg-white/80 text-slate-700 border-slate-300 hover:bg-white shadow-sm"
-                  : "bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-700"
-              }`}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 bg-white text-slate-700 border-slate-300 hover:bg-slate-50 shadow-2xs cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>Print Scheme</span>
@@ -987,11 +942,7 @@ export default function SyllabusCourseManagementPage() {
             {courses.length > 0 && (
               <button
                 onClick={() => setShowDeleteAllModal(true)}
-                className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 cursor-pointer ${
-                  themeMode === "light"
-                    ? "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 shadow-sm"
-                    : "bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border-rose-800 shadow-[0_0_15px_rgba(244,63,94,0.15)]"
-                }`}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 shadow-2xs"
                 title="Delete all courses"
               >
                 <Trash2 className="w-4 h-4 text-rose-500" />
@@ -1001,13 +952,13 @@ export default function SyllabusCourseManagementPage() {
 
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-bold text-xs rounded-xl shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all transform hover:-translate-y-1 hover:scale-105 flex items-center gap-2"
+              className="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
+              <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Add Course</span>
             </button>
           </div>
-        </div>
+        </PortalPageHeader>
 
         {/* Floating Stats Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

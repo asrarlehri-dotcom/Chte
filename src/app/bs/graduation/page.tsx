@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { GraduationCap } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type StudentData = {
   id: string;
@@ -36,14 +38,11 @@ export default function GraduationTrackerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Graduation Audit Tool</h1>
-          <p className="text-gray-500 mt-1">
-            Audit and approve graduation status for BS students.
-          </p>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Graduation Audit Tool"
+        subtitle="Audit and approve graduation status for BS students."
+        icon={<GraduationCap className="w-6 h-6" />}
+      />
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (

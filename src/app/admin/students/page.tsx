@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
+import { GraduationCap } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 const INPUT = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400";
 const BTN_PRIMARY = "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50";
@@ -72,13 +74,13 @@ export default function StudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">🎓 Student Management</h1>
-          <p className="text-gray-500 mt-1">Register, manage and track all enrolled students.</p>
-        </div>
-        <button onClick={() => setShowAdd(true)} className={BTN_PRIMARY}>+ Add Student</button>
-      </div>
+      <PortalPageHeader
+        title="Student Management"
+        subtitle="Register, manage and track all enrolled students."
+        icon={<GraduationCap className="w-6 h-6" />}
+      >
+        <button onClick={() => setShowAdd(true)} className="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer">+ Add Student</button>
+      </PortalPageHeader>
 
       {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-100">{error}</div>}
       {success && <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm border border-green-100">{success}</div>}

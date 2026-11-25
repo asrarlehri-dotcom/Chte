@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useSettings } from "@/lib/useSettings";
 import OfficialDMCDocument from "@/components/OfficialDMCDocument";
 import { TranscriptStudentData } from "@/components/OfficialTranscriptDocument";
+import { FileText, Printer } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 export default function DMCGeneratorPage() {
   const { collegeName, collegeLogo, collegeAddress } = useSettings();
@@ -40,26 +42,19 @@ export default function DMCGeneratorPage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto py-2">
       {/* ─── Control Header ─── */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between flex-wrap gap-4 print:hidden">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📜</span>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">
-              Detailed Marks Certificate (DMC) Generator
-            </h1>
-          </div>
-          <p className="text-gray-500 text-sm mt-1">
-            Official Semester-wise Detailed Marks Certificate (DMC) for BS Students.
-          </p>
-        </div>
+      <PortalPageHeader
+        title="Detailed Marks Certificate (DMC) Generator"
+        subtitle="Official Semester-wise Detailed Marks Certificate (DMC) for BS Students."
+        icon={<FileText className="w-6 h-6" />}
+      >
         <button
           onClick={() => window.print()}
-          className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-sm font-bold shadow flex items-center gap-2 transition-all cursor-pointer"
+          className="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer"
         >
-          <span>🖨️</span>
+          <Printer className="w-4 h-4" />
           <span>Print Official DMC</span>
         </button>
-      </div>
+      </PortalPageHeader>
 
       {/* ─── Filter & Selection Panel ─── */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 print:hidden space-y-4">

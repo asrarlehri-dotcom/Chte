@@ -6,6 +6,8 @@ import { useSettings } from "@/lib/useSettings";
 import OfficialTranscriptDocument from "@/components/OfficialTranscriptDocument";
 import OfficialDMCDocument from "@/components/OfficialDMCDocument";
 import { sortStudentsByRoll } from "@/lib/domainParsers";
+import { Award } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type MarkEntry = {
   courseId?: string;
@@ -914,24 +916,15 @@ export default function GazetteCompilerPage() {
       `}</style>
 
       {/* Page Header (Web only) */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100/80 flex items-center justify-between flex-wrap gap-4 print:hidden">
-        <div className="flex items-center gap-3.5">
-          <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#0d4a22] text-white flex items-center justify-center text-2xl sm:text-3xl shadow-md border-2 border-emerald-500/30 shrink-0">
-            🎓
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-serif font-black text-[#073619] tracking-tight">
-              Official Results Gazette &amp; Degree Certificates
-            </h1>
-            <p className="text-slate-500 mt-0.5 font-medium text-xs">
-              Program-wise structured results gazette compiled for semesters, DMCs, and cumulative transcripts.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
+      <PortalPageHeader
+        title={<>Official Results Gazette &amp; Degree Certificates</>}
+        subtitle="Program-wise structured results gazette compiled for semesters, DMCs, and cumulative transcripts."
+        icon={<Award className="w-6 h-6" />}
+      >
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={toggleAllRemarks}
-            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-full text-xs font-bold border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
             title="Expand or Collapse failed papers in all student rows"
           >
             <span>{allExpanded ? "🔼 Collapse Papers" : "🔽 Expand Papers"}</span>
@@ -939,7 +932,7 @@ export default function GazetteCompilerPage() {
           <button
             type="button"
             onClick={() => setShowPaperNamesInPrint((prev) => !prev)}
-            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 shadow-2xs ${showPaperNamesInPrint
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer ${showPaperNamesInPrint
                 ? "bg-amber-100 text-amber-950 border-amber-300 font-black"
                 : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
               }`}
@@ -950,7 +943,7 @@ export default function GazetteCompilerPage() {
           <button
             type="button"
             onClick={() => openCertModal("dmc", "single")}
-            className="px-5 py-2 bg-white hover:bg-emerald-50 text-[#073619] rounded-full text-xs font-bold border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs"
+            className="px-3.5 py-2 bg-white hover:bg-emerald-50 text-[#073619] rounded-xl text-xs font-bold border border-slate-200 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
             title="Open Detailed Marks Certificate (DMC) generator"
           >
             <span>📄</span>
@@ -959,7 +952,7 @@ export default function GazetteCompilerPage() {
           <button
             type="button"
             onClick={() => openCertModal("transcript", "single")}
-            className="px-5 py-2 bg-[#0d4a22] hover:bg-[#073619] text-white rounded-full text-xs font-black shadow-sm transition-all flex items-center gap-1.5"
+            className="px-4 py-2 bg-[#047857] hover:bg-[#065f46] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             title="Open Academic Transcript generator"
           >
             <span>🎓</span>
@@ -971,13 +964,13 @@ export default function GazetteCompilerPage() {
               setCertModal(null);
               setTimeout(() => window.print(), 100);
             }}
-            className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-full text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <span>🖨️</span>
             <span>Print Gazette</span>
           </button>
         </div>
-      </div>
+      </PortalPageHeader>
 
       {/* Filters (Web only) */}
       <div className="bg-white p-5 rounded-3xl shadow-sm border border-emerald-100/80 print:hidden">

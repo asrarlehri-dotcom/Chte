@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Users } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type User = {
   id: string;
@@ -91,12 +93,11 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-        <p className="text-gray-500 mt-1">
-          View, search, and manage all system users and their roles.
-        </p>
-      </div>
+      <PortalPageHeader
+        title="User Management"
+        subtitle="View, search, and manage all system users and their roles."
+        icon={<Users className="w-6 h-6" />}
+      />
 
       {error && (
         <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-100">

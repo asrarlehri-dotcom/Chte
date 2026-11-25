@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { usePermissions } from "@/lib/usePermissions";
 import { MODULES, ACTIONS } from "@/lib/permissions";
+import { UserPlus } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type Admission = {
   id: string;
@@ -93,20 +95,20 @@ export default function BsAdmissionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">BS Admissions</h1>
-          <p className="text-gray-500 mt-1">Manage BS program admission applications.</p>
-        </div>
+      <PortalPageHeader
+        title="BS Admissions"
+        subtitle="Manage BS program admission applications."
+        icon={<UserPlus className="w-6 h-6" />}
+      >
         {canAdd && (
           <a
             href={userCollegeId ? `/admission?collegeId=${userCollegeId}` : "/admission"}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-[#047857] text-white rounded-xl hover:bg-[#065f46] text-xs font-bold transition-all shadow-xs"
           >
             + New Application
           </a>
         )}
-      </div>
+      </PortalPageHeader>
 
       {/* Alert message */}
       {msg.text && (

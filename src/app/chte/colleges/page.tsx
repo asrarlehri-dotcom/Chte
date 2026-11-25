@@ -26,6 +26,7 @@ import {
   MapPin,
   CreditCard
 } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 interface CollegeItem {
   id: string;
@@ -243,35 +244,28 @@ export default function ChteCollegesPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 space-y-8">
       {/* Top CHTE Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 border border-blue-700/40 p-6 md:p-8 shadow-2xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4 text-blue-400" />
-              CHTE Higher & Technical Education
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-              Central Colleges Provisioning & Master Server
-            </h1>
-            <p className="text-slate-300 text-sm max-w-2xl">
-              Generate new colleges across Balochistan, issue unique administrator credentials, and provision independent institutional portals with customized emblems, timetables, and gazette engines.
-            </p>
-          </div>
-
-          <button
-            onClick={() => {
-              setCreatedCredentials(null);
-              setErrorMsg("");
-              generateRandomPassword();
-              setModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-blue-600/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap self-start md:self-auto"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Generate New College</span>
-          </button>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Central Colleges Provisioning & Master Server"
+        subtitle="Generate new colleges across Balochistan, issue unique administrator credentials, and provision independent institutional portals with customized emblems, timetables, and gazette engines."
+        icon={<ShieldCheck className="w-6 h-6" />}
+      >
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-wider">
+          <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+          CHTE Higher & Technical Education
+        </span>
+        <button
+          onClick={() => {
+            setCreatedCredentials(null);
+            setErrorMsg("");
+            generateRandomPassword();
+            setModalOpen(true);
+          }}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Generate New College</span>
+        </button>
+      </PortalPageHeader>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

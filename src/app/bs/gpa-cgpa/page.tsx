@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { calculateStudentCGPA, getGPValue } from "@/lib/cgpa";
+import { Award } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type StudentData = {
   id: string;
@@ -33,20 +35,20 @@ export default function GPACGPATrackerPage() {
           setStudents(bsStudents);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
 
   const getStudentGPAData = (s: StudentData) => {
     // Group marks by semester
     const semestersMap: Record<number, { gpPoints: number; credits: number }> = {};
-    
+
     s.marks?.forEach((m) => {
       const sem = m.course?.semester ?? (m as any).semester ?? 1;
       const credit = m.course?.creditHours || 3;
       const isAbsent = (m as any).status === "ABSENT" || (m as any).status === "A";
       const gp = isAbsent ? 0.0 : getGPValue(m.obtainedMarks, m.totalMarks);
-      
+
       if (!semestersMap[sem]) {
         semestersMap[sem] = { gpPoints: 0, credits: 0 };
       }
@@ -88,14 +90,11 @@ export default function GPACGPATrackerPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">BS GPA & CGPA Tracker</h1>
-          <p className="text-gray-500 mt-1">
-            Dynamic Cumulative Grade Point Average calculation based on HEC standards.
-          </p>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="BS GPA & CGPA Tracker"
+        subtitle="Dynamic Cumulative Grade Point Average calculation based on HEC standards."
+        icon={<Award className="w-6 h-6" />}
+      />
 
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-3">
         <input
@@ -132,11 +131,10 @@ export default function GPACGPATrackerPage() {
                         <div className="text-xs font-semibold text-gray-500">{s.rollNumber}</div>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${
-                          s.bsAdmissionType === "BRIDGING_5TH"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}>
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-bold ${s.bsAdmissionType === "BRIDGING_5TH"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-blue-100 text-blue-700"
+                          }`}>
                           {s.bsAdmissionType === "BRIDGING_5TH" ? "Bridging (5th Sem)" : "Regular"}
                         </span>
                       </td>

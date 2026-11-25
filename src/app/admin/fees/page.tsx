@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { CreditCard } from "lucide-react";
+import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 type Fee = {
   id: string;
@@ -58,12 +60,11 @@ export default function FeeManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fee Management</h1>
-          <p className="text-gray-500 mt-1">Manage student fee challans and payments.</p>
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Fee Management"
+        subtitle="Manage student fee challans and payments."
+        icon={<CreditCard className="w-6 h-6" />}
+      />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
