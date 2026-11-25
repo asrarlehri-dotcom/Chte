@@ -6,6 +6,7 @@ import { ShieldAlert, Search, Check, X, ShieldCheck, Filter, Sliders, ExternalLi
 import { MODULES, ACTIONS, ROLES } from "@/lib/permissions";
 import HomepageSettingsTab from "@/components/admin/HomepageSettingsTab";
 import CollegePortalSettingsTab from "@/components/admin/CollegePortalSettingsTab";
+import SettingsCorelMenuBar, { SettingsTabId } from "@/components/admin/SettingsCorelMenuBar";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 
 // Type definitions
@@ -911,8 +912,11 @@ export default function UnifiedSettingsPage() {
     fetchPermissions();
   }, [(session?.user as any)?.collegeId, isChteAdmin]);
 
+  const [activePortalSub, setActivePortalSub] = useState<string>("ALL");
   const [activeAcademicSub, setActiveAcademicSub] = useState<string>("depts-list");
   const [activeFeeSub, setActiveFeeSub] = useState<string>("base-fees");
+  const [jumpTargetId, setJumpTargetId] = useState<string>("");
+  const [jumpSeq, setJumpSeq] = useState<number>(0);
 
   // auto clear alert message
   useEffect(() => {
@@ -922,10 +926,42 @@ export default function UnifiedSettingsPage() {
     }
   }, [msg]);
 
+  // Smooth scroll when jumping to Academic / Fee / Permissions sub-anchors
+  useEffect(() => {
+    if (!jumpTargetId) return;
+    if (activeTab === "ACADEMIC" || activeTab === "FEES" || activeTab === "PERMISSIONS") {
+      const t = setTimeout(() => {
+        const el = document.getElementById(jumpTargetId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 90);
+      return () => clearTimeout(t);
+    }
+  }, [activeTab, jumpTargetId, jumpSeq]);
+
   // Tab change handler
-  const handleTabChange = (tab: "CHTE_SETTINGS" | "COLLEGE_PORTAL" | "ACADEMIC" | "FEES" | "PERMISSIONS") => {
+  const handleTabChange = (tab: SettingsTabId) => {
     setActiveTab(tab);
     setMsg({ type: "", text: "" });
+  };
+
+  const handleCorelMenuSelect = ({
+    tab,
+    subTab,
+    scrollId,
+  }: {
+    tab: SettingsTabId;
+    subTab?: string;
+    scrollId?: string;
+  }) => {
+    handleTabChange(tab);
+    if (tab === "COLLEGE_PORTAL" && subTab) setActivePortalSub(subTab);
+    if (tab === "ACADEMIC" && subTab) setActiveAcademicSub(subTab);
+    if (tab === "FEES" && subTab) setActiveFeeSub(subTab);
+    if (tab === "PERMISSIONS" && subTab) setPermissionCategory(subTab);
+    if (scrollId) {
+      setJumpTargetId(scrollId);
+      setJumpSeq((s) => s + 1);
+    }
   };
 
   return (
@@ -951,180 +987,16 @@ export default function UnifiedSettingsPage() {
         </a>
       </PortalPageHeader>
 
-      {/* Hover Dropdown Mega Menu Bar Container */}
-      <div className="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200/80 relative z-30">
-
-        {/* Hover Dropdown Mega Menu Bar */}
-        <div className="flex flex-wrap bg-gray-50 p-1.5 rounded-xl border border-gray-200/60 max-w-5xl gap-1.5 overflow-visible relative z-30">
-          {/* TAB 0: HEMIS MAIN HOMEPAGE & CENTRAL SETTINGS (Logo, Background, Theme, Slides, Leadership) */}
-          {isChteAdmin && (
-            <button
-              onClick={() => handleTabChange("CHTE_SETTINGS")}
-              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeTab === "CHTE_SETTINGS"
-                  ? "bg-[#0c5938] text-white shadow-sm font-black"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-                }`}
-            >
-              <span>🏛️ HEMIS Main Settings</span>
-              <span className="text-[10px] bg-emerald-400/20 px-1.5 py-0.5 rounded text-emerald-300">Apex</span>
-            </button>
-          )}
-
-          {/* TAB 1: COLLEGE PORTAL & THEME SETTINGS (Logo, Theme Colors, Campus Slides, Leadership) */}
-          <button
-            onClick={() => handleTabChange("COLLEGE_PORTAL")}
-            className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1.5 ${activeTab === "COLLEGE_PORTAL"
-                ? "bg-slate-900 text-white shadow-sm font-black"
-                : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-              }`}
-          >
-            <span>🏫 College Portals & Themes</span>
-            <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-black">Colleges</span>
-          </button>
-
-          {/* TAB 2: ACADEMIC SETUP (Campus Only - Isolated from CHTE Central) */}
-          {!isChteAdmin && (
-            <div className="group relative">
-              <button
-                onClick={() => handleTabChange("ACADEMIC")}
-                className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === "ACADEMIC"
-                    ? "bg-white text-blue-600 shadow-sm border border-gray-100 font-black"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-                  }`}
-              >
-                <span>🏬 Academic Setup</span>
-                <span className="text-[10px] text-gray-400">▼</span>
-              </button>
-
-              <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-                <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Academic Sub-Settings:
-                </div>
-                <button
-                  onClick={() => {
-                    handleTabChange("ACADEMIC");
-                    setActiveAcademicSub("depts-list");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>🏬</span> Departments List & HODs
-                </button>
-                <button
-                  onClick={() => {
-                    handleTabChange("ACADEMIC");
-                    setActiveAcademicSub("programs-list");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>📚</span> Programs & Groups Setup
-                </button>
-                <button
-                  onClick={() => {
-                    handleTabChange("ACADEMIC");
-                    setActiveAcademicSub("add-dept");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>➕</span> Add New Department
-                </button>
-                <button
-                  onClick={() => {
-                    handleTabChange("ACADEMIC");
-                    setActiveAcademicSub("add-program");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>🎓</span> Add New Program
-                </button>
-                <button
-                  onClick={() => {
-                    handleTabChange("ACADEMIC");
-                    setActiveAcademicSub("college-identity");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>🏫</span> College Name, Logo & Slides
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: FEE & CHALLAN SETTINGS (Campus Only - Isolated from CHTE Central) */}
-          {!isChteAdmin && (
-            <div className="group relative">
-              <button
-                onClick={() => handleTabChange("FEES")}
-                className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === "FEES"
-                    ? "bg-white text-blue-600 shadow-sm border border-gray-100 font-black"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-                  }`}
-              >
-                <span>💰 Fee & Challan Settings</span>
-                <span className="text-[10px] text-gray-400">▼</span>
-              </button>
-
-              <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-                <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Fee Sub-Settings:
-                </div>
-                <button
-                  onClick={() => {
-                    handleTabChange("FEES");
-                    setActiveFeeSub("base-fees");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>💵</span> Base Fee Rates Setup
-                </button>
-                <button
-                  onClick={() => {
-                    handleTabChange("FEES");
-                    setActiveFeeSub("session-overrides");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>📅</span> Session Fee Overrides
-                </button>
-                <button
-                  onClick={() => {
-                    handleTabChange("FEES");
-                    setActiveFeeSub("bank-details");
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-                >
-                  <span>🏛️</span> Bank Details & Challan Templates
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: PERMISSIONS MATRIX */}
-          <div className="group relative">
-            <button
-              onClick={() => handleTabChange("PERMISSIONS")}
-              className={`py-2.5 px-3.5 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === "PERMISSIONS"
-                  ? "bg-white text-blue-600 shadow-sm border border-gray-100 font-black"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-white/80"
-                }`}
-            >
-              <span>🔐 Permissions Matrix</span>
-              <span className="text-[10px] text-gray-400">▼</span>
-            </button>
-
-            <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl py-2.5 hidden group-hover:block z-50 animate-fadeIn">
-              <div className="px-3 pb-2 mb-1 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Permissions Sub-Settings:
-              </div>
-              <button
-                onClick={() => handleTabChange("PERMISSIONS")}
-                className="w-full px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors"
-              >
-                <span>🛡️</span> Role Access Matrix
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* CorelDRAW-Style Cascading Dropdown Mega Menu Bar */}
+      <SettingsCorelMenuBar
+        isChteAdmin={isChteAdmin}
+        activeTab={activeTab}
+        activePortalSub={activePortalSub}
+        activeAcademicSub={activeAcademicSub}
+        activeFeeSub={activeFeeSub}
+        permissionCategory={permissionCategory}
+        onSelect={handleCorelMenuSelect}
+      />
 
       {/* Global Alert Notification */}
       {msg.text && (
@@ -1140,14 +1012,20 @@ export default function UnifiedSettingsPage() {
           TAB 0: CHTE MAIN HOMEPAGE & CENTRAL PORTAL SETTINGS
           ---------------------------------------------------- */}
       {isChteAdmin && activeTab === "CHTE_SETTINGS" && (
-        <HomepageSettingsTab />
+        <HomepageSettingsTab jumpTargetId={jumpTargetId} jumpSeq={jumpSeq} />
       )}
 
       {/* ----------------------------------------------------
           TAB 1: COLLEGE PORTAL & THEME CONTROL PANEL
           ---------------------------------------------------- */}
       {activeTab === "COLLEGE_PORTAL" && (
-        <CollegePortalSettingsTab onSwitchToChte={() => handleTabChange("CHTE_SETTINGS")} />
+        <CollegePortalSettingsTab
+          onSwitchToChte={() => handleTabChange("CHTE_SETTINGS")}
+          activeSectionFilter={activePortalSub}
+          onSectionFilterChange={setActivePortalSub}
+          jumpTargetId={jumpTargetId}
+          jumpSeq={jumpSeq}
+        />
       )}
 
       {/* ----------------------------------------------------
@@ -1911,7 +1789,7 @@ export default function UnifiedSettingsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t">
+                  <div id="sec-academic-sessions" className="pt-4 border-t">
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Registered Academic Sessions</label>
 
                     {/* Active sessions list */}
@@ -2713,7 +2591,7 @@ export default function UnifiedSettingsPage() {
           </div>
 
           {/* Permissions Grid */}
-          <div className="bg-white rounded-b-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+          <div id="sec-permissions-grid" className="bg-white rounded-b-2xl shadow-sm border border-slate-200/80 overflow-hidden">
             {permissionsLoading ? (
               <p className="text-center py-16 text-gray-400 text-xs">Loading permission definitions...</p>
             ) : (

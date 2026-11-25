@@ -76,11 +76,43 @@ export type FeaturedProfile = {
   order?: number;
 };
 
-export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchToChte?: () => void } = {}) {
+export default function CollegePortalSettingsTab({
+  onSwitchToChte,
+  activeSectionFilter,
+  onSectionFilterChange,
+  jumpTargetId,
+  jumpSeq,
+}: {
+  onSwitchToChte?: () => void;
+  activeSectionFilter?: string;
+  onSectionFilterChange?: (sec: string) => void;
+  jumpTargetId?: string;
+  jumpSeq?: number;
+} = {}) {
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role;
   const userCollegeId = (session?.user as any)?.collegeId;
   const isChteAdmin = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
+
+  const [internalSectionFilter, setInternalSectionFilter] = useState<string>("ALL");
+  const currentSection = activeSectionFilter ?? internalSectionFilter;
+  const setCurrentSection = (sec: string) => {
+    setInternalSectionFilter(sec);
+    if (onSectionFilterChange) onSectionFilterChange(sec);
+  };
+
+  useEffect(() => {
+    if (!jumpTargetId) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(jumpTargetId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-amber-400");
+        setTimeout(() => el.classList.remove("ring-2", "ring-amber-400"), 1400);
+      }
+    }, 90);
+    return () => clearTimeout(t);
+  }, [jumpTargetId, jumpSeq]);
 
   const [colleges, setColleges] = useState<CollegeOption[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string>("");
@@ -341,7 +373,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
           detail: { moduleBannerOverrides: nextOverrides },
         })
       );
-    } catch {}
+    } catch { }
   };
 
   const updateActiveBannerField = (field: keyof PortalBannerConfig & string, rawVal: any) => {
@@ -1100,11 +1132,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
 
           {selectedCollege && (
             <a
-              href={`/colleges/${selectedCollege.code.toLowerCase()}${
-                formData.ribbonColor
-                  ? `?theme=${encodeURIComponent(getRepresentativeColor(formData.ribbonColor, "#dc2626"))}`
-                  : ""
-              }`}
+              href={`/colleges/${selectedCollege.code.toLowerCase()}${formData.ribbonColor
+                ? `?theme=${encodeURIComponent(getRepresentativeColor(formData.ribbonColor, "#dc2626"))}`
+                : ""
+                }`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs hover:scale-105"
@@ -1141,7 +1172,37 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
+          {/* Sub-Section Category Pills Bar (Corel-Menu Synced) */}
+          <div className="bg-white p-2 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-1.5 overflow-x-auto">
+            {[
+              { id: "ALL", label: "All Portal Settings", icon: "📑" },
+              { id: "THEME_COLORS", label: "Theme Colors & Presets", icon: "🎨" },
+              { id: "BANNER_RIBBONS", label: "Header Banner & Side Ribbons", icon: "🏞️" },
+              { id: "HEADER_TYPOGRAPHY", label: "Header & Name Fonts", icon: "🔤" },
+              { id: "HERO_TICKER", label: "Hero Slides & Ticker", icon: "🎬" },
+              { id: "IDENTITY_PROFILES", label: "Identity, Leadership & Social", icon: "👥" },
+            ].map((pill) => (
+              <button
+                key={pill.id}
+                type="button"
+                onClick={() => setCurrentSection(pill.id)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  currentSection === pill.id
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/80"
+                }`}
+              >
+                <span>{pill.icon}</span>
+                <span>{pill.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* ── SECTION 1: THEME COLORS & "RED PATII" (DARK STUDIO ENGINE) ── */}
+          {(currentSection === "ALL" ||
+            currentSection === "THEME_COLORS" ||
+            currentSection === "BANNER_RIBBONS" ||
+            currentSection === "HEADER_TYPOGRAPHY") && (
           <div className="bg-[#0b0f19] p-5 sm:p-6 rounded-3xl border border-slate-800/90 shadow-2xl space-y-6">
             <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-600 to-amber-600 flex items-center justify-center shadow-md">
@@ -1149,34 +1210,44 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
               <div>
                 <h3 className="text-base font-bold text-white tracking-wide">
-                  Theme Colors & Ribbon Bar ("Red Patii")
+                  {currentSection === "BANNER_RIBBONS"
+                    ? 'Header Banner Picture & Side Wave Ribbons Studio ("Wave Patii")'
+                    : currentSection === "HEADER_TYPOGRAPHY"
+                    ? "College Header Box, Emblem Typography & MS Word Fonts"
+                    : 'Theme Colors & Ribbon Bar ("Red Patii")'}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Configure the primary header color, the top accent ribbon ("red patii"), and overall background color with CorelDRAW-style fill engine.
+                  Configure colors, banners, side wave ribbons, and typography with CorelDRAW-style fill engine.
                 </p>
               </div>
             </div>
 
             {/* ── 1-CLICK THEME PRESET GALLERY (1-کلک تھیم پریسیٹ گیلری) ── */}
-            <ThemePresetGallery
-              currentTheme={{
-                ribbonColor: formData.ribbonColor,
-                primaryColor: formData.primaryColor,
-                bodyBgColor: formData.bodyBgColor,
-                sidebarColor: formData.sidebarColor,
-                collegeNameColor: formData.collegeNameColor,
-                collegeHeaderBg: formData.collegeHeaderBg,
-                portalSubtitle: formData.portalSubtitle,
-                portalSubtitleColor: formData.portalSubtitleColor,
-              }}
-              customPresets={customPresets}
-              onApplyTheme={handleApplyTheme}
-              onSaveCustomPreset={handleSaveCustomPreset}
-              onDeleteCustomPreset={handleDeleteCustomPreset}
-            />
+            {(currentSection === "ALL" || currentSection === "THEME_COLORS") && (
+              <div id="portal-sec-presets" className="rounded-2xl transition-all">
+                <ThemePresetGallery
+                  currentTheme={{
+                    ribbonColor: formData.ribbonColor,
+                    primaryColor: formData.primaryColor,
+                    bodyBgColor: formData.bodyBgColor,
+                    sidebarColor: formData.sidebarColor,
+                    collegeNameColor: formData.collegeNameColor,
+                    collegeHeaderBg: formData.collegeHeaderBg,
+                    portalSubtitle: formData.portalSubtitle,
+                    portalSubtitleColor: formData.portalSubtitleColor,
+                  }}
+                  customPresets={customPresets}
+                  onApplyTheme={handleApplyTheme}
+                  onSaveCustomPreset={handleSaveCustomPreset}
+                  onDeleteCustomPreset={handleDeleteCustomPreset}
+                />
+              </div>
+            )}
 
             {/* ── STACKED HORIZONTAL STUDIO CARDS (AS SHOWN IN USER SCREENSHOT) ── */}
             <div className="space-y-4">
+              {(currentSection === "ALL" || currentSection === "THEME_COLORS") && (
+              <>
               {/* Card 1: Top Accent Ribbon ("Red Patii" / سُرخ پٹی) */}
               <CorelFillPickerCard
                 cardId="ribbonColor"
@@ -1370,7 +1441,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 customColors={formData.customColors}
                 onAddCustomColor={handleAddCustomColor}
               />
+              </>
+              )}
 
+              {(currentSection === "ALL" || currentSection === "HEADER_TYPOGRAPHY") && (
+              <>
               {/* Card 5: College Header Bg */}
               <CorelFillPickerCard
                 cardId="collegeHeaderBg"
@@ -1460,7 +1535,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                         if (typo.letterSpacing) localStorage.setItem("college_letter_spacing_active", typo.letterSpacing);
                         if (typo.fontSize) localStorage.setItem("college_font_size_active", typo.fontSize);
                         if (typo.textShadow) localStorage.setItem("college_text_shadow_active", typo.textShadow);
-                      } catch {}
+                      } catch { }
                     }
                     return updated;
                   });
@@ -1469,9 +1544,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 customColors={formData.customColors}
                 onAddCustomColor={handleAddCustomColor}
               />
+              </>
+              )}
 
+              {(currentSection === "ALL" || currentSection === "BANNER_RIBBONS") && (
+              <>
               {/* ── PER-MODULE BANNER & SIDE RIBBON TARGET SCOPE SELECTOR ── */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#0f172a] via-[#0c1220] to-[#081512] border border-emerald-500/30 shadow-xl space-y-3">
+              <div id="portal-module-scope" className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#0f172a] via-[#0c1220] to-[#081512] border border-emerald-500/30 shadow-xl space-y-3 transition-all">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1492,11 +1571,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     <button
                       type="button"
                       onClick={() => setSelectedBannerScope("__GLOBAL__")}
-                      className={`px-3 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
-                        isGlobalScope
-                          ? "bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-600/25"
-                          : "bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800"
-                      }`}
+                      className={`px-3 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${isGlobalScope
+                        ? "bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-600/25"
+                        : "bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800"
+                        }`}
                     >
                       🌐 All Modules (Global Default)
                     </button>
@@ -1578,11 +1656,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       return (
                         <div
                           key={modPath}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
-                            isActive
-                              ? "bg-amber-500/20 border-amber-400 text-amber-200"
-                              : "bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500"
-                          }`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${isActive
+                            ? "bg-amber-500/20 border-amber-400 text-amber-200"
+                            : "bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500"
+                            }`}
                         >
                           <button
                             type="button"
@@ -1688,11 +1765,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                             key={p.label}
                             type="button"
                             onClick={() => updateActiveBannerField("pageBannerHeight", p.h)}
-                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                              effectiveBannerConfig.pageBannerHeight === p.h
-                                ? "bg-amber-500 text-slate-950"
-                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                            }`}
+                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${effectiveBannerConfig.pageBannerHeight === p.h
+                              ? "bg-amber-500 text-slate-950"
+                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              }`}
                           >
                             {p.label}
                           </button>
@@ -1725,11 +1801,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                             key={p.label}
                             type="button"
                             onClick={() => updateActiveBannerField("pageBannerImgWidth", p.w)}
-                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                              effectiveBannerConfig.pageBannerImgWidth === p.w
-                                ? "bg-amber-500 text-slate-950"
-                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                            }`}
+                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${effectiveBannerConfig.pageBannerImgWidth === p.w
+                              ? "bg-amber-500 text-slate-950"
+                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              }`}
                           >
                             {p.label}
                           </button>
@@ -1762,11 +1837,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                             key={p.label}
                             type="button"
                             onClick={() => updateActiveBannerField("pageBannerFade", p.f)}
-                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
-                              effectiveBannerConfig.pageBannerFade === p.f
-                                ? "bg-amber-500 text-slate-950"
-                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                            }`}
+                            className={`flex-1 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${effectiveBannerConfig.pageBannerFade === p.f
+                              ? "bg-amber-500 text-slate-950"
+                              : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              }`}
                           >
                             {p.label}
                           </button>
@@ -1859,11 +1933,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                               key={op}
                               type="button"
                               onClick={() => updateActiveBannerField("pageBannerWaveOpacity", op)}
-                              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer transition-all ${
-                                effectiveBannerConfig.pageBannerWaveOpacity === op
-                                  ? "bg-amber-500 text-slate-950"
-                                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                              }`}
+                              className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold cursor-pointer transition-all ${effectiveBannerConfig.pageBannerWaveOpacity === op
+                                ? "bg-amber-500 text-slate-950"
+                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                                }`}
                             >
                               {op}%
                             </button>
@@ -1878,11 +1951,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                       <button
                         type="button"
                         onClick={() => updateActiveBannerField("pageBannerWaveShow", !effectiveBannerConfig.pageBannerWaveShow)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-extrabold cursor-pointer transition-all border ${
-                          effectiveBannerConfig.pageBannerWaveShow
-                            ? "bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400/50 shadow-xs"
-                            : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-extrabold cursor-pointer transition-all border ${effectiveBannerConfig.pageBannerWaveShow
+                          ? "bg-emerald-600/90 hover:bg-emerald-500 text-white border-emerald-400/50 shadow-xs"
+                          : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                          }`}
                       >
                         {effectiveBannerConfig.pageBannerWaveShow ? "Visible (ON)" : "Hidden (OFF)"}
                       </button>
@@ -1892,7 +1964,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               />
 
               {/* ── LIVE REAL-TIME BANNER & WAVE PATII PREVIEW BOX ── */}
-              <div className="bg-[#080d1a] p-4.5 rounded-2xl border border-slate-800 space-y-2.5 shadow-inner">
+              <div id="portal-banner-preview" className="bg-[#080d1a] p-4.5 rounded-2xl border border-slate-800 space-y-2.5 shadow-inner transition-all">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300 font-bold px-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -1944,6 +2016,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                   showWaves={effectiveBannerConfig.pageBannerWaveShow}
                 />
               </div>
+              </>
+              )}
             </div>
 
             {/* ── ACTION BAR (MATCHING USER SCREENSHOT) ── */}
@@ -1958,11 +2032,10 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               <div className="flex items-center gap-2.5">
                 {selectedCollege && (
                   <a
-                    href={`/colleges/${selectedCollege.code.toLowerCase()}${
-                      formData.ribbonColor
-                        ? `?theme=${encodeURIComponent(getRepresentativeColor(formData.ribbonColor, "#dc2626"))}`
-                        : ""
-                    }`}
+                    href={`/colleges/${selectedCollege.code.toLowerCase()}${formData.ribbonColor
+                      ? `?theme=${encodeURIComponent(getRepresentativeColor(formData.ribbonColor, "#dc2626"))}`
+                      : ""
+                      }`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-bold transition-all hover:scale-102"
@@ -1984,7 +2057,8 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
             </div>
 
             {/* ── CUSTOM COLOR PALETTE MANAGER (DARK STYLED) ── */}
-            <div className="p-4 rounded-2xl bg-[#0e1526]/80 border border-slate-800 space-y-3">
+            {(currentSection === "ALL" || currentSection === "THEME_COLORS") && (
+            <div id="portal-sec-palette" className="p-4 rounded-2xl bg-[#0e1526]/80 border border-slate-800 space-y-3 transition-all">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
@@ -2116,9 +2190,13 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                 </p>
               )}
             </div>
+            )}
           </div>
+          )}
 
             {/* ── HEADER BRANDING & TITLES (کالج کا نام اور پورٹل عنوان ایڈٹ کریں) ── */}
+            {(currentSection === "ALL" || currentSection === "HEADER_TYPOGRAPHY") && (
+            <>
             <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-indigo-50/40 to-slate-50 border border-indigo-100/90 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-2.5 border-b border-indigo-100/80">
                 <div className="flex items-center gap-2">
@@ -2137,203 +2215,218 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
                     </p>
                   </div>
                 </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                    <span>Sidebar Header Titles & Branding</span>
+                    <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100/80 px-2 py-0.5 rounded-full">
+                      کالج کا نام اور پورٹل کا عنوان
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Edit the college name and subtitle displayed at the top of the campus sidebar.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* 1. College Full Name */}
+              <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">
+                    College Full Name (کالج کا نام):
+                  </label>
+                  <span className="text-[10px] font-mono text-indigo-600 font-bold">Main Heading</span>
+                </div>
+                <input
+                  type="text"
+                  value={formData.collegeName}
+                  onChange={(e) => setFormData({ ...formData, collegeName: e.target.value })}
+                  placeholder="e.g. Govt. Post Graduate College Quetta"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-wide"
+                />
+                <p className="text-[10px] text-slate-400">
+                  Displayed in the sidebar header and across public student result slips.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* 1. College Full Name */}
-                <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">
-                      College Full Name (کالج کا نام):
-                    </label>
-                    <span className="text-[10px] font-mono text-indigo-600 font-bold">Main Heading</span>
-                  </div>
+              {/* 2. Campus ERP Portal Subtitle */}
+              <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800">
+                    Portal Subtitle (نیچے والا عنوان / لیبل):
+                  </label>
+                  <span className="text-[10px] font-mono text-emerald-600 font-bold">Sub-label</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={formData.collegeName}
-                    onChange={(e) => setFormData({ ...formData, collegeName: e.target.value })}
-                    placeholder="e.g. Govt. Post Graduate College Quetta"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-wide"
+                    value={formData.portalSubtitle}
+                    onChange={(e) => setFormData({ ...formData, portalSubtitle: e.target.value })}
+                    placeholder="e.g. CAMPUS ERP PORTAL"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-wider"
                   />
-                  <p className="text-[10px] text-slate-400">
-                    Displayed in the sidebar header and across public student result slips.
-                  </p>
-                </div>
-
-                {/* 2. Campus ERP Portal Subtitle */}
-                <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">
-                      Portal Subtitle (نیچے والا عنوان / لیبل):
-                    </label>
-                    <span className="text-[10px] font-mono text-emerald-600 font-bold">Sub-label</span>
-                  </div>
-                  <div className="flex items-center gap-2">
+                  {/* Subtitle color picker */}
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs" title="Subtitle Font Color">
                     <input
-                      type="text"
-                      value={formData.portalSubtitle}
-                      onChange={(e) => setFormData({ ...formData, portalSubtitle: e.target.value })}
-                      placeholder="e.g. CAMPUS ERP PORTAL"
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase tracking-wider"
+                      type="color"
+                      value={toSafeColor(formData.portalSubtitleColor, "#4338ca")}
+                      onChange={(e) => setFormData({ ...formData, portalSubtitleColor: e.target.value })}
+                      className="w-5 h-5 rounded cursor-pointer border border-slate-300 bg-transparent p-0 flex-shrink-0"
                     />
-                    {/* Subtitle color picker */}
-                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs" title="Subtitle Font Color">
-                      <input
-                        type="color"
-                        value={toSafeColor(formData.portalSubtitleColor, "#4338ca")}
-                        onChange={(e) => setFormData({ ...formData, portalSubtitleColor: e.target.value })}
-                        className="w-5 h-5 rounded cursor-pointer border border-slate-300 bg-transparent p-0 flex-shrink-0"
-                      />
-                      <span className="text-[10px] font-mono font-bold text-slate-600">Color</span>
-                    </div>
+                    <span className="text-[10px] font-mono font-bold text-slate-600">Color</span>
                   </div>
-                  <p className="text-[10px] text-slate-400">
-                    Default is "CAMPUS ERP PORTAL". Customize to any text (e.g. "OFFICIAL STUDENT & CMS PORTAL").
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Default is "CAMPUS ERP PORTAL". Customize to any text (e.g. "OFFICIAL STUDENT & CMS PORTAL").
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Interactive Sidebar Color & Header Preview */}
+          <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <span>🎨 Live Sidebar Preview (Custom Header Box + Theme Colors)</span>
+              </span>
+              <span className="text-[10px] font-mono font-bold text-slate-500">
+                Header Bg: {toSafeColor(formData.collegeHeaderBg, "#FFFFFF")} • Name: <span style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a")}>{toSafeColor(formData.collegeNameColor, "#0f172a")}</span> • Sidebar: {toSafeColor(formData.sidebarColor, "#090E24")}
+              </span>
+            </div>
+            <div className="max-w-xs rounded-2xl overflow-hidden shadow-lg border border-slate-300">
+              {/* Dynamic Logo & Full Name Header Box */}
+              <div
+                className="px-4 py-3 border-b border-slate-200 flex items-center gap-3 transition-colors duration-200"
+                style={compileFillToStyle(formData.collegeHeaderBg, "#ffffff")}
+              >
+                {formData.logoUrl ? (
+                  <img
+                    src={formData.logoUrl}
+                    alt="College Logo"
+                    className="w-10 h-10 object-contain flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0">
+                    {selectedCollege?.code?.substring(0, 3) || "GDC"}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="text-xs leading-tight transition-colors duration-200 line-clamp-2"
+                    style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a", {
+                      fontFamily: formData.collegeFontFamily,
+                      fontWeight: formData.collegeFontWeight,
+                      fontStyle: formData.collegeFontStyle,
+                      textDecoration: formData.collegeTextDecoration,
+                      textTransform: formData.collegeTextTransform,
+                      letterSpacing: formData.collegeLetterSpacing,
+                      fontSize: formData.collegeFontSize,
+                      textShadow: formData.collegeTextShadow,
+                    })}
+                  >
+                    {formData.collegeName || selectedCollege?.name || "Govt. Post Graduate College Quetta"}
+                  </div>
+                  <div
+                    className="text-[9px] font-black uppercase tracking-wider mt-0.5 flex items-center gap-1.5 transition-colors duration-200"
+                    style={{ color: toSafeColor(formData.portalSubtitleColor, "#4338ca") }}
+                  >
+                    <span>{formData.portalSubtitle || "CAMPUS ERP PORTAL"}</span>
+                    {selectedCollege?.code && (
+                      <span className="text-[8px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200/60 font-black">
+                        {selectedCollege.code}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom-Colored Sidebar Body */}
+              <div
+                className="p-3.5 space-y-2 text-xs transition-colors duration-200"
+                style={compileFillToStyle(formData.sidebarColor, "#090E24")}
+              >
+                <div className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-sm flex items-center justify-between">
+                  <span>📊 Dashboard</span>
+                  <span className="text-[9px] bg-white/20 px-1.5 py-0.2 rounded font-black">Active</span>
+                </div>
+                <div className="px-3 py-2 rounded-xl text-slate-200/90 hover:bg-white/10 text-xs font-medium flex items-center justify-between">
+                  <span>👥 Admissions</span>
+                  <span className="text-slate-400">›</span>
+                </div>
+                <div className="px-3 py-2 rounded-xl text-slate-200/90 hover:bg-white/10 text-xs font-medium flex items-center justify-between">
+                  <span>🎓 Students & Enrollment</span>
+                  <span className="text-slate-400">›</span>
+                </div>
+              </div>
+            </div>
+
+            {/* MS Word-Style Logo Background Remover Quick Action Bar */}
+            <div className="mt-4 p-3.5 rounded-2xl bg-white border border-indigo-100 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                  <Wand2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span>Logo Background Remover (مونوگرام کا بیک گراؤنڈ ہٹائیں)</span>
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      MS Word Technique
+                    </span>
+                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    Remove white/solid backgrounds so your crest stays clean on any background color (White, Navy, Pink, Emerald).
                   </p>
                 </div>
               </div>
-            </div>
 
-            {/* Live Interactive Sidebar Color & Header Preview */}
-            <div className="p-4 rounded-2xl bg-slate-100/70 border border-slate-200">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
-                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <span>🎨 Live Sidebar Preview (Custom Header Box + Theme Colors)</span>
-                </span>
-                <span className="text-[10px] font-mono font-bold text-slate-500">
-                  Header Bg: {toSafeColor(formData.collegeHeaderBg, "#FFFFFF")} • Name: <span style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a")}>{toSafeColor(formData.collegeNameColor, "#0f172a")}</span> • Sidebar: {toSafeColor(formData.sidebarColor, "#090E24")}
-                </span>
-              </div>
-              <div className="max-w-xs rounded-2xl overflow-hidden shadow-lg border border-slate-300">
-                {/* Dynamic Logo & Full Name Header Box */}
-                <div
-                  className="px-4 py-3 border-b border-slate-200 flex items-center gap-3 transition-colors duration-200"
-                  style={compileFillToStyle(formData.collegeHeaderBg, "#ffffff")}
+              <div className="flex flex-wrap items-center gap-2 self-stretch md:self-auto justify-end">
+                <button
+                  type="button"
+                  onClick={handleInstantAutoRemoveBg}
+                  disabled={bgRemoverProcessing || !formData.logoUrl}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-transform hover:scale-102 disabled:opacity-50"
+                  title="1-Click automatic detection & removal of white background from corners inwards"
                 >
-                  {formData.logoUrl ? (
-                    <img
-                      src={formData.logoUrl}
-                      alt="College Logo"
-                      className="w-10 h-10 object-contain flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-black text-xs flex items-center justify-center flex-shrink-0">
-                      {selectedCollege?.code?.substring(0, 3) || "GDC"}
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div
-                      className="text-xs leading-tight transition-colors duration-200 line-clamp-2"
-                      style={compileFillToTextStyle(formData.collegeNameColor, "#0f172a", {
-                        fontFamily: formData.collegeFontFamily,
-                        fontWeight: formData.collegeFontWeight,
-                        fontStyle: formData.collegeFontStyle,
-                        textDecoration: formData.collegeTextDecoration,
-                        textTransform: formData.collegeTextTransform,
-                        letterSpacing: formData.collegeLetterSpacing,
-                        fontSize: formData.collegeFontSize,
-                        textShadow: formData.collegeTextShadow,
-                      })}
-                    >
-                      {formData.collegeName || selectedCollege?.name || "Govt. Post Graduate College Quetta"}
-                    </div>
-                    <div
-                      className="text-[9px] font-black uppercase tracking-wider mt-0.5 flex items-center gap-1.5 transition-colors duration-200"
-                      style={{ color: toSafeColor(formData.portalSubtitleColor, "#4338ca") }}
-                    >
-                      <span>{formData.portalSubtitle || "CAMPUS ERP PORTAL"}</span>
-                      {selectedCollege?.code && (
-                        <span className="text-[8px] px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-600 border border-indigo-200/60 font-black">
-                          {selectedCollege.code}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  {bgRemoverProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  <span>✨ 1-Click Remove White</span>
+                </button>
 
-                {/* Custom-Colored Sidebar Body */}
-                <div
-                  className="p-3.5 space-y-2 text-xs transition-colors duration-200"
-                  style={compileFillToStyle(formData.sidebarColor, "#090E24")}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!formData.logoUrl) return;
+                    setShowBgRemoverModal(true);
+                    await updateModalPreview(bgCustomColor, bgTolerance, bgFeather, bgMode);
+                  }}
+                  disabled={!formData.logoUrl}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-transform hover:scale-102 disabled:opacity-50"
+                  title="Open interactive MS Word background removal tool with eyedropper and tolerance sliders"
                 >
-                  <div className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-sm flex items-center justify-between">
-                    <span>📊 Dashboard</span>
-                    <span className="text-[9px] bg-white/20 px-1.5 py-0.2 rounded font-black">Active</span>
-                  </div>
-                  <div className="px-3 py-2 rounded-xl text-slate-200/90 hover:bg-white/10 text-xs font-medium flex items-center justify-between">
-                    <span>👥 Admissions</span>
-                    <span className="text-slate-400">›</span>
-                  </div>
-                  <div className="px-3 py-2 rounded-xl text-slate-200/90 hover:bg-white/10 text-xs font-medium flex items-center justify-between">
-                    <span>🎓 Students & Enrollment</span>
-                    <span className="text-slate-400">›</span>
-                  </div>
-                </div>
-              </div>
+                  <Scissors className="w-3.5 h-3.5" />
+                  <span>🪄 Advanced MS Word Tool</span>
+                </button>
 
-              {/* MS Word-Style Logo Background Remover Quick Action Bar */}
-              <div className="mt-4 p-3.5 rounded-2xl bg-white border border-indigo-100 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center flex-shrink-0">
-                    <Wand2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <span>Logo Background Remover (مونوگرام کا بیک گراؤنڈ ہٹائیں)</span>
-                      <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        MS Word Technique
-                      </span>
-                    </span>
-                    <p className="text-[11px] text-slate-500">
-                      Remove white/solid backgrounds so your crest stays clean on any background color (White, Navy, Pink, Emerald).
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 self-stretch md:self-auto justify-end">
+                {formData.originalLogoUrl && (
                   <button
                     type="button"
-                    onClick={handleInstantAutoRemoveBg}
-                    disabled={bgRemoverProcessing || !formData.logoUrl}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-transform hover:scale-102 disabled:opacity-50"
-                    title="1-Click automatic detection & removal of white background from corners inwards"
+                    onClick={handleRestoreOriginalLogo}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                    title="Restore original unedited logo"
                   >
-                    {bgRemoverProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                    <span>✨ 1-Click Remove White</span>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>↩️ Restore Original</span>
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!formData.logoUrl) return;
-                      setShowBgRemoverModal(true);
-                      await updateModalPreview(bgCustomColor, bgTolerance, bgFeather, bgMode);
-                    }}
-                    disabled={!formData.logoUrl}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-transform hover:scale-102 disabled:opacity-50"
-                    title="Open interactive MS Word background removal tool with eyedropper and tolerance sliders"
-                  >
-                    <Scissors className="w-3.5 h-3.5" />
-                    <span>🪄 Advanced MS Word Tool</span>
-                  </button>
-
-                  {formData.originalLogoUrl && (
-                    <button
-                      type="button"
-                      onClick={handleRestoreOriginalLogo}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
-                      title="Restore original unedited logo"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>↩️ Restore Original</span>
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             </div>
+            </>
+            )}
+          </div>
 
           {/* ── SECTION 2: HERO MEDIA WITH DIRECT PHOTO OR VIDEO UPLOAD ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+          {(currentSection === "ALL" || currentSection === "HERO_TICKER") && (
+          <div id="portal-sec-hero" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5 transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Video className="w-5 h-5 text-indigo-600" />
@@ -2996,9 +3089,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             </div>
           </div>
+          )}
 
           {/* ── SECTION 3: COLLEGE IDENTITY & LOGO UPLOAD ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+          {(currentSection === "ALL" || currentSection === "IDENTITY_PROFILES") && (
+          <div id="portal-sec-identity" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5 transition-all">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <Building className="w-5 h-5 text-emerald-600" />
               <div>
@@ -3169,9 +3264,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             </div>
           </div>
+          )}
 
           {/* ── SECTION 4: FEATURED PROFILES & CAMPUS LEADERSHIP (فیچرڈ پروفائلز) ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+          {(currentSection === "ALL" || currentSection === "IDENTITY_PROFILES") && (
+          <div id="portal-sec-profiles" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5 transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-amber-500" />
@@ -3399,9 +3496,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             )}
           </div>
+          )}
 
           {/* ── SECTION 5: DEVELOPMENT NOTICE & FLASH TICKER ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+          {(currentSection === "ALL" || currentSection === "HERO_TICKER") && (
+          <div id="portal-sec-ticker" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4 transition-all">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
@@ -3448,9 +3547,11 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             )}
           </div>
+          )}
 
           {/* ── SECTION 6: SOCIAL MEDIA LINKS ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+          {(currentSection === "ALL" || currentSection === "IDENTITY_PROFILES") && (
+          <div id="portal-sec-social" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4 transition-all">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <Share2 className="w-5 h-5 text-blue-600" />
               <div>
@@ -3518,6 +3619,7 @@ export default function CollegePortalSettingsTab({ onSwitchToChte }: { onSwitchT
               </div>
             </div>
           </div>
+          )}
 
           {/* ── BOTTOM ACTIONS ── */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-4 z-30">

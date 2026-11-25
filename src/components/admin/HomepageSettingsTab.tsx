@@ -32,12 +32,24 @@ import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS } from "@/lib/chte-settings"
 
 export default function HomepageSettingsTab({
   focusedSection,
+  jumpTargetId,
+  jumpSeq,
 }: {
   focusedSection?: string;
+  jumpTargetId?: string;
+  jumpSeq?: number;
 } = {}) {
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role;
   const isChteAdmin = userRole === "SUPER_ADMIN" || userRole === "CHTE_ADMIN";
+
+  useEffect(() => {
+    if (!jumpTargetId) return;
+    const t = setTimeout(() => {
+      document.getElementById(jumpTargetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [jumpTargetId, jumpSeq]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -293,7 +305,7 @@ export default function HomepageSettingsTab({
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
           {/* ── SECTION 0: OFFICIAL GOVERNMENT OF BALOCHISTAN LOGO / HEMIS SEAL ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+          <div id="hemis-sec-0" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Landmark className="w-5 h-5 text-emerald-600" />
@@ -373,7 +385,7 @@ export default function HomepageSettingsTab({
           </div>
 
           {/* ── SECTION 1: HEMIS HOMEPAGE BACKGROUND & THEME COLORS ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+          <div id="hemis-sec-1" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <Palette className="w-5 h-5 text-emerald-600" />
               <div>
@@ -577,7 +589,7 @@ export default function HomepageSettingsTab({
           </div>
 
           {/* ── SECTION 2: HERO SCENERY PHOTO WITH DIRECT UPLOAD, ZOOM & POSITION ADJUST ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+          <div id="hemis-sec-2" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-indigo-600" />
@@ -961,7 +973,7 @@ export default function HomepageSettingsTab({
           </div>
 
           {/* ── SECTION 3: HEMIS HERO TEXTS & HEADINGS ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+          <div id="hemis-sec-3" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <Layers className="w-5 h-5 text-amber-500" />
               <div>
@@ -1016,7 +1028,7 @@ export default function HomepageSettingsTab({
           </div>
 
           {/* ── SECTION 4: ANIMATED NEWS TICKER BAR (نیوز ٹکر) ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+          <div id="hemis-sec-4" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
@@ -1088,7 +1100,7 @@ export default function HomepageSettingsTab({
           </div>
 
           {/* ── SECTION 5: FEATURED LEADERSHIP PROFILES (WITH INDIVIDUAL ZOOM & FRAMING ADJUST) ── */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
+          <div id="hemis-sec-5" className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-amber-500" />
