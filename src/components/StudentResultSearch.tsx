@@ -534,7 +534,7 @@ export default function StudentResultSearch({
 
       {/* ── Official Student Result Card & DMC View ── */}
       {selectedResult && (
-        <div className="mt-8 space-y-4">
+        <div className="mt-8 space-y-4 print:mt-0 print:space-y-0">
           {/* Quick Action Top Bar (Hidden on print) */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl text-emerald-950 print:hidden">
             <div className="flex items-center gap-2">
@@ -560,7 +560,7 @@ export default function StudentResultSearch({
           {/* ── Printable DMC Card Container ── */}
           <div
             ref={printAreaRef}
-            className="bg-white rounded-2xl border-2 border-slate-300/80 shadow-2xl p-6 sm:p-10 text-slate-900 overflow-hidden relative print:border-none print:shadow-none print:p-0"
+            className="letter-print-sheet bg-white rounded-2xl border-2 border-slate-300/80 shadow-2xl p-6 sm:p-10 text-slate-900 overflow-hidden relative print:border-none print:shadow-none print:p-0 print:rounded-none print:overflow-visible"
           >
             {/* Watermark Logo in Background of Result Slip (Concerned College Transparent Logo) */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0">

@@ -50,8 +50,8 @@ export default async function PrintAdmissionPage({ params }: { params: Promise<{
     <div className="min-h-screen bg-slate-100 p-4 print:p-0 print:bg-white flex flex-col items-center font-sans">
       <style>{`
         @media print { 
-          @page { size: portrait; margin: 10mm; } 
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white !important; }
+          @page { size: letter portrait; margin: 8mm 9mm; } 
+          html, body { width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; }
         }
       `}</style>
       
@@ -59,7 +59,7 @@ export default async function PrintAdmissionPage({ params }: { params: Promise<{
       <div className="mb-6 print:hidden w-full max-w-4xl bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight">Official Admission Form</h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">Ready for portrait A4 printing.</p>
+          <p className="text-sm font-medium text-slate-500 mt-1">Ready for US Letter portrait printing.</p>
         </div>
         <button
           id="print-btn"
@@ -70,7 +70,7 @@ export default async function PrintAdmissionPage({ params }: { params: Promise<{
       </div>
 
       {/* Printable Sheet */}
-      <div className="w-full max-w-[210mm] bg-white p-10 print:p-0 border-2 border-slate-800 print:border-none shadow-2xl print:shadow-none min-h-[297mm] text-slate-900 relative">
+      <div className="w-full max-w-[816px] print:max-w-none print:w-full bg-white p-10 print:p-0 border-2 border-slate-800 print:border-none shadow-2xl print:shadow-none min-h-[279mm] print:min-h-0 text-slate-900 relative">
         
         {/* Watermark in print */}
         {collegeLogo && (

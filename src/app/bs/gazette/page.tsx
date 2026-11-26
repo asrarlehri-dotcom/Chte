@@ -827,7 +827,7 @@ export default function GazetteCompilerPage() {
   });
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="gazette-page-root space-y-8 font-sans print:space-y-0">
       <style>{`
         /* Smooth subtle scrollbar on screen to prevent bulky browser rollers */
         .gazette-table-container {
@@ -850,15 +850,38 @@ export default function GazetteCompilerPage() {
 
         @media print {
           ${certModal && certModal.isOpen ? `
-            @page { size: A4 portrait; margin: 8mm; }
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white !important; }
-            body * { visibility: hidden !important; }
-            #printable-docs, #printable-docs * { visibility: visible !important; }
-            #printable-docs {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
+            @page { size: letter portrait; margin: 7mm 8mm; }
+            html, body {
               width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              min-height: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              background: #ffffff !important;
+              overflow: visible !important;
+            }
+            .gazette-page-root > :not(#cert-modal-overlay):not(style) {
+              display: none !important;
+            }
+            #cert-modal-overlay {
+              position: static !important;
+              inset: auto !important;
+              display: block !important;
+              width: 100% !important;
+              height: auto !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              overflow: visible !important;
+              background-image: none !important;
+              background-color: #ffffff !important;
+            }
+            #printable-docs {
+              position: static !important;
+              width: 100% !important;
+              max-width: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
             }
@@ -867,21 +890,26 @@ export default function GazetteCompilerPage() {
               break-after: page !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
-              min-height: 98vh !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              margin: 0 !important;
             }
             .page-break-student:last-child {
               page-break-after: avoid !important;
               break-after: avoid !important;
             }
           ` : `
-            @page { size: A4 landscape; margin: 5mm; }
+            @page { size: letter landscape; margin: 5mm 6mm; }
             html, body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
               background: white !important;
               overflow: visible !important;
               width: 100% !important;
+              max-width: 100% !important;
               height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
             * {
               scrollbar-width: none !important;
@@ -1756,7 +1784,8 @@ export default function GazetteCompilerPage() {
 
         return (
           <div
-            className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex flex-col items-center bg-cover bg-top"
+            id="cert-modal-overlay"
+            className="fixed inset-0 z-50 overflow-y-auto p-4 sm:p-6 flex flex-col items-center bg-cover bg-top print:static print:inset-auto print:block print:w-full print:p-0 print:m-0 print:overflow-visible print:bg-white print:bg-none"
             style={{
               backgroundImage: "url('/balochistan-landscape.png')",
               backgroundColor: "rgba(10, 30, 20, 0.75)",
@@ -2206,7 +2235,7 @@ export default function GazetteCompilerPage() {
                         </button>
                       </div>
 
-                      <div className="rounded-b-2xl overflow-hidden bg-white shadow-xl border border-slate-200">
+                      <div className="rounded-b-2xl overflow-hidden bg-white shadow-xl border border-slate-200 print:rounded-none print:overflow-visible print:shadow-none print:border-none">
                         {certModal.type === "dmc" ? (
                           <DMCPrintCard
                             student={currentSingleStudent}
@@ -2376,7 +2405,7 @@ export default function GazetteCompilerPage() {
                             </div>
                           </div>
 
-                          <div className="rounded-b-xl overflow-hidden bg-white shadow-lg border border-slate-200">
+                          <div className="rounded-b-xl overflow-hidden bg-white shadow-lg border border-slate-200 print:rounded-none print:overflow-visible print:shadow-none print:border-none">
                             {certModal.type === "dmc" ? (
                               <DMCPrintCard
                                 student={student}

@@ -390,17 +390,23 @@ export default function BSStudentsPage() {
         dangerouslySetInnerHTML={{
           __html: `
         @media print {
+          @page {
+            size: letter landscape;
+            margin: 7mm 8mm;
+          }
           aside, .sidebar, .print-hide, .no-print, button, label, input, select, header {
             display: none !important;
           }
           html, body, div.flex.h-screen, main {
+            width: 100% !important;
+            max-width: 100% !important;
             height: auto !important;
             overflow: visible !important;
+            background: white !important;
           }
           main {
             padding: 0 !important;
             margin: 0 !important;
-            background: white !important;
           }
         }
       `,
@@ -651,7 +657,7 @@ export default function BSStudentsPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50/70 border-b border-gray-100 text-[11px] font-bold text-gray-700">

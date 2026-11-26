@@ -172,7 +172,7 @@ export default function OfficialExamCenterReport({
       : [];
 
   return (
-    <div className="official-report-sheet bg-white text-slate-950 p-6 sm:p-10 rounded-2xl border border-slate-300 shadow-sm print:shadow-none print:border-none print:p-2 print:rounded-none font-serif space-y-5 max-w-4xl mx-auto">
+    <div className="official-report-sheet bg-white text-slate-950 p-6 sm:p-10 rounded-2xl border border-slate-300 shadow-sm print:shadow-none print:border-none print:p-0 print:m-0 print:mx-0 print:w-full print:max-w-none print:rounded-none font-serif space-y-5 max-w-4xl mx-auto">
       {/* Institutional Crest + Title */}
       <div className="flex items-center justify-between gap-4 border-b border-slate-300 pb-3 print:border-black">
         <div className="w-14 shrink-0">

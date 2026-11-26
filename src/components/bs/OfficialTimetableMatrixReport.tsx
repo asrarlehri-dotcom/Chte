@@ -146,7 +146,7 @@ export default function OfficialTimetableMatrixReport({
   };
 
   return (
-    <div className="official-report-sheet bg-white text-slate-950 p-4 sm:p-6 rounded-2xl border border-slate-300 shadow-sm print:shadow-none print:border-none print:p-0 print:rounded-none font-serif">
+    <div className="official-report-sheet bg-white text-slate-950 p-4 sm:p-6 rounded-2xl border border-slate-300 shadow-sm print:shadow-none print:border-none print:p-0 print:m-0 print:w-full print:max-w-none print:rounded-none font-serif">
       {/* Official Institutional Header matching Reference Layout */}
       <div className="flex items-center justify-between gap-4 pb-3 border-b-2 border-black">
         <div className="w-16 shrink-0 hidden sm:block print:block" />

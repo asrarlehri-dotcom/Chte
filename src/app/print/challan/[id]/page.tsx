@@ -101,15 +101,15 @@ export default function PrintChallanPage() {
     <div className="min-h-screen bg-slate-100 p-4 print:p-0 print:bg-white flex flex-col items-center font-sans">
       <style>{`
         @media print { 
-          @page { size: landscape; margin: 5mm; } 
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white !important; }
+          @page { size: letter landscape; margin: 5mm 6mm; } 
+          html, body { width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; }
         }
       `}</style>
       {/* Control bar */}
       <div className="mb-6 print:hidden w-full max-w-7xl bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight">Official Challan - {challan.challanNumber}</h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">Ready for landscape A4 printing.</p>
+          <p className="text-sm font-medium text-slate-500 mt-1">Ready for US Letter landscape printing.</p>
         </div>
         <button
           onClick={() => window.print()}
@@ -120,7 +120,7 @@ export default function PrintChallanPage() {
       </div>
 
       {/* Printable Sheet */}
-      <div className="w-full max-w-[297mm] bg-white print:p-0 flex justify-between border-2 border-slate-800 print:border-none shadow-2xl print:shadow-none min-h-[200mm] overflow-hidden text-[10px] text-slate-800 leading-tight relative">
+      <div className="w-full max-w-[1056px] print:max-w-none print:w-full bg-white print:p-0 flex justify-between border-2 border-slate-800 print:border-none shadow-2xl print:shadow-none min-h-[195mm] print:min-h-0 overflow-hidden print:overflow-visible text-[10px] text-slate-800 leading-tight relative">
         {copies.map((copy, i) => (
           <div
             key={copy.num}

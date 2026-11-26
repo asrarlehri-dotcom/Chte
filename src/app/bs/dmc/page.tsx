@@ -40,7 +40,7 @@ export default function DMCGeneratorPage() {
   }, [students, searchQuery]);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto py-2">
+    <div className="space-y-6 max-w-5xl mx-auto py-2 print:max-w-none print:w-full print:mx-0 print:py-0 print:space-y-0">
       {/* ─── Control Header ─── */}
       <PortalPageHeader
         title="Detailed Marks Certificate (DMC) Generator"
@@ -105,11 +105,10 @@ export default function DMCGeneratorPage() {
                 key={sem}
                 type="button"
                 onClick={() => setSelectedSemester(sem)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${
-                  selectedSemester === sem
-                    ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                    : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer ${selectedSemester === sem
+                  ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                  }`}
               >
                 Semester {sem}
               </button>
@@ -124,7 +123,7 @@ export default function DMCGeneratorPage() {
           Loading student records...
         </div>
       ) : selectedStudent ? (
-        <div className="overflow-x-auto pb-6">
+        <div className="overflow-x-auto pb-6 print:overflow-visible print:pb-0">
           <OfficialDMCDocument
             student={selectedStudent}
             semester={selectedSemester}

@@ -855,14 +855,20 @@ export default function SyllabusCourseManagementPage() {
   }, [programFilteredCourses, activeCategory]);
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 font-sans p-4 md:p-8 space-y-8 ${
+    <div className={`min-h-screen transition-colors duration-500 font-sans p-4 md:p-8 space-y-8 print:min-h-0 print:bg-none print:bg-white print:text-slate-900 print:p-0 print:space-y-2 ${
       themeMode === "light"
         ? "bg-gradient-to-br from-slate-100 via-cyan-50/70 to-purple-50/70 text-slate-900 selection:bg-cyan-500/20 selection:text-cyan-900"
         : "antigravity-bg text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-200"
     }`}>
+      <style>{`
+        @media print {
+          @page { size: letter portrait; margin: 8mm 9mm; }
+          html, body { width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
+        }
+      `}</style>
       
       {/* Background Orbital Mesh Lights */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 print:hidden">
         <div className={`absolute -top-40 -left-40 w-96 h-96 ${themeMode === "light" ? "bg-cyan-400/20" : "bg-cyan-500/10"} rounded-full blur-3xl animate-pulse-glow`} />
         <div className={`absolute top-1/3 -right-40 w-[30rem] h-[30rem] ${themeMode === "light" ? "bg-purple-400/20" : "bg-purple-600/10"} rounded-full blur-3xl animate-pulse-glow`} style={{ animationDelay: "1.5s" }} />
         <div className={`absolute -bottom-40 left-1/4 w-[28rem] h-[28rem] ${themeMode === "light" ? "bg-blue-400/20" : "bg-blue-600/10"} rounded-full blur-3xl animate-pulse-glow`} style={{ animationDelay: "3s" }} />

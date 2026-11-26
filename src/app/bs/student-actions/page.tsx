@@ -41,7 +41,7 @@ function StudentActionsContent() {
   const [freezeMemoNo, setFreezeMemoNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/FRZ/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
   const [relievingNo, setRelievingNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/MIG-NOC/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
   const [adaMemoNo, setAdaMemoNo] = useState(() => `${collegeCodePrefix || "GPGCQ"}/EXAM/ADA-ADS/${currentYear}/${Math.floor(1000 + Math.random() * 9000)}`);
-  
+
   // Feedback & Modal states
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -198,7 +198,32 @@ function StudentActionsContent() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="actions-page-root space-y-6 max-w-6xl mx-auto print:max-w-none print:w-full print:mx-0 print:space-y-0">
+      {(showFreezePrintModal || showRelievingCertModal) && (
+        <style>{`
+          @media print {
+            @page {
+              size: letter portrait;
+              margin: 9mm 10mm;
+            }
+            html, body {
+              width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              min-height: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              overflow: visible !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .actions-page-root > :not(.bs-active-print-modal):not(style) {
+              display: none !important;
+            }
+          }
+        `}</style>
+      )}
       {/* Top Banner */}
       <PortalPageHeader
         title="Student Academic Status & Actions"
@@ -227,11 +252,10 @@ function StudentActionsContent() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 min-w-[150px] py-3 px-4 rounded-xl text-xs font-extrabold transition-all text-center ${
-              activeTab === tab.key
-                ? "bg-blue-600 text-white shadow-md scale-[1.02]"
-                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-            }`}
+            className={`flex-1 min-w-[150px] py-3 px-4 rounded-xl text-xs font-extrabold transition-all text-center ${activeTab === tab.key
+              ? "bg-blue-600 text-white shadow-md scale-[1.02]"
+              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`}
           >
             <div>{tab.label}</div>
             <div className={`text-[10px] font-normal mt-0.5 ${activeTab === tab.key ? "text-blue-100" : "text-gray-400"}`}>
@@ -598,8 +622,8 @@ function StudentActionsContent() {
 
       {/* PRINTABLE MODAL 1: SEMESTER FREEZE AGREEMENT FORM (Includes Student & HOD Signature Lines) */}
       {showFreezePrintModal && actionStudent && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full space-y-6 print:p-0 print:shadow-none print:w-full">
+        <div className="bs-active-print-modal fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto print:static print:inset-auto print:block print:w-full print:p-0 print:m-0 print:bg-white print:overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full space-y-6 print:max-w-none print:w-full print:mx-0 print:p-6 print:rounded-none print:shadow-none print:border-2 print:border-black">
             <div className="text-center border-b pb-4 space-y-1">
               {collegeLogo ? (
                 <img src={collegeLogo} alt="Logo" className="w-12 h-12 object-contain mx-auto mb-1" />
@@ -666,8 +690,8 @@ function StudentActionsContent() {
 
       {/* PRINTABLE MODAL 2: MIGRATION OUT RELIEVING CERTIFICATE / NOC */}
       {showRelievingCertModal && actionStudent && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full space-y-6 print:p-0 print:shadow-none print:w-full">
+        <div className="bs-active-print-modal fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto print:static print:inset-auto print:block print:w-full print:p-0 print:m-0 print:bg-white print:overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full space-y-6 print:max-w-none print:w-full print:mx-0 print:p-6 print:rounded-none print:shadow-none print:border-2 print:border-black">
             <div className="text-center border-b pb-4 space-y-1">
               {collegeLogo ? (
                 <img src={collegeLogo} alt="Logo" className="w-12 h-12 object-contain mx-auto mb-1" />
@@ -680,8 +704,8 @@ function StudentActionsContent() {
             </div>
 
             <p className="text-sm text-gray-800 leading-relaxed text-justify">
-              This is to certify that <strong>{actionStudent.user?.name}</strong> (Roll No: <strong className="font-mono">{actionStudent.rollNumber}</strong>) 
-              enrolled in <strong>{actionStudent.program?.name || "BS"}</strong> (Session {actionStudent.session || "2024-2028"}) has been officially relieved from this institution 
+              This is to certify that <strong>{actionStudent.user?.name}</strong> (Roll No: <strong className="font-mono">{actionStudent.rollNumber}</strong>)
+              enrolled in <strong>{actionStudent.program?.name || "BS"}</strong> (Session {actionStudent.session || "2024-2028"}) has been officially relieved from this institution
               for outward migration to <strong>{reason || "Destination Institute"}</strong>.
             </p>
 
@@ -728,3 +752,4 @@ export default function StudentActionsPage() {
     </Suspense>
   );
 }
+

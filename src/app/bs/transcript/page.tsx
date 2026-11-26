@@ -40,11 +40,11 @@ export default function TranscriptGeneratorPage() {
 
   const maxSem =
     transcriptSpan === "1-2" ? 2 :
-    transcriptSpan === "1-4" ? 4 :
-    transcriptSpan === "1-6" ? 6 : 8;
+      transcriptSpan === "1-4" ? 4 :
+        transcriptSpan === "1-6" ? 6 : 8;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto py-2">
+    <div className="space-y-6 max-w-5xl mx-auto py-2 print:max-w-none print:w-full print:mx-0 print:py-0 print:space-y-0">
       {/* ─── Control Header ─── */}
       <PortalPageHeader
         title="Official Student Transcript Generator"
@@ -114,11 +114,10 @@ export default function TranscriptGeneratorPage() {
                 key={item.val}
                 type="button"
                 onClick={() => setTranscriptSpan(item.val as any)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border flex items-center gap-1.5 cursor-pointer ${
-                  transcriptSpan === item.val
-                    ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                    : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
-                }`}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border flex items-center gap-1.5 cursor-pointer ${transcriptSpan === item.val
+                  ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                  }`}
               >
                 <span>📑 {item.label}</span>
                 <span className="opacity-75 font-normal text-[10px]">({item.sub})</span>
@@ -134,7 +133,7 @@ export default function TranscriptGeneratorPage() {
           Loading student transcripts...
         </div>
       ) : selectedStudent ? (
-        <div className="overflow-x-auto pb-6">
+        <div className="overflow-x-auto pb-6 print:overflow-visible print:pb-0">
           <OfficialTranscriptDocument
             student={selectedStudent}
             fromSemester={1}

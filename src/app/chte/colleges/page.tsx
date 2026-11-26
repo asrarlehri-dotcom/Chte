@@ -132,8 +132,8 @@ export default function ChteCollegesPage() {
         }
       }
       const cleanCode = suggestedCode.replace(/[^A-Z0-9]/gi, "").toLowerCase();
-      const suggestedEmail = prev.adminEmail === "" || prev.adminEmail.includes("@") 
-        ? `admin@${cleanCode || "college"}.edu.pk` 
+      const suggestedEmail = prev.adminEmail === "" || prev.adminEmail.includes("@")
+        ? `admin@${cleanCode || "college"}.edu.pk`
         : prev.adminEmail;
 
       return {
@@ -242,7 +242,29 @@ export default function ChteCollegesPage() {
   const activeColleges = colleges.filter((c) => c.isActive).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 space-y-8">
+    <div className="chte-colleges-root min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 space-y-8 print:min-h-0 print:bg-white print:text-slate-900 print:p-0 print:space-y-0">
+      {modalOpen && createdCredentials && (
+        <style>{`
+          @media print {
+            @page {
+              size: letter portrait;
+              margin: 9mm 10mm;
+            }
+            html, body {
+              width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              overflow: visible !important;
+            }
+            .chte-colleges-root > :not(.bs-active-print-modal):not(style) {
+              display: none !important;
+            }
+          }
+        `}</style>
+      )}
       {/* Top CHTE Header Banner */}
       <PortalPageHeader
         title="Central Colleges Provisioning & Master Server"
@@ -362,11 +384,10 @@ export default function ChteCollegesPage() {
             return (
               <div
                 key={college.id}
-                className={`rounded-2xl border p-5 transition-all duration-200 flex flex-col justify-between ${
-                  college.isActive
-                    ? "bg-slate-900/90 border-slate-800 hover:border-slate-700 shadow-xl"
-                    : "bg-slate-950/80 border-rose-900/40 opacity-75"
-                }`}
+                className={`rounded-2xl border p-5 transition-all duration-200 flex flex-col justify-between ${college.isActive
+                  ? "bg-slate-900/90 border-slate-800 hover:border-slate-700 shadow-xl"
+                  : "bg-slate-950/80 border-rose-900/40 opacity-75"
+                  }`}
               >
                 <div>
                   {/* Card Header: Logo, Name, Badge */}
@@ -389,11 +410,10 @@ export default function ChteCollegesPage() {
                           {college.code}
                         </span>
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            college.isActive
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                          }`}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${college.isActive
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                            }`}
                         >
                           {college.isActive ? "Active" : "Suspended"}
                         </span>
@@ -465,11 +485,10 @@ export default function ChteCollegesPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleStatus(college)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                        college.isActive
-                          ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400"
-                          : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400"
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${college.isActive
+                        ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400"
+                        : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400"
+                        }`}
                     >
                       {college.isActive ? "Suspend" : "Activate"}
                     </button>
@@ -495,8 +514,8 @@ export default function ChteCollegesPage() {
       {/* MODAL 1: GENERATE NEW COLLEGE FORM & CREDENTIAL SLIP       */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl space-y-6">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto print:static print:inset-auto print:block print:w-full print:h-auto print:p-0 print:m-0 print:bg-white print:backdrop-blur-none print:overflow-visible ${createdCredentials ? "bs-active-print-modal" : ""}`}>
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl space-y-6 print:max-w-none print:w-full print:max-h-none print:h-auto print:overflow-visible print:bg-white print:text-black print:border-2 print:border-black print:rounded-none print:shadow-none">
             {!createdCredentials ? (
               <form onSubmit={handleCreateCollege} className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -795,7 +814,7 @@ export default function ChteCollegesPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-between gap-3 pt-2">
+                <div className="flex items-center justify-between gap-3 pt-2 print:hidden">
                   <button
                     onClick={() => {
                       const text = `=== CHTE COLLEGE CREDENTIALS ===\nCollege: ${createdCredentials.collegeName} (${createdCredentials.collegeCode})\nPortal: ${window.location.origin}/login\nEmail: ${createdCredentials.adminEmail}\nPassword: ${createdCredentials.adminPassword}\n================================`;
@@ -890,3 +909,4 @@ export default function ChteCollegesPage() {
     </div>
   );
 }
+

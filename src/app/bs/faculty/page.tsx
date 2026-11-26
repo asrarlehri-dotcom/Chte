@@ -1031,32 +1031,47 @@ export default function BSFacultyPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Print isolation style for clean 1:1 Word file printing */}
-      {(showTriPrintModal || showRelievingPrintModal) && (
-        <style>{`
-          @media print {
-            body * {
-              visibility: hidden !important;
-            }
-            #tri-print-container, #tri-print-container *,
-            #relieving-print-container, #relieving-print-container * {
-              visibility: visible !important;
+    <div className="faculty-page-root space-y-6 print:space-y-0">
+      {/* Print optimization for Letter size (Portrait for T.R.I/T.R.1 forms, Landscape for Faculty Roster) */}
+      <style>{`
+        @media print {
+          @page {
+            size: ${showTriPrintModal || showRelievingPrintModal ? "letter portrait" : "letter landscape"};
+            margin: ${showTriPrintModal || showRelievingPrintModal ? "9mm 10mm" : "7mm 8mm"};
+          }
+          html, body {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          ${showTriPrintModal || showRelievingPrintModal ? `
+            .faculty-page-root > :not(.bs-active-print-modal):not(style) {
+              display: none !important;
             }
             #tri-print-container, #relieving-print-container {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
+              position: static !important;
               width: 100% !important;
-              background: white !important;
-              padding: 28px !important;
+              max-width: 100% !important;
+              background: #ffffff !important;
+              padding: 0 !important;
               margin: 0 !important;
               color: #000 !important;
               font-family: "Times New Roman", Times, Georgia, serif !important;
             }
-          }
-        `}</style>
-      )}
+          ` : `
+            button, .print-hide, .no-print {
+              display: none !important;
+            }
+          `}
+        }
+      `}</style>
 
       {/* Top Banner Card matching Campus Banner Design */}
       <PortalPageHeader
@@ -2314,8 +2329,8 @@ export default function BSFacultyPage() {
           Exact 1:1 replica of the Word Document in Image 2
       ────────────────────────────────────────────────────────────────────────────── */}
       {showTriPrintModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+        <div className="bs-active-print-modal fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto print:static print:inset-auto print:block print:w-full print:h-auto print:p-0 print:m-0 print:bg-white print:backdrop-blur-none print:overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200 print:max-w-none print:w-full print:max-h-none print:h-auto print:overflow-visible print:rounded-none print:border-none print:shadow-none">
             {/* Modal Controls Bar (Always hidden during print) */}
             <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
               <div className="flex items-center gap-2">
@@ -2337,7 +2352,7 @@ export default function BSFacultyPage() {
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>🖨️</span>
-                  <span>Print Document (A4)</span>
+                  <span>Print Document (Letter)</span>
                 </button>
                 <button
                   type="button"
@@ -2349,11 +2364,11 @@ export default function BSFacultyPage() {
               </div>
             </div>
 
-            {/* Document Sheet (Printable A4 Target) */}
-            <div className="p-6 sm:p-12 overflow-y-auto flex-1 bg-gray-50/50 print:bg-white print:p-0">
+            {/* Document Sheet (Printable Letter Target) */}
+            <div className="p-6 sm:p-12 overflow-y-auto flex-1 bg-gray-50/50 print:bg-white print:p-0 print:overflow-visible">
               <div
                 id="tri-print-container"
-                className="max-w-[800px] mx-auto bg-white p-8 sm:p-12 shadow-lg border border-gray-200 print:shadow-none print:border-none print:p-0 text-black leading-relaxed"
+                className="max-w-[800px] mx-auto bg-white p-8 sm:p-12 shadow-lg border border-gray-200 print:max-w-none print:w-full print:mx-0 print:shadow-none print:border-none print:p-0 text-black leading-relaxed"
                 style={{ fontFamily: '"Times New Roman", Times, Georgia, serif' }}
               >
                 {/* Header Titles */}
@@ -2499,8 +2514,8 @@ export default function BSFacultyPage() {
           Exact 1:1 replica of the Word Document in Image 3
       ────────────────────────────────────────────────────────────────────────────── */}
       {showRelievingPrintModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+        <div className="bs-active-print-modal fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto print:static print:inset-auto print:block print:w-full print:h-auto print:p-0 print:m-0 print:bg-white print:backdrop-blur-none print:overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200 print:max-w-none print:w-full print:max-h-none print:h-auto print:overflow-visible print:rounded-none print:border-none print:shadow-none">
             {/* Modal Controls Bar (Always hidden during print) */}
             <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
               <div className="flex items-center gap-2">
@@ -2522,7 +2537,7 @@ export default function BSFacultyPage() {
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>🖨️</span>
-                  <span>Print Certificate (A4)</span>
+                  <span>Print Certificate (Letter)</span>
                 </button>
                 <button
                   type="button"
@@ -2534,11 +2549,11 @@ export default function BSFacultyPage() {
               </div>
             </div>
 
-            {/* Document Sheet (Printable A4 Target) */}
-            <div className="p-6 sm:p-12 overflow-y-auto flex-1 bg-gray-50/50 print:bg-white print:p-0">
+            {/* Document Sheet (Printable Letter Target) */}
+            <div className="p-6 sm:p-12 overflow-y-auto flex-1 bg-gray-50/50 print:bg-white print:p-0 print:overflow-visible">
               <div
                 id="relieving-print-container"
-                className="max-w-[800px] mx-auto bg-white p-8 sm:p-14 shadow-lg border border-gray-200 print:shadow-none print:border-none print:p-0 text-black leading-relaxed"
+                className="max-w-[800px] mx-auto bg-white p-8 sm:p-14 shadow-lg border border-gray-200 print:max-w-none print:w-full print:mx-0 print:shadow-none print:border-none print:p-0 text-black leading-relaxed"
                 style={{ fontFamily: '"Times New Roman", Times, Georgia, serif' }}
               >
                 {/* Header Titles */}

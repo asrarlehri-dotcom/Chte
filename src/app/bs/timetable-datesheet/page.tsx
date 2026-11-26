@@ -891,10 +891,14 @@ export default function BSTimetableDatesheetPage() {
       <style jsx global>{`
         @media print {
           @page {
-            size: ${isMatrixPrintLandscape ? "A4 landscape" : "A4 portrait"};
-            margin: ${isMatrixPrintLandscape ? "7mm" : "9mm"};
+            size: ${isMatrixPrintLandscape ? "letter landscape" : "letter portrait"};
+            margin: ${isMatrixPrintLandscape ? "7mm 8mm" : "8mm 9mm"};
           }
           html, body {
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;

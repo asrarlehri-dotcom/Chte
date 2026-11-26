@@ -205,7 +205,7 @@ export default function OfficialDMCDocument({
   const semName = SEMESTER_NAMES[semester] || `SEMESTER ${semester}`;
 
   return (
-    <div className="official-dmc-root bg-white text-black p-4 sm:p-6 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none text-[11px] leading-snug">
+    <div className="official-dmc-root bg-white text-black p-4 sm:p-6 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:max-w-none text-[11px] leading-snug">
       {/* ─── 1. TOP SERIAL NUMBER ─── */}
       <div className="flex justify-between items-center text-[11px] font-serif tracking-normal text-black mb-1">
         <span className="text-[10px] text-gray-500 font-sans tracking-wide">

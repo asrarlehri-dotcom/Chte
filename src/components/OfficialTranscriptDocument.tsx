@@ -437,16 +437,18 @@ export default function OfficialTranscriptDocument({
   };
 
   return (
-    <div className="official-transcript-root bg-white text-black p-3 sm:p-5 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none text-[9.5px] leading-tight">
+    <div className="official-transcript-root bg-white text-black p-3 sm:p-5 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:max-w-none text-[9.5px] leading-tight">
       <style>{`
-        @page {
-          size: A4 portrait;
-          margin: 5mm 6mm 4mm 6mm;
-        }
         @media print {
+          @page {
+            size: letter portrait;
+            margin: 6mm 8mm 5mm 8mm;
+          }
           html, body {
-            width: 210mm !important;
-            height: 297mm !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #fff !important;
@@ -457,9 +459,10 @@ export default function OfficialTranscriptDocument({
             box-shadow: none !important;
             border: none !important;
             padding: 0 !important;
-            margin: 0 auto !important;
+            margin: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
+            box-sizing: border-box !important;
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;

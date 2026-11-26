@@ -162,21 +162,41 @@ body {
   animation-play-state: paused;
 }
 
-/* Print Optimization for Official Degree Transcripts & DMCs */
+/* Print Optimization — Letter Page Size (8.5in x 11in) Default with Clean Top/Side Fit */
 @media print {
   @page {
-    size: A4 portrait;
-    margin: 8mm 6mm;
+    size: letter portrait;
+    margin: 8mm 9mm;
   }
+  html,
   body {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
+    overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+  .official-report-sheet,
+  .letter-print-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    box-sizing: border-box !important;
   }
   .page-break-student,
   .official-transcript-root,
   .official-dmc-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     margin: 0 !important;

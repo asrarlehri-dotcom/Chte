@@ -2916,8 +2916,8 @@ function MeritScholarshipsTab() {
     <div className="space-y-6 print:m-0 print:space-y-0">
       <style>{`
         @media print {
-          @page { size: A4 landscape; margin: 10mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white !important; }
+          @page { size: letter landscape; margin: 8mm; }
+          html, body { width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: white !important; }
         }
       `}</style>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
@@ -3630,26 +3630,36 @@ function StatusAcademicActionsTab() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Print isolation style: when modal is active, hide everything else and print the document container */}
+    <div className="exams-page-root space-y-6 print:space-y-0">
+      {/* Print isolation style: when modal is active, hide sibling views and fit Letter page cleanly */}
       {(showDocModal || showAdaModal || showFreezeModal) && (
         <style>{`
           @media print {
-            body * {
-              visibility: hidden !important;
+            @page {
+              size: letter portrait;
+              margin: 8mm 10mm;
             }
-            #freeze-print-container, #freeze-print-container *,
-            #migration-print-container, #migration-print-container *,
-            #ada-print-container, #ada-print-container * {
-              visibility: visible !important;
+            html, body {
+              width: 100% !important;
+              max-width: 100% !important;
+              height: auto !important;
+              min-height: 0 !important;
+              background: #ffffff !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              overflow: visible !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .exams-page-root > :not(.bs-active-print-modal):not(style) {
+              display: none !important;
             }
             #freeze-print-container, #migration-print-container, #ada-print-container {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
+              position: static !important;
               width: 100% !important;
-              background: white !important;
-              padding: 24px !important;
+              max-width: 100% !important;
+              background: #ffffff !important;
+              padding: 0 !important;
               margin: 0 !important;
             }
           }
@@ -4524,8 +4534,8 @@ function StatusAcademicActionsTab() {
 
       {/* DUAL DOCUMENT MODAL: MIGRATION REPORT (NOC) + OFFICIAL TRANSCRIPT */}
       {showDocModal && migratedStudent && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+        <div className="bs-active-print-modal fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto print:static print:inset-auto print:block print:w-full print:h-auto print:p-0 print:m-0 print:bg-white print:backdrop-blur-none print:overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200 print:max-w-none print:w-full print:max-h-none print:h-auto print:overflow-visible print:rounded-none print:border-none print:shadow-none">
             {/* Modal Top Control Header (Always hidden in Print) */}
             <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
               <div>
@@ -4585,11 +4595,11 @@ function StatusAcademicActionsTab() {
             </div>
 
             {/* Modal Body Container */}
-            <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-50 print:p-0 print:overflow-visible print:bg-white">
               <div id="migration-print-container">
                 {docModalTab === "report" ? (
                   /* Printable Migration Report / NOC */
-                  <div className="bg-white border-2 border-slate-900 rounded-xl p-8 max-w-3xl mx-auto space-y-6 shadow-md print:shadow-none print:border-2 print:border-black print:m-0 print:p-8">
+                  <div className="bg-white border-2 border-slate-900 rounded-xl p-8 max-w-3xl mx-auto space-y-6 shadow-md print:shadow-none print:border-2 print:border-black print:rounded-none print:max-w-none print:w-full print:mx-0 print:m-0 print:p-6">
                     {/* Header */}
                     <div className="text-center border-b-2 border-slate-900 pb-5 space-y-1.5">
                       {collegeLogo ? (
@@ -4675,7 +4685,7 @@ function StatusAcademicActionsTab() {
                   </div>
                 ) : (
                   /* Official Academic Transcript */
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto print:overflow-visible">
                     <OfficialTranscriptDocument
                       student={migratedStudent}
                       fromSemester={1}
@@ -4697,8 +4707,8 @@ function StatusAcademicActionsTab() {
 
       {/* ADA / ADS MINUTES OF MEETING & TRANSCRIPT MODAL */}
       {showAdaModal && adaStudent && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+        <div className="bs-active-print-modal fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto print:static print:inset-auto print:block print:w-full print:h-auto print:p-0 print:m-0 print:bg-white print:backdrop-blur-none print:overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200 print:max-w-none print:w-full print:max-h-none print:h-auto print:overflow-visible print:rounded-none print:border-none print:shadow-none">
             {/* Modal Top Control Header (Always hidden in Print) */}
             <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
               <div>
@@ -4760,11 +4770,11 @@ function StatusAcademicActionsTab() {
             </div>
 
             {/* Modal Body / Printable Document Container */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 print:bg-white print:p-0">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 print:bg-white print:p-0 print:overflow-visible">
               <div id="ada-print-container">
                 {adaModalTab === "minutes" ? (
                   /* Printable Minutes of Meeting Report (Exact format of PDF) */
-                  <div className="bg-white border-2 border-slate-900 rounded-xl p-8 sm:p-12 max-w-4xl mx-auto shadow-md print:shadow-none print:border-none print:m-0 print:p-0 font-serif text-black leading-normal">
+                  <div className="bg-white border-2 border-slate-900 rounded-xl p-8 sm:p-12 max-w-4xl mx-auto shadow-md print:shadow-none print:border-none print:rounded-none print:max-w-none print:w-full print:mx-0 print:m-0 print:p-0 font-serif text-black leading-normal">
                     {/* Top Logo / Emblem */}
                     <div className="text-center space-y-2 mb-6">
                       {collegeLogo ? (
@@ -4854,7 +4864,7 @@ function StatusAcademicActionsTab() {
                   </div>
                 ) : (
                   /* Official Academic Transcript up to Semester 4 */
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto print:overflow-visible">
                     <OfficialTranscriptDocument
                       student={adaStudent}
                       fromSemester={1}
@@ -4876,8 +4886,8 @@ function StatusAcademicActionsTab() {
 
       {/* FREEZE APPROVAL NOTIFICATION ORDER MODAL */}
       {showFreezeModal && freezeStudent && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200">
+        <div className="bs-active-print-modal fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto print:static print:inset-auto print:block print:w-full print:h-auto print:p-0 print:m-0 print:bg-white print:backdrop-blur-none print:overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden border border-gray-200 print:max-w-none print:w-full print:max-h-none print:h-auto print:overflow-visible print:rounded-none print:border-none print:shadow-none">
             {/* Modal Top Control Header (Always hidden in Print) */}
             <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden">
               <div>
@@ -4913,9 +4923,9 @@ function StatusAcademicActionsTab() {
             </div>
 
             {/* Modal Body / Printable Document Container */}
-            <div className="p-6 overflow-y-auto flex-1 bg-slate-100 print:bg-white print:p-0">
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-100 print:bg-white print:p-0 print:overflow-visible">
               <div id="freeze-print-container">
-                <div className="bg-white border-2 border-slate-900 rounded-xl p-8 sm:p-12 max-w-3xl mx-auto space-y-6 shadow-md print:shadow-none print:border-2 print:border-black print:m-0 print:p-8 font-serif text-slate-900">
+                <div className="bg-white border-2 border-slate-900 rounded-xl p-8 sm:p-12 max-w-3xl mx-auto space-y-6 shadow-md print:shadow-none print:border-2 print:border-black print:rounded-none print:max-w-none print:w-full print:mx-0 print:m-0 print:p-6 font-serif text-slate-900">
                   {/* College Official Letterhead */}
                   <div className="text-center border-b-2 border-slate-900 pb-5 space-y-1">
                     {collegeLogo ? (
