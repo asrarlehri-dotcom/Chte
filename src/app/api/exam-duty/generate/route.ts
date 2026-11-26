@@ -46,9 +46,12 @@ export async function POST(req: NextRequest) {
     if (datesheets.length === 0)
       return NextResponse.json({ error: "No finalized datesheet entries found for the given filters." }, { status: 404 });
 
-    // 2. Fetch all active faculty
+    // 2. Fetch all active teaching faculty (exclude non-teaching ministerial/support staff)
     const allFaculty = await prisma.faculty.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        OR: [{ educationLevel: null }, { educationLevel: { not: "NON_TEACHING" } }],
+      },
       include: { user: true },
     });
 

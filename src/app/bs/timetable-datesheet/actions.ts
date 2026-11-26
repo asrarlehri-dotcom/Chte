@@ -17,7 +17,10 @@ export async function getFilterData() {
   const programs = await prisma.program.findMany({ where: { isActive: true } });
   const departments = await prisma.department.findMany({ where: { isActive: true } });
   const faculties = await prisma.faculty.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      OR: [{ educationLevel: null }, { educationLevel: { not: "NON_TEACHING" } }],
+    },
     include: { user: true, department: true }
   });
   const studentGroups = await prisma.student.groupBy({
@@ -107,7 +110,10 @@ export async function generateTimetable(session: string, programId: string, depa
   const checkOverlap = (st1: string, et1: string, st2: string, et2: string) => (st1 < et2 && et1 > st2);
 
   const facultyMembers = await prisma.faculty.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      OR: [{ educationLevel: null }, { educationLevel: { not: "NON_TEACHING" } }],
+    },
     include: { user: true }
   });
 
@@ -785,7 +791,10 @@ export async function generateDutiesAction(
   }
 
   const allFaculty = await prisma.faculty.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      OR: [{ educationLevel: null }, { educationLevel: { not: "NON_TEACHING" } }],
+    },
     include: { user: true },
   });
 

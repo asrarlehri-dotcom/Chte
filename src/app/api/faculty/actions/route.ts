@@ -72,6 +72,8 @@ export async function POST(req: NextRequest) {
       opiumDated,
       collegeName,
       destinationTransfer,
+      staffCategory,
+      officeSection,
       notes,
     } = body;
 
@@ -127,6 +129,8 @@ export async function POST(req: NextRequest) {
       fatherName: faculty.fatherName || "",
       department: faculty.department?.name || subject || "General",
       collegeName: collegeName || faculty.college?.name || "Govt. Postgraduate College Sariab Road Quetta",
+      staffCategory: staffCategory || existingFacultyAction.staffCategory || (faculty.educationLevel === "NON_TEACHING" ? "NON_TEACHING" : "TEACHING"),
+      officeSection: officeSection || existingFacultyAction.officeSection || subject || "",
       currentStatus: actionType === "RELIEVED" ? "RELIEVED" : "JOINED",
       lastUpdated: new Date().toISOString(),
       ...(actionType === "JOINING"

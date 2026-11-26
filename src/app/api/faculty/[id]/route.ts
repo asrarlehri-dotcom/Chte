@@ -37,10 +37,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       isActive,
       cnic,
       personalNo,
+      dateOfBirth,
       firstAppointmentDate,
       previousCollege,
       division,
       district,
+      belongsDivision,
+      belongsDistrict,
+      staffCategory,
+      bpsScale,
+      officeSection,
       photo,
       additionalCharge,
       leaveDossier,
@@ -54,6 +60,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
     }
 
+    const effectiveEducationLevel =
+      staffCategory === "NON_TEACHING"
+        ? "NON_TEACHING"
+        : educationLevel === "NON_TEACHING"
+          ? "BS"
+          : educationLevel;
+
     const faculty = await prisma.faculty.update({
       where: { id },
       data: {
@@ -62,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(qualification !== undefined && { qualification: qualification || null }),
         ...(contactNumber !== undefined && { contactNumber: contactNumber || null }),
         ...(departmentId !== undefined && { departmentId: departmentId || null }),
-        ...(educationLevel !== undefined && { educationLevel: educationLevel || "BS" }),
+        ...(effectiveEducationLevel !== undefined && { educationLevel: effectiveEducationLevel || "BS" }),
         ...(isActive !== undefined && { isActive }),
       } as any,
       include: { user: true, department: true },
@@ -81,10 +94,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...existingExtra,
       ...(cnic !== undefined && { cnic }),
       ...(personalNo !== undefined && { personalNo }),
+      ...(dateOfBirth !== undefined && { dateOfBirth }),
       ...(firstAppointmentDate !== undefined && { firstAppointmentDate }),
       ...(previousCollege !== undefined && { previousCollege }),
       ...(division !== undefined && { division }),
       ...(district !== undefined && { district }),
+      ...(belongsDivision !== undefined && { belongsDivision }),
+      ...(belongsDistrict !== undefined && { belongsDistrict }),
+      ...(staffCategory !== undefined && { staffCategory }),
+      ...(bpsScale !== undefined && { bpsScale }),
+      ...(officeSection !== undefined && { officeSection }),
       ...(photo !== undefined && { photo }),
       ...(additionalCharge !== undefined && { additionalCharge }),
       ...(leaveDossier !== undefined && { leaveDossier }),

@@ -3,6 +3,19 @@
 import { useState, useEffect } from "react";
 import { UserCheck } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import {
+  ALL_BPS_SCALES,
+  ALL_BALOCHISTAN_DISTRICTS,
+  BALOCHISTAN_DIVISIONS,
+  NON_TEACHING_OFFICE_SECTIONS,
+  NON_TEACHING_POST_PRESETS,
+  StaffCategory,
+  TEACHING_POST_PRESETS,
+  formatOfficialChargePosition,
+  getSuggestedDistricts,
+  inferBpsFromDesignation,
+  inferStaffCategory,
+} from "@/lib/staff-categories";
 
 type FacultyRecord = {
   id: string;
@@ -30,10 +43,16 @@ type FacultyRecord = {
   } | null;
   cnic?: string | null;
   personalNo?: string | null;
+  dateOfBirth?: string | null;
   firstAppointmentDate?: string | null;
   previousCollege?: string | null;
   division?: string | null;
   district?: string | null;
+  belongsDivision?: string | null;
+  belongsDistrict?: string | null;
+  staffCategory?: StaffCategory | null;
+  bpsScale?: string | null;
+  officeSection?: string | null;
   photo?: string | null;
   additionalCharge?: string | null;
   leaveDossier?: {
@@ -54,6 +73,8 @@ type FacultyActionData = {
   fatherName?: string;
   department?: string;
   collegeName?: string;
+  staffCategory?: StaffCategory;
+  officeSection?: string;
   currentStatus: "JOINED" | "RELIEVED";
   joiningDate?: string;
   joiningNotificationNo?: string;
@@ -117,6 +138,7 @@ export default function BSFacultyPage() {
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("ALL");
   const [filterDesignation, setFilterDesignation] = useState("ALL");
+  const [filterStaffCategory, setFilterStaffCategory] = useState<"ALL" | StaffCategory>("ALL");
   const [statusTab, setStatusTab] = useState<"ACTIVE" | "INACTIVE" | "RELIEVED" | "ALL">("ACTIVE");
 
   // Modals
@@ -178,8 +200,9 @@ export default function BSFacultyPage() {
   const [targetFaculty, setTargetFaculty] = useState<FacultyRecord | null>(null);
   const [joiningMode, setJoiningMode] = useState<"EXISTING" | "NEW">("EXISTING");
 
-  // New Incoming Faculty Form State (within Joining Modal)
+  // New Incoming Staff / Faculty Form State (within Joining Modal)
   const blankJoiningNewForm = {
+    staffCategory: "TEACHING" as StaffCategory,
     name: "",
     fatherName: "",
     cnic: "",
@@ -187,12 +210,16 @@ export default function BSFacultyPage() {
     email: "",
     photo: "",
     personalNo: "",
+    dateOfBirth: "",
     firstAppointmentDate: "",
     previousCollege: "",
     division: "Quetta",
     district: "Quetta",
+    belongsDivision: "Quetta",
+    belongsDistrict: "Quetta",
     qualification: "Ph.D. Computer Science",
     departmentId: "",
+    officeSection: "",
     educationLevel: "BOTH",
     additionalCharge: "",
   };
@@ -209,6 +236,7 @@ export default function BSFacultyPage() {
     bpsScale: string;
     subject: string;
     collegeName: string;
+    staffCategory?: StaffCategory;
     notificationNo: string;
     notificationDate: string;
     joiningDate: string;
@@ -222,6 +250,7 @@ export default function BSFacultyPage() {
     bpsScale: "B-17",
     subject: "Psychology",
     collegeName: "Govt: Postgraduate College Sariab Road Quetta",
+    staffCategory: "TEACHING",
     notificationNo: "SOC- 1/1-1(5)2008/1796-1807",
     notificationDate: "07/Sep:/2020",
     joiningDate: "22/Sep /2020",
@@ -238,6 +267,7 @@ export default function BSFacultyPage() {
     subject: string;
     collegeName: string;
     collegeAddress: string;
+    staffCategory?: StaffCategory;
     notificationNo: string;
     notificationDate: string;
     relievingDate: string;
@@ -251,6 +281,7 @@ export default function BSFacultyPage() {
     subject: "Mathematics",
     collegeName: "Govt: Boys Postgraduate College",
     collegeAddress: "Sariab Road, Quetta.",
+    staffCategory: "TEACHING",
     notificationNo: "SOC. 11/1-1 (5) /2008/Edn::/2012-17/",
     notificationDate: "21/September /2020",
     relievingDate: "22/09/2020",
@@ -262,6 +293,7 @@ export default function BSFacultyPage() {
   // Joining Form State
   const [joiningForm, setJoiningForm] = useState({
     facultyId: "",
+    staffCategory: "TEACHING" as StaffCategory,
     notificationNo: "SOC- 1/1-1(5)2008/1796-1807",
     notificationDate: "07/Sep:/2020",
     effectiveDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
@@ -269,6 +301,7 @@ export default function BSFacultyPage() {
     designation: "Lecturer",
     bpsScale: "B-17",
     subject: "Psychology",
+    officeSection: "",
     memoNo: "1042/GCQ",
     station: "Quetta",
     cashNo: "",
@@ -279,6 +312,7 @@ export default function BSFacultyPage() {
   // Relieved Form State
   const [relievedForm, setRelievedForm] = useState({
     facultyId: "",
+    staffCategory: "TEACHING" as StaffCategory,
     notificationNo: "SOC. 11/1-1 (5) /2008/Edn::/2012-17/",
     notificationDate: "21/September /2020",
     effectiveDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }),
@@ -286,6 +320,7 @@ export default function BSFacultyPage() {
     designation: "Associate Professor",
     bpsScale: "B-19",
     subject: "Mathematics",
+    officeSection: "",
     memoNo: "1042",
     station: "Quetta",
     destinationTransfer: "",
@@ -421,9 +456,15 @@ export default function BSFacultyPage() {
       const qualMatch = f.qualification?.toLowerCase().includes(q);
       const cnicMatch = f.cnic?.toLowerCase().includes(q);
       const personalNoMatch = f.personalNo?.toLowerCase().includes(q);
+      const dobMatch = f.dateOfBirth?.toLowerCase().includes(q);
+      const firstApptMatch = f.firstAppointmentDate?.toLowerCase().includes(q);
       const prevCollegeMatch = f.previousCollege?.toLowerCase().includes(q);
       const divisionMatch = f.division?.toLowerCase().includes(q);
       const districtMatch = f.district?.toLowerCase().includes(q);
+      const belongsDivMatch = f.belongsDivision?.toLowerCase().includes(q);
+      const belongsDistMatch = f.belongsDistrict?.toLowerCase().includes(q);
+      const bpsMatch = f.bpsScale?.toLowerCase().includes(q);
+      const officeMatch = f.officeSection?.toLowerCase().includes(q);
       if (
         !nameMatch &&
         !emailMatch &&
@@ -433,11 +474,22 @@ export default function BSFacultyPage() {
         !qualMatch &&
         !cnicMatch &&
         !personalNoMatch &&
+        !dobMatch &&
+        !firstApptMatch &&
         !prevCollegeMatch &&
         !divisionMatch &&
-        !districtMatch
+        !districtMatch &&
+        !belongsDivMatch &&
+        !belongsDistMatch &&
+        !bpsMatch &&
+        !officeMatch
       )
         return false;
+    }
+
+    if (filterStaffCategory !== "ALL") {
+      const resolvedCat = inferStaffCategory(f.designation, f.staffCategory || (f.educationLevel === "NON_TEACHING" ? "NON_TEACHING" : undefined));
+      if (resolvedCat !== filterStaffCategory) return false;
     }
 
     if (filterDept !== "ALL" && f.departmentId !== filterDept) return false;
@@ -458,6 +510,11 @@ export default function BSFacultyPage() {
     setSuccess("");
 
     try {
+      const resolvedCategory = inferStaffCategory(
+        editingFaculty.designation,
+        editingFaculty.staffCategory || (editingFaculty.educationLevel === "NON_TEACHING" ? "NON_TEACHING" : undefined)
+      );
+      const resolvedBps = inferBpsFromDesignation(editingFaculty.designation, editingFaculty.bpsScale);
       const res = await fetch(`/api/faculty/${editingFaculty.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -468,14 +525,23 @@ export default function BSFacultyPage() {
           qualification: editingFaculty.qualification,
           contactNumber: editingFaculty.contactNumber,
           departmentId: editingFaculty.departmentId,
-          educationLevel: editingFaculty.educationLevel,
+          educationLevel:
+            resolvedCategory === "NON_TEACHING"
+              ? "NON_TEACHING"
+              : (editingFaculty.educationLevel === "NON_TEACHING" ? "BS" : editingFaculty.educationLevel),
           isActive: editingFaculty.isActive,
           cnic: editingFaculty.cnic,
           personalNo: editingFaculty.personalNo,
+          dateOfBirth: editingFaculty.dateOfBirth,
           firstAppointmentDate: editingFaculty.firstAppointmentDate,
           previousCollege: editingFaculty.previousCollege,
           division: editingFaculty.division,
           district: editingFaculty.district,
+          belongsDivision: editingFaculty.belongsDivision,
+          belongsDistrict: editingFaculty.belongsDistrict,
+          staffCategory: resolvedCategory,
+          bpsScale: resolvedBps,
+          officeSection: editingFaculty.officeSection,
           photo: editingFaculty.photo,
           additionalCharge: editingFaculty.additionalCharge,
         }),
@@ -586,11 +652,19 @@ export default function BSFacultyPage() {
 
     const headers = [
       "#",
-      "Faculty Name",
+      "Staff Category",
+      "Faculty / Staff Name",
       "Father Name",
       "Designation",
+      "BPS Scale",
       "Qualification",
-      "Department",
+      "Department / Office",
+      "Date of Birth",
+      "First Joining Date",
+      "Belongs Division",
+      "Belongs District",
+      "Posting Division",
+      "Posting District",
       "Joining Status",
       "Email Address",
       "Contact Number",
@@ -599,6 +673,8 @@ export default function BSFacultyPage() {
 
     const rows = filteredFaculty.map((f, i) => {
       const act = facultyActions[f.id];
+      const cat = inferStaffCategory(f.designation, f.staffCategory);
+      const bps = inferBpsFromDesignation(f.designation, f.bpsScale);
       const statusLabel = act?.currentStatus === "RELIEVED"
         ? `Relieved (${act.relievedDate || ""})`
         : act?.currentStatus === "JOINED"
@@ -607,11 +683,19 @@ export default function BSFacultyPage() {
 
       return [
         i + 1,
+        `"${cat === "NON_TEACHING" ? "Non-Teaching Staff" : "Teaching Faculty"}"`,
         `"${f.user?.name || ""}"`,
         `"${f.fatherName || "N/A"}"`,
         `"${f.designation || "Lecturer"}"`,
-        `"${f.qualification || "M.Phil"}"`,
-        `"${f.department?.name || "Unassigned"}"`,
+        `"${bps}"`,
+        `"${f.qualification || "N/A"}"`,
+        `"${f.department?.name || f.officeSection || "Unassigned"}"`,
+        `"${f.dateOfBirth || ""}"`,
+        `"${f.firstAppointmentDate || ""}"`,
+        `"${f.belongsDivision || ""}"`,
+        `"${f.belongsDistrict || ""}"`,
+        `"${f.division || ""}"`,
+        `"${f.district || ""}"`,
         `"${statusLabel}"`,
         `"${f.user?.email || ""}"`,
         `"${f.contactNumber || "N/A"}"`,
@@ -629,20 +713,76 @@ export default function BSFacultyPage() {
     document.body.removeChild(link);
   };
 
+  // Switch between Teaching & Non-Teaching inside Joining Modal
+  const handleSwitchJoiningCategory = (cat: StaffCategory) => {
+    const defaultPreset =
+      cat === "NON_TEACHING" ? NON_TEACHING_POST_PRESETS[0] : TEACHING_POST_PRESETS[3];
+    setJoiningNewForm((prev) => ({
+      ...prev,
+      staffCategory: cat,
+      qualification: defaultPreset.defaultQualification,
+      officeSection: cat === "NON_TEACHING" ? defaultPreset.defaultOfficeOrSubject : "",
+      educationLevel: cat === "NON_TEACHING" ? "NON_TEACHING" : "BOTH",
+    }));
+    setJoiningForm((prev) => ({
+      ...prev,
+      staffCategory: cat,
+      designation: defaultPreset.designation,
+      bpsScale: defaultPreset.defaultBps,
+      subject:
+        cat === "NON_TEACHING"
+          ? defaultPreset.defaultOfficeOrSubject
+          : (departments.find((d) => d.id === joiningNewForm.departmentId)?.name || prev.subject || "Psychology"),
+      officeSection: cat === "NON_TEACHING" ? defaultPreset.defaultOfficeOrSubject : "",
+    }));
+  };
+
+  const applyJoiningPostPreset = (preset: {
+    designation: string;
+    category: StaffCategory;
+    defaultBps: string;
+    defaultOfficeOrSubject: string;
+    defaultQualification: string;
+  }) => {
+    setJoiningNewForm((prev) => ({
+      ...prev,
+      staffCategory: preset.category,
+      qualification: preset.defaultQualification,
+      officeSection: preset.category === "NON_TEACHING" ? preset.defaultOfficeOrSubject : prev.officeSection,
+      educationLevel: preset.category === "NON_TEACHING" ? "NON_TEACHING" : (prev.educationLevel === "NON_TEACHING" ? "BOTH" : prev.educationLevel),
+    }));
+    setJoiningForm((prev) => ({
+      ...prev,
+      staffCategory: preset.category,
+      designation: preset.designation,
+      bpsScale: preset.defaultBps,
+      subject:
+        preset.category === "NON_TEACHING"
+          ? preset.defaultOfficeOrSubject
+          : (departments.find((d) => d.id === joiningNewForm.departmentId)?.name || prev.subject),
+      officeSection: preset.category === "NON_TEACHING" ? preset.defaultOfficeOrSubject : prev.officeSection,
+    }));
+  };
+
   // Open Joining Modal for specific faculty or general
   const handleOpenJoiningModal = (f?: FacultyRecord) => {
     const sel = f || (filteredFaculty.length > 0 ? filteredFaculty[0] : null);
     const existing = sel ? facultyActions[sel.id] : null;
+    const resolvedCategory = inferStaffCategory(sel?.designation, existing?.staffCategory || sel?.staffCategory);
+    const resolvedBps = existing?.joiningBpsScale || inferBpsFromDesignation(sel?.designation, sel?.bpsScale);
+    const resolvedSection = sel?.department?.name || sel?.officeSection || existing?.officeSection || "Psychology";
     setTargetFaculty(sel);
     setJoiningForm({
       facultyId: sel?.id || "",
+      staffCategory: resolvedCategory,
       notificationNo: existing?.joiningNotificationNo || "SOC- 1/1-1(5)2008/1796-1807",
       notificationDate: existing?.joiningNotificationDate || "07/Sep:/2020",
       effectiveDate: existing?.joiningDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       timeOfDay: existing?.joiningTimeOfDay || "before noon",
       designation: existing?.joiningDesignation || sel?.designation || "Lecturer",
-      bpsScale: existing?.joiningBpsScale || (sel?.designation?.includes("Associate") ? "B-19" : sel?.designation?.includes("Assistant") ? "B-18" : sel?.designation?.includes("Professor") ? "B-20" : "B-17"),
-      subject: existing?.joiningSubject || sel?.department?.name || "Psychology",
+      bpsScale: resolvedBps,
+      subject: existing?.joiningSubject || resolvedSection,
+      officeSection: sel?.officeSection || existing?.officeSection || "",
       memoNo: existing?.joiningMemoNo || `${Math.floor(1000 + Math.random() * 9000)}/${collegeShortCode || "GCQ"}`,
       station: existing?.joiningStation || "Quetta",
       cashNo: existing?.joiningCashNo || "",
@@ -656,16 +796,21 @@ export default function BSFacultyPage() {
   const handleOpenRelievedModal = (f?: FacultyRecord) => {
     const sel = f || (filteredFaculty.length > 0 ? filteredFaculty[0] : null);
     const existing = sel ? facultyActions[sel.id] : null;
+    const resolvedCategory = inferStaffCategory(sel?.designation, existing?.staffCategory || sel?.staffCategory);
+    const resolvedBps = existing?.relievedBpsScale || inferBpsFromDesignation(sel?.designation, sel?.bpsScale);
+    const resolvedSection = sel?.department?.name || sel?.officeSection || existing?.officeSection || "Mathematics";
     setTargetFaculty(sel);
     setRelievedForm({
       facultyId: sel?.id || "",
+      staffCategory: resolvedCategory,
       notificationNo: existing?.relievedNotificationNo || "SOC. 11/1-1 (5) /2008/Edn::/2012-17/",
       notificationDate: existing?.relievedNotificationDate || "21/September /2020",
       effectiveDate: existing?.relievedDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }),
       timeOfDay: existing?.relievedTimeOfDay || "before noon",
       designation: existing?.relievedDesignation || sel?.designation || "Associate Professor",
-      bpsScale: existing?.relievedBpsScale || (sel?.designation?.includes("Associate") ? "B-19" : sel?.designation?.includes("Assistant") ? "B-18" : sel?.designation?.includes("Professor") ? "B-20" : "B-17"),
-      subject: existing?.relievedSubject || sel?.department?.name || "Mathematics",
+      bpsScale: resolvedBps,
+      subject: existing?.relievedSubject || resolvedSection,
+      officeSection: sel?.officeSection || existing?.officeSection || "",
       memoNo: existing?.relievedMemoNo || `${Math.floor(1000 + Math.random() * 9000)}`,
       station: existing?.relievedStation || "Quetta",
       destinationTransfer: existing?.relievedDestination || "",
@@ -684,11 +829,12 @@ export default function BSFacultyPage() {
     try {
       if (joiningMode === "NEW") {
         if (!joiningNewForm.name) {
-          alert("Please enter full name of incoming faculty member.");
+          alert("Please enter full name of incoming staff / faculty member.");
           setSaving(false);
           return;
         }
         const autoEmail = joiningNewForm.email || generateEmailFromName(joiningNewForm.name, emailDomain);
+        const isNonTeaching = joiningNewForm.staffCategory === "NON_TEACHING";
         const facRes = await fetch("/api/faculty", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -697,13 +843,19 @@ export default function BSFacultyPage() {
             email: autoEmail,
             password: defaultPassword,
             designation: joiningForm.designation,
-            departmentId: joiningNewForm.departmentId || (departments[0]?.id || null),
+            bpsScale: joiningForm.bpsScale,
+            staffCategory: joiningNewForm.staffCategory,
+            officeSection: joiningNewForm.officeSection || joiningForm.subject,
+            educationLevel: isNonTeaching ? "NON_TEACHING" : joiningNewForm.educationLevel,
+            departmentId: isNonTeaching
+              ? (joiningNewForm.departmentId || null)
+              : (joiningNewForm.departmentId || departments[0]?.id || null),
           }),
         });
 
         if (!facRes.ok) {
           const d = await facRes.json().catch(() => ({}));
-          alert(d.error || "Failed to register incoming faculty member.");
+          alert(d.error || "Failed to register incoming staff / faculty member.");
           setSaving(false);
           return;
         }
@@ -712,7 +864,7 @@ export default function BSFacultyPage() {
         facultyDisplayName = createdFac.user?.name || joiningNewForm.name;
       } else {
         if (!joiningForm.facultyId) {
-          alert("Please select a faculty member");
+          alert("Please select a staff / faculty member");
           setSaving(false);
           return;
         }
@@ -720,11 +872,18 @@ export default function BSFacultyPage() {
         facultyDisplayName = sel?.user?.name || "MR. RAHIM BAKHSH";
       }
 
+      const activeCategory =
+        joiningMode === "NEW"
+          ? joiningNewForm.staffCategory
+          : joiningForm.staffCategory;
+
       const res = await fetch("/api/faculty/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...joiningForm,
+          staffCategory: activeCategory,
+          officeSection: joiningMode === "NEW" ? (joiningNewForm.officeSection || joiningForm.subject) : joiningForm.subject,
           facultyId: resolvedFacultyId,
           actionType: "JOINING",
           collegeName: collegeDisplayName,
@@ -734,7 +893,7 @@ export default function BSFacultyPage() {
       const json = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        setSuccess(`Faculty joining recorded successfully! Form T.R.I generated.`);
+        setSuccess(`Joining recorded successfully! Form T.R.I generated.`);
         if (json.data) {
           setFacultyActions((prev) => ({ ...prev, [resolvedFacultyId]: json.data }));
         }
@@ -744,11 +903,12 @@ export default function BSFacultyPage() {
 
         // Open Form T.R.I Printable Report
         setTriReportData({
-          facultyName: `MR. ${(facultyDisplayName || "Faculty Member").toUpperCase()}`,
+          facultyName: `MR. ${(facultyDisplayName || "Staff Member").toUpperCase()}`,
           designation: joiningForm.designation,
           bpsScale: joiningForm.bpsScale,
           subject: joiningForm.subject,
           collegeName: collegeDisplayName,
+          staffCategory: activeCategory,
           notificationNo: joiningForm.notificationNo,
           notificationDate: joiningForm.notificationDate,
           joiningDate: joiningForm.effectiveDate,
@@ -808,6 +968,7 @@ export default function BSFacultyPage() {
           subject: relievedForm.subject,
           collegeName: collegeDisplayName,
           collegeAddress: "Sariab Road, Quetta.",
+          staffCategory: relievedForm.staffCategory,
           notificationNo: relievedForm.notificationNo,
           notificationDate: relievedForm.notificationDate,
           relievingDate: relievedForm.effectiveDate,
@@ -829,12 +990,14 @@ export default function BSFacultyPage() {
   // Instant Report Viewers for row buttons
   const openTriForFaculty = (f: FacultyRecord) => {
     const act = facultyActions[f.id];
+    const resolvedCat = inferStaffCategory(f.designation, act?.staffCategory || f.staffCategory);
     setTriReportData({
       facultyName: `MR. ${(f.user?.name || "").toUpperCase()}`,
       designation: act?.joiningDesignation || f.designation || "Lecturer",
-      bpsScale: act?.joiningBpsScale || (f.designation?.includes("Associate") ? "B-19" : f.designation?.includes("Assistant") ? "B-18" : f.designation?.includes("Professor") ? "B-20" : "B-17"),
-      subject: act?.joiningSubject || f.department?.name || "Psychology",
+      bpsScale: act?.joiningBpsScale || inferBpsFromDesignation(f.designation, f.bpsScale),
+      subject: act?.joiningSubject || f.department?.name || f.officeSection || "Administration",
       collegeName: collegeDisplayName,
+      staffCategory: resolvedCat,
       notificationNo: act?.joiningNotificationNo || "SOC- 1/1-1(5)2008/1796-1807",
       notificationDate: act?.joiningNotificationDate || "07/Sep:/2020",
       joiningDate: act?.joiningDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
@@ -848,13 +1011,15 @@ export default function BSFacultyPage() {
 
   const openRelievingForFaculty = (f: FacultyRecord) => {
     const act = facultyActions[f.id];
+    const resolvedCat = inferStaffCategory(f.designation, act?.staffCategory || f.staffCategory);
     setRelievingReportData({
       facultyName: `MR. ${(f.user?.name || "").toUpperCase()}`,
       designation: act?.relievedDesignation || f.designation || "Associate Professor",
-      bpsScale: act?.relievedBpsScale || (f.designation?.includes("Associate") ? "B-19" : f.designation?.includes("Assistant") ? "B-18" : f.designation?.includes("Professor") ? "B-20" : "B-17"),
-      subject: act?.relievedSubject || f.department?.name || "Mathematics",
+      bpsScale: act?.relievedBpsScale || inferBpsFromDesignation(f.designation, f.bpsScale),
+      subject: act?.relievedSubject || f.department?.name || f.officeSection || "Administration",
       collegeName: collegeDisplayName,
       collegeAddress: "Sariab Road, Quetta.",
+      staffCategory: resolvedCat,
       notificationNo: act?.relievedNotificationNo || "SOC. 11/1-1 (5) /2008/Edn::/2012-17/",
       notificationDate: act?.relievedNotificationDate || "21/September /2020",
       relievingDate: act?.relievedDate || new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }),
@@ -1001,18 +1166,34 @@ export default function BSFacultyPage() {
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
           {/* Search Input */}
-          <div className="md:col-span-6">
+          <div className="md:col-span-4">
             <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
               <span>🔍</span>
-              <span>Search Faculty</span>
+              <span>Search Staff / Faculty</span>
             </label>
             <input
               type="text"
               className={INPUT_STYLE}
-              placeholder="Search by name, father name, designation, qualification, email..."
+              placeholder="Name, CNIC, P#, DOB, District, Designation..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+          </div>
+
+          {/* Staff Category Filter */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-black text-gray-500 uppercase tracking-wider mb-1.5">
+              Staff Category
+            </label>
+            <select
+              value={filterStaffCategory}
+              onChange={(e) => setFilterStaffCategory(e.target.value as "ALL" | StaffCategory)}
+              className={INPUT_STYLE}
+            >
+              <option value="ALL">All Staff</option>
+              <option value="TEACHING">🎓 Teaching Faculty</option>
+              <option value="NON_TEACHING">🏢 Non-Teaching Staff</option>
+            </select>
           </div>
 
           {/* Department Filter */}
@@ -1043,11 +1224,16 @@ export default function BSFacultyPage() {
               className={INPUT_STYLE}
             >
               <option value="ALL">All Designations</option>
-              <option value="Professor">Professor</option>
-              <option value="Associate Professor">Associate Professor</option>
-              <option value="Assistant Professor">Assistant Professor</option>
-              <option value="Lecturer">Lecturer</option>
-              <option value="Visiting Faculty">Visiting Faculty</option>
+              <optgroup label="Teaching Faculty">
+                {TEACHING_POST_PRESETS.map((p) => (
+                  <option key={p.id} value={p.designation}>{p.designation}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Non-Teaching Staff">
+                {NON_TEACHING_POST_PRESETS.map((p) => (
+                  <option key={p.id} value={p.designation}>{p.designation}</option>
+                ))}
+              </optgroup>
             </select>
           </div>
 
@@ -1058,7 +1244,6 @@ export default function BSFacultyPage() {
               className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer"
             >
               <span>🔍</span>
-              <span>Search</span>
             </button>
           </div>
         </div>
@@ -1067,16 +1252,16 @@ export default function BSFacultyPage() {
       {/* Main Data Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
-          <div className="text-center py-16 text-gray-400 font-bold">⏳ Loading faculty records...</div>
+          <div className="text-center py-16 text-gray-400 font-bold">⏳ Loading staff records...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-emerald-800 text-white">
                 <tr>
                   <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider text-center w-12">#</th>
-                  <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider">Faculty Info</th>
-                  <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider">Designation & Qualification</th>
-                  <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider">Department</th>
+                  <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider">Faculty / Staff Info</th>
+                  <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider">Designation, BPS &amp; Type</th>
+                  <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider">Department / Office</th>
                   <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider text-center">Joining Status</th>
                   <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider text-center">Status</th>
                   <th className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider text-center">Actions</th>
@@ -1087,7 +1272,7 @@ export default function BSFacultyPage() {
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       <div className="text-3xl mb-2">🚫</div>
-                      <p className="font-semibold text-gray-700">No faculty members found matching criteria.</p>
+                      <p className="font-semibold text-gray-700">No faculty or staff members found matching criteria.</p>
                     </td>
                   </tr>
                 ) : (
@@ -1095,18 +1280,20 @@ export default function BSFacultyPage() {
                     const action = facultyActions[f.id];
                     const isRelieved = action?.currentStatus === "RELIEVED";
                     const isJoined = action?.currentStatus === "JOINED";
+                    const staffCat = inferStaffCategory(f.designation, f.staffCategory || (f.educationLevel === "NON_TEACHING" ? "NON_TEACHING" : undefined));
+                    const bpsLabel = inferBpsFromDesignation(f.designation, f.bpsScale);
 
                     return (
                       <tr key={f.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="px-4 py-4 text-center font-bold text-gray-400">{i + 1}</td>
 
-                        {/* Faculty Info */}
+                        {/* Faculty / Staff Info */}
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
                             {f.photo ? (
                               <img
                                 src={f.photo}
-                                alt={f.user?.name || "Faculty"}
+                                alt={f.user?.name || "Staff"}
                                 className="w-12 h-12 rounded-xl object-cover border border-emerald-200 shadow-sm flex-shrink-0"
                               />
                             ) : (
@@ -1121,6 +1308,14 @@ export default function BSFacultyPage() {
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-500 mt-0.5">
                                 {f.personalNo && <span className="font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100">P#: {f.personalNo}</span>}
                                 {f.cnic && <span className="text-gray-500">CNIC: {f.cnic}</span>}
+                                {f.dateOfBirth && <span className="text-slate-600">DOB: {f.dateOfBirth}</span>}
+                                {f.firstAppointmentDate && <span className="text-indigo-700 font-semibold">1st Join: {f.firstAppointmentDate}</span>}
+                                {(f.belongsDistrict || f.belongsDivision) && (
+                                  <span className="text-teal-700 font-medium">
+                                    Domicile: {f.belongsDistrict || f.belongsDivision}
+                                    {f.belongsDivision && f.belongsDistrict ? ` (${f.belongsDivision})` : ""}
+                                  </span>
+                                )}
                                 {f.contactNumber && <span>📞 {f.contactNumber}</span>}
                               </div>
                             </div>
@@ -1129,9 +1324,16 @@ export default function BSFacultyPage() {
 
                         {/* Designation & Qualification */}
                         <td className="px-4 py-4">
-                          <span className="px-2.5 py-0.5 text-xs font-black rounded-md bg-blue-50 text-blue-700 border border-blue-200 inline-block mb-1">
-                            {f.designation || "Lecturer"}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1 mb-1">
+                            <span className="px-2.5 py-0.5 text-xs font-black rounded-md bg-blue-50 text-blue-700 border border-blue-200 inline-block">
+                              {f.designation || "Lecturer"}
+                            </span>
+                            {bpsLabel && (
+                              <span className="px-2 py-0.5 text-[11px] font-black rounded-md bg-slate-100 text-slate-800 border border-slate-300">
+                                {bpsLabel}
+                              </span>
+                            )}
+                          </div>
                           {f.additionalCharge && (
                             <div className="mb-1">
                               <span className="px-2 py-0.5 text-[11px] font-black rounded-md bg-amber-100 text-amber-950 border border-amber-300 inline-flex items-center gap-1 shadow-xs" title={`Special Additional Charge: ${f.additionalCharge}`}>
@@ -1140,19 +1342,29 @@ export default function BSFacultyPage() {
                               </span>
                             </div>
                           )}
-                          <div className="text-xs font-semibold text-gray-700">{f.qualification || "M.Phil"}</div>
+                          <div className="text-xs font-semibold text-gray-700">{f.qualification || "N/A"}</div>
                           <span className={`inline-block mt-1 px-2 py-0.5 text-[10px] font-bold rounded-md ${
-                            f.educationLevel === "INTERMEDIATE" ? "bg-amber-100 text-amber-800 border border-amber-200" :
-                            f.educationLevel === "BOTH" ? "bg-purple-100 text-purple-800 border border-purple-200" :
-                            "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                            staffCat === "NON_TEACHING" || f.educationLevel === "NON_TEACHING"
+                              ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                              : f.educationLevel === "INTERMEDIATE"
+                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                : f.educationLevel === "BOTH"
+                                  ? "bg-purple-100 text-purple-800 border border-purple-200"
+                                  : "bg-emerald-100 text-emerald-800 border border-emerald-200"
                           }`}>
-                            {f.educationLevel === "INTERMEDIATE" ? "🏫 Inter Faculty" : f.educationLevel === "BOTH" ? "🎓 Both (BS & Inter)" : "🎓 BS Faculty"}
+                            {staffCat === "NON_TEACHING" || f.educationLevel === "NON_TEACHING"
+                              ? "🏢 Non-Teaching / Ministerial"
+                              : f.educationLevel === "INTERMEDIATE"
+                                ? "🏫 Inter Faculty"
+                                : f.educationLevel === "BOTH"
+                                  ? "🎓 Both (BS & Inter)"
+                                  : "🎓 BS Faculty"}
                           </span>
                         </td>
 
-                        {/* Department */}
+                        {/* Department / Office Section */}
                         <td className="px-4 py-4 font-bold text-gray-800 text-xs">
-                          {f.department?.name || <span className="text-gray-400 italic">Unassigned</span>}
+                          {f.department?.name || f.officeSection || <span className="text-gray-400 italic">Unassigned</span>}
                         </td>
 
                         {/* Joining Status */}
@@ -1255,10 +1467,10 @@ export default function BSFacultyPage() {
               <div>
                 <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
                   <span>🏛️</span>
-                  <span>Issue Faculty Joining (Form T.R.I)</span>
+                  <span>Issue Faculty / Staff Joining (Form T.R.I)</span>
                 </h2>
                 <p className="text-xs text-gray-500 font-medium mt-0.5">
-                  Certificate of the Transfer of Charge (See Rule 44) official Government report generator
+                  Certificate of the Transfer of Charge (See Rule 44) — Teaching Faculty &amp; Non-Teaching Staff
                 </p>
               </div>
               <button onClick={() => setShowJoiningModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xl cursor-pointer">✕</button>
@@ -1273,7 +1485,7 @@ export default function BSFacultyPage() {
                   joiningMode === "EXISTING" ? "bg-white text-emerald-800 shadow-sm" : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <span>🏢 Transferred / Existing Faculty</span>
+                <span>🏢 Transferred / Existing Staff</span>
               </button>
               <button
                 type="button"
@@ -1282,53 +1494,170 @@ export default function BSFacultyPage() {
                   joiningMode === "NEW" ? "bg-white text-emerald-800 shadow-sm" : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                <span>👤+ Register Incoming Faculty Member</span>
+                <span>👤+ Register Incoming Faculty / Non-Teaching Staff</span>
               </button>
             </div>
 
             <form onSubmit={handleSubmitJoining} className="space-y-4">
               {joiningMode === "EXISTING" ? (
-                <div>
-                  <label className="block text-xs font-black text-gray-600 uppercase mb-1">
-                    Select Faculty Member <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={joiningForm.facultyId}
-                    onChange={(e) => {
-                      const sel = facultyList.find((f) => f.id === e.target.value);
-                      setTargetFaculty(sel || null);
-                      setJoiningForm((prev) => ({
-                        ...prev,
-                        facultyId: e.target.value,
-                        designation: sel?.designation || prev.designation,
-                        subject: sel?.department?.name || prev.subject,
-                      }));
-                    }}
-                    className={INPUT_STYLE}
-                  >
-                    <option value="">-- Choose Faculty Member --</option>
-                    {facultyList.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.user?.name} ({f.designation || "Lecturer"} - {f.department?.name || "BS"})
-                      </option>
-                    ))}
-                  </select>
-                  {targetFaculty && (
-                    <div className="mt-2 p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs flex flex-wrap gap-x-4 gap-y-1 text-emerald-950 font-medium">
-                      {targetFaculty.personalNo && <span><strong>SAP P#:</strong> {targetFaculty.personalNo}</span>}
-                      {targetFaculty.cnic && <span><strong>CNIC:</strong> {targetFaculty.cnic}</span>}
-                      {targetFaculty.firstAppointmentDate && <span><strong>1st Appt Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
-                      {targetFaculty.previousCollege && <span><strong>Prev Station:</strong> {targetFaculty.previousCollege}</span>}
-                      {targetFaculty.district && <span><strong>District:</strong> {targetFaculty.district}</span>}
-                      {targetFaculty.additionalCharge && <span><strong>Addl Charge:</strong> {targetFaculty.additionalCharge}</span>}
-                    </div>
-                  )}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-black text-gray-600 uppercase mb-1">
+                      Select Faculty / Staff Member <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={joiningForm.facultyId}
+                      onChange={(e) => {
+                        const sel = facultyList.find((f) => f.id === e.target.value);
+                        setTargetFaculty(sel || null);
+                        const cat = inferStaffCategory(sel?.designation, sel?.staffCategory);
+                        const bps = inferBpsFromDesignation(sel?.designation, sel?.bpsScale);
+                        setJoiningForm((prev) => ({
+                          ...prev,
+                          facultyId: e.target.value,
+                          staffCategory: cat,
+                          designation: sel?.designation || prev.designation,
+                          bpsScale: bps,
+                          subject: sel?.department?.name || sel?.officeSection || prev.subject,
+                          officeSection: sel?.officeSection || "",
+                        }));
+                      }}
+                      className={INPUT_STYLE}
+                    >
+                      <option value="">-- Choose Faculty / Staff Member --</option>
+                      {facultyList.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.user?.name} ({f.designation || "Lecturer"} {f.bpsScale ? `• ${f.bpsScale}` : ""} - {f.department?.name || f.officeSection || "General"})
+                        </option>
+                      ))}
+                    </select>
+                    {targetFaculty && (
+                      <div className="mt-2 p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs flex flex-wrap gap-x-4 gap-y-1 text-emerald-950 font-medium">
+                        {targetFaculty.personalNo && <span><strong>SAP P#:</strong> {targetFaculty.personalNo}</span>}
+                        {targetFaculty.cnic && <span><strong>CNIC:</strong> {targetFaculty.cnic}</span>}
+                        {targetFaculty.dateOfBirth && <span><strong>DOB:</strong> {targetFaculty.dateOfBirth}</span>}
+                        {targetFaculty.firstAppointmentDate && <span><strong>1st Joining Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
+                        {(targetFaculty.belongsDistrict || targetFaculty.belongsDivision) && (
+                          <span>
+                            <strong>Belongs To:</strong> {targetFaculty.belongsDistrict || ""}{targetFaculty.belongsDivision ? ` (${targetFaculty.belongsDivision} Div)` : ""}
+                          </span>
+                        )}
+                        {targetFaculty.previousCollege && <span><strong>Prev Station:</strong> {targetFaculty.previousCollege}</span>}
+                        {targetFaculty.district && <span><strong>Posting Dist:</strong> {targetFaculty.district}</span>}
+                        {targetFaculty.additionalCharge && <span><strong>Addl Charge:</strong> {targetFaculty.additionalCharge}</span>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-3.5 p-4 bg-emerald-50/40 rounded-xl border border-emerald-100">
-                  <div className="text-xs font-black text-emerald-900 uppercase tracking-wide border-b pb-1">
-                    Incoming Faculty Dossier Details
+                <div className="space-y-4 p-4 bg-emerald-50/40 rounded-xl border border-emerald-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
+                    <div className="text-xs font-black text-emerald-900 uppercase tracking-wide">
+                      Incoming Staff / Faculty Dossier Details
+                    </div>
+
+                    {/* Teaching vs Non-Teaching Switcher */}
+                    <div className="flex bg-white p-0.5 rounded-lg border border-emerald-200 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchJoiningCategory("TEACHING")}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all cursor-pointer ${
+                          joiningNewForm.staffCategory === "TEACHING"
+                            ? "bg-emerald-700 text-white shadow-xs"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                      >
+                        🎓 Teaching Faculty
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchJoiningCategory("NON_TEACHING")}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-black transition-all cursor-pointer ${
+                          joiningNewForm.staffCategory === "NON_TEACHING"
+                            ? "bg-indigo-700 text-white shadow-xs"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                      >
+                        🏢 Non-Teaching Staff
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick Post & BPS Cadre Selector */}
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-800 uppercase">
+                        {joiningNewForm.staffCategory === "NON_TEACHING"
+                          ? "Non-Teaching Post & Pay Scale Preset (Superintendent, Clerk, Lab Asst, Driver, Mali...)"
+                          : "Teaching Designation & BPS Preset"}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {joiningForm.designation} ({joiningForm.bpsScale})
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {(joiningNewForm.staffCategory === "NON_TEACHING"
+                        ? NON_TEACHING_POST_PRESETS
+                        : TEACHING_POST_PRESETS
+                      ).map((preset) => {
+                        const isSelected =
+                          joiningForm.designation.toLowerCase() === preset.designation.toLowerCase();
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => applyJoiningPostPreset(preset)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                              isSelected
+                                ? joiningNewForm.staffCategory === "NON_TEACHING"
+                                  ? "bg-indigo-700 text-white border-indigo-700 shadow-xs"
+                                  : "bg-emerald-700 text-white border-emerald-700 shadow-xs"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            {preset.designation}{" "}
+                            <span className="opacity-75">
+                              ({preset.bpsOptions.length > 1 ? preset.bpsOptions.join("/") : preset.defaultBps})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Multi-Scale Quick Toggle (e.g. Lab Assistant B-07/B-14, Mali B-01/B-03, Driver B-05/B-07) */}
+                    {(() => {
+                      const activeList =
+                        joiningNewForm.staffCategory === "NON_TEACHING"
+                          ? NON_TEACHING_POST_PRESETS
+                          : TEACHING_POST_PRESETS;
+                      const matchedPreset = activeList.find(
+                        (p) => p.designation.toLowerCase() === joiningForm.designation.toLowerCase()
+                      );
+                      if (!matchedPreset || matchedPreset.bpsOptions.length <= 1) return null;
+                      return (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-100 text-[11px]">
+                          <span className="font-bold text-slate-600">
+                            Select Scale for {matchedPreset.designation}:
+                          </span>
+                          {matchedPreset.bpsOptions.map((bps) => (
+                            <button
+                              key={bps}
+                              type="button"
+                              onClick={() => setJoiningForm((prev) => ({ ...prev, bpsScale: bps }))}
+                              className={`px-2 py-0.5 rounded font-black border transition-all cursor-pointer ${
+                                joiningForm.bpsScale === bps
+                                  ? "bg-amber-500 text-slate-950 border-amber-500"
+                                  : "bg-white text-slate-700 border-slate-300 hover:bg-amber-50"
+                              }`}
+                            >
+                              {bps}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Photo Upload */}
@@ -1364,7 +1693,7 @@ export default function BSFacultyPage() {
                         required
                         type="text"
                         className={INPUT_STYLE}
-                        placeholder="Prof. Dr. Javed Ahmed Baloch"
+                        placeholder={joiningNewForm.staffCategory === "NON_TEACHING" ? "e.g. Muhammad Tariq / Gul Muhammad" : "Prof. Dr. Javed Ahmed Baloch"}
                         value={joiningNewForm.name}
                         onChange={(e) => setJoiningNewForm({ ...joiningNewForm, name: e.target.value })}
                       />
@@ -1382,9 +1711,9 @@ export default function BSFacultyPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP / Civil Service ID)</label>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP ID)</label>
                       <input
                         type="text"
                         className={INPUT_STYLE}
@@ -1403,68 +1732,171 @@ export default function BSFacultyPage() {
                         onChange={(e) => setJoiningNewForm({ ...joiningNewForm, cnic: e.target.value })}
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Contact Number</label>
+                      <input
+                        type="text"
+                        className={INPUT_STYLE}
+                        placeholder="0300-1234567"
+                        value={joiningNewForm.contactNumber}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, contactNumber: e.target.value })}
+                      />
+                    </div>
                   </div>
 
+                  {/* DOB & First Joining Date in Govt Service */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Department *</label>
-                      <select
-                        required
+                      <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                        Date of Birth (DOB)
+                      </label>
+                      <input
+                        type="date"
                         className={INPUT_STYLE}
-                        value={joiningNewForm.departmentId}
+                        value={joiningNewForm.dateOfBirth}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, dateOfBirth: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-900 uppercase mb-1">
+                        First Joining Date (1st Appt in Govt Service)
+                      </label>
+                      <input
+                        type="date"
+                        className={INPUT_STYLE}
+                        value={joiningNewForm.firstAppointmentDate}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, firstAppointmentDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Division & District to Belong (Native / Domicile) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-white rounded-xl border border-emerald-200/80">
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-900 uppercase mb-1">
+                        Division to Belongs (Domicile / Native)
+                      </label>
+                      <select
+                        className={INPUT_STYLE}
+                        value={joiningNewForm.belongsDivision}
                         onChange={(e) => {
-                          const d = departments.find((x) => x.id === e.target.value);
-                          setJoiningNewForm({ ...joiningNewForm, departmentId: e.target.value });
-                          if (d) setJoiningForm((prev) => ({ ...prev, subject: d.name }));
+                          const div = e.target.value;
+                          const suggested = getSuggestedDistricts(div);
+                          setJoiningNewForm({
+                            ...joiningNewForm,
+                            belongsDivision: div,
+                            belongsDistrict: suggested[0] || joiningNewForm.belongsDistrict,
+                          });
                         }}
                       >
-                        <option value="">-- Select Department --</option>
-                        {departments.map((d) => (
-                          <option key={d.id} value={d.id}>{d.name}</option>
+                        {BALOCHISTAN_DIVISIONS.map((div) => (
+                          <option key={div} value={div}>
+                            {div === "Other / Outside Balochistan" ? div : `${div} Division`}
+                          </option>
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-emerald-900 uppercase mb-1">
+                        District to Belongs (Domicile)
+                      </label>
+                      <input
+                        type="text"
+                        list="belongs-districts-list"
+                        className={INPUT_STYLE}
+                        placeholder="Select or type district (e.g. Mastung, Quetta)"
+                        value={joiningNewForm.belongsDistrict}
+                        onChange={(e) => setJoiningNewForm({ ...joiningNewForm, belongsDistrict: e.target.value })}
+                      />
+                      <datalist id="belongs-districts-list">
+                        {getSuggestedDistricts(joiningNewForm.belongsDivision).map((dist) => (
+                          <option key={dist} value={dist} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+
+                  {/* Department / Office Branch & Qualification */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {joiningNewForm.staffCategory === "NON_TEACHING" ? (
+                      <div>
+                        <label className="block text-xs font-bold text-indigo-900 uppercase mb-1">
+                          Office / Branch / Wing
+                        </label>
+                        <input
+                          type="text"
+                          list="office-sections-list"
+                          className={INPUT_STYLE}
+                          placeholder="Administration, Library, Lab, Transport..."
+                          value={joiningNewForm.officeSection}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setJoiningNewForm({ ...joiningNewForm, officeSection: val });
+                            setJoiningForm((prev) => ({ ...prev, subject: val, officeSection: val }));
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Department *</label>
+                        <select
+                          required
+                          className={INPUT_STYLE}
+                          value={joiningNewForm.departmentId}
+                          onChange={(e) => {
+                            const d = departments.find((x) => x.id === e.target.value);
+                            setJoiningNewForm({ ...joiningNewForm, departmentId: e.target.value });
+                            if (d) setJoiningForm((prev) => ({ ...prev, subject: d.name }));
+                          }}
+                        >
+                          <option value="">-- Select Department --</option>
+                          {departments.map((d) => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Qualification</label>
                       <input
                         type="text"
                         className={INPUT_STYLE}
-                        placeholder="Ph.D. / M.Phil"
+                        placeholder={joiningNewForm.staffCategory === "NON_TEACHING" ? "M.LIS / B.A. / F.A. / Matric / Literate" : "Ph.D. / M.Phil"}
                         value={joiningNewForm.qualification}
                         onChange={(e) => setJoiningNewForm({ ...joiningNewForm, qualification: e.target.value })}
                       />
                     </div>
                   </div>
 
+                  {/* Previous Station & Posting Division/District */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Previous College / Station</label>
                       <input
                         type="text"
                         className={INPUT_STYLE}
-                        placeholder="e.g. Govt Degree College Sariab Road"
+                        placeholder="e.g. Govt Degree College / Fresh Appt"
                         value={joiningNewForm.previousCollege}
                         onChange={(e) => setJoiningNewForm({ ...joiningNewForm, previousCollege: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Division</label>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Posting Division</label>
                       <select
                         className={INPUT_STYLE}
                         value={joiningNewForm.division}
                         onChange={(e) => setJoiningNewForm({ ...joiningNewForm, division: e.target.value })}
                       >
-                        <option value="Quetta">Quetta Division</option>
-                        <option value="Kalat">Kalat Division</option>
-                        <option value="Makran">Makran Division</option>
-                        <option value="Nasirabad">Nasirabad Division</option>
-                        <option value="Sibi">Sibi Division</option>
-                        <option value="Zhob">Zhob Division</option>
-                        <option value="Rakhshan">Rakhshan Division</option>
+                        {BALOCHISTAN_DIVISIONS.map((div) => (
+                          <option key={div} value={div}>
+                            {div === "Other / Outside Balochistan" ? div : `${div} Division`}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">District</label>
+                      <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Posting District</label>
                       <input
                         type="text"
                         list="districts-list"
@@ -1485,7 +1917,7 @@ export default function BSFacultyPage() {
                       type="text"
                       list="additional-charges-list"
                       className={INPUT_STYLE}
-                      placeholder="e.g. Vice Principal, Controller Examinations, Incharge Principal"
+                      placeholder="e.g. Vice Principal, DDO, Cashier Charge, Incharge Stock"
                       value={joiningNewForm.additionalCharge}
                       onChange={(e) => setJoiningNewForm({ ...joiningNewForm, additionalCharge: e.target.value })}
                     />
@@ -1551,18 +1983,16 @@ export default function BSFacultyPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-black text-gray-600 uppercase mb-1">
-                    Pay Scale (BPS) <span className="text-red-500">*</span>
+                    Pay Scale (BPS B-01 to B-21) <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={joiningForm.bpsScale}
                     onChange={(e) => setJoiningForm({ ...joiningForm, bpsScale: e.target.value })}
                     className={INPUT_STYLE}
                   >
-                    <option value="B-17">B-17 (Lecturer)</option>
-                    <option value="B-18">B-18 (Assistant Professor)</option>
-                    <option value="B-19">B-19 (Associate Professor)</option>
-                    <option value="B-20">B-20 (Professor)</option>
-                    <option value="B-21">B-21</option>
+                    {ALL_BPS_SCALES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1570,25 +2000,43 @@ export default function BSFacultyPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-black text-gray-600 uppercase mb-1">
-                    Designation
+                    Designation / Post
                   </label>
                   <input
                     type="text"
+                    list="staff-designations-list"
                     value={joiningForm.designation}
-                    onChange={(e) => setJoiningForm({ ...joiningForm, designation: e.target.value })}
-                    placeholder="Lecturer / Assistant Professor"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const inferredCat = inferStaffCategory(val);
+                      const inferredBps = inferBpsFromDesignation(val);
+                      setJoiningForm((prev) => ({
+                        ...prev,
+                        designation: val,
+                        staffCategory: joiningMode === "EXISTING" ? inferredCat : prev.staffCategory,
+                        bpsScale: inferredBps || prev.bpsScale,
+                      }));
+                    }}
+                    placeholder="Lecturer, Superintendent, Senior Clerk, Lab Assistant, Driver, Mali..."
                     className={INPUT_STYLE}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-black text-gray-600 uppercase mb-1">
-                    Subject / Discipline
+                    {(joiningMode === "NEW" ? joiningNewForm.staffCategory : joiningForm.staffCategory) === "NON_TEACHING"
+                      ? "Office / Section / Branch"
+                      : "Subject / Discipline"}
                   </label>
                   <input
                     type="text"
+                    list="office-sections-list"
                     value={joiningForm.subject}
                     onChange={(e) => setJoiningForm({ ...joiningForm, subject: e.target.value })}
-                    placeholder="Psychology / Mathematics"
+                    placeholder={
+                      (joiningMode === "NEW" ? joiningNewForm.staffCategory : joiningForm.staffCategory) === "NON_TEACHING"
+                        ? "Administration / Library / Science Lab / Transport"
+                        : "Psychology / Mathematics"
+                    }
                     className={INPUT_STYLE}
                   />
                 </div>
@@ -1684,16 +2132,19 @@ export default function BSFacultyPage() {
                     setRelievedForm((prev) => ({
                       ...prev,
                       facultyId: e.target.value,
+                      staffCategory: inferStaffCategory(sel?.designation, sel?.staffCategory),
+                      bpsScale: inferBpsFromDesignation(sel?.designation, sel?.bpsScale),
                       designation: sel?.designation || prev.designation,
-                      subject: sel?.department?.name || prev.subject,
+                      subject: sel?.department?.name || sel?.officeSection || prev.subject,
+                      officeSection: sel?.officeSection || "",
                     }));
                   }}
                   className={INPUT_STYLE}
                 >
-                  <option value="">-- Choose Faculty Member --</option>
+                  <option value="">-- Choose Faculty / Staff Member --</option>
                   {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.user?.name} ({f.designation || "Associate Professor"} - {f.department?.name || "Mathematics"})
+                      {f.user?.name} ({f.designation || "Associate Professor"}{f.bpsScale ? ` • ${f.bpsScale}` : ""} - {f.department?.name || f.officeSection || "General"})
                     </option>
                   ))}
                 </select>
@@ -1701,7 +2152,13 @@ export default function BSFacultyPage() {
                   <div className="mt-2 p-2.5 bg-teal-50/80 border border-teal-200 rounded-xl text-xs flex flex-wrap gap-x-4 gap-y-1 text-teal-950 font-medium">
                     {targetFaculty.personalNo && <span><strong>SAP P#:</strong> {targetFaculty.personalNo}</span>}
                     {targetFaculty.cnic && <span><strong>CNIC:</strong> {targetFaculty.cnic}</span>}
-                    {targetFaculty.firstAppointmentDate && <span><strong>1st Appt Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
+                    {targetFaculty.dateOfBirth && <span><strong>DOB:</strong> {targetFaculty.dateOfBirth}</span>}
+                    {targetFaculty.firstAppointmentDate && <span><strong>1st Joining Date:</strong> {targetFaculty.firstAppointmentDate}</span>}
+                    {(targetFaculty.belongsDistrict || targetFaculty.belongsDivision) && (
+                      <span>
+                        <strong>Belongs To:</strong> {targetFaculty.belongsDistrict || ""}{targetFaculty.belongsDivision ? ` (${targetFaculty.belongsDivision})` : ""}
+                      </span>
+                    )}
                     {targetFaculty.previousCollege && <span><strong>Current Station:</strong> {targetFaculty.previousCollege}</span>}
                     {targetFaculty.district && <span><strong>District:</strong> {targetFaculty.district}</span>}
                   </div>
@@ -1773,11 +2230,9 @@ export default function BSFacultyPage() {
                     onChange={(e) => setRelievedForm({ ...relievedForm, bpsScale: e.target.value })}
                     className={INPUT_STYLE}
                   >
-                    <option value="B-19">B-19 (Associate Professor)</option>
-                    <option value="B-18">B-18 (Assistant Professor)</option>
-                    <option value="B-17">B-17 (Lecturer)</option>
-                    <option value="B-20">B-20 (Professor)</option>
-                    <option value="B-21">B-21</option>
+                    {ALL_BPS_SCALES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1911,19 +2366,31 @@ export default function BSFacultyPage() {
                 </div>
 
                 {/* Paragraph 1: Main Joining / Charge Assumption Statement */}
-                <div className="text-justify text-base leading-relaxed mb-8 indent-8">
-                  With reference to Secretary Colleges, Higher & Technical Education, Quetta Vide Notification No. <strong>{triReportData.notificationNo}</strong>/Dated.<strong>{triReportData.notificationDate}</strong>. I, <strong>{triReportData.facultyName}</strong> as <strong>{triReportData.designation}</strong> of <strong>({triReportData.subject})</strong> (<strong>{triReportData.bpsScale}</strong>) and Posted at <strong>{triReportData.collegeName}</strong> . I assumed the Charge today on dated <strong>{triReportData.joiningDate}</strong> {triReportData.timeOfDay}.
-                </div>
+                {(() => {
+                  const posFmt = formatOfficialChargePosition({
+                    designation: triReportData.designation,
+                    subjectOrOffice: triReportData.subject,
+                    bpsScale: triReportData.bpsScale,
+                    staffCategory: triReportData.staffCategory || inferStaffCategory(triReportData.designation),
+                  });
+                  return (
+                    <>
+                      <div className="text-justify text-base leading-relaxed mb-8 indent-8">
+                        With reference to Secretary Colleges, Higher &amp; Technical Education, Quetta Vide Notification No. <strong>{triReportData.notificationNo}</strong>/Dated.<strong>{triReportData.notificationDate}</strong>. I, <strong>{triReportData.facultyName}</strong> as <strong>{posFmt.rolePhrase}</strong> and Posted at <strong>{triReportData.collegeName}</strong>. I assumed the Charge today on dated <strong>{triReportData.joiningDate}</strong> {triReportData.timeOfDay}.
+                      </div>
 
-                {/* Officer Signature & Designation Block (Right Aligned) */}
-                <div className="flex justify-end mb-8">
-                  <div className="text-center min-w-[280px]">
-                    <div className="h-10"></div>
-                    <div className="font-bold text-base tracking-wide">{triReportData.facultyName}</div>
-                    <div className="text-sm font-semibold">{triReportData.designation} in ({triReportData.subject})</div>
-                    <div className="text-xs font-bold uppercase tracking-wide">{triReportData.collegeName}</div>
-                  </div>
-                </div>
+                      {/* Officer Signature & Designation Block (Right Aligned) */}
+                      <div className="flex justify-end mb-8">
+                        <div className="text-center min-w-[280px]">
+                          <div className="h-10"></div>
+                          <div className="font-bold text-base tracking-wide">{triReportData.facultyName}</div>
+                          <div className="text-sm font-semibold">{posFmt.signatureSubLine}</div>
+                          <div className="text-xs font-bold uppercase tracking-wide">{triReportData.collegeName}</div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 {/* Station & Dated Section */}
                 <div className="mb-4 text-sm">
@@ -2083,26 +2550,38 @@ export default function BSFacultyPage() {
                 </div>
 
                 {/* Paragraph: Relieving Compliance Statement */}
-                <div className="text-justify text-base leading-relaxed mb-8 indent-8">
-                  In Compliance of the Secretary, Govt: of Baluchistan Quetta Vide. Notification No. <strong>{relievingReportData.notificationNo}</strong> Dated: <strong>{relievingReportData.notificationDate}</strong>, <strong>{relievingReportData.facultyName}</strong> {relievingReportData.designation} (<strong>{relievingReportData.bpsScale}</strong>) ({relievingReportData.subject}) in <strong>{relievingReportData.collegeName}</strong>, {relievingReportData.collegeAddress} is hereby relieved from this College today on, <strong>{relievingReportData.relievingDate}</strong> {relievingReportData.timeOfDay}.
-                </div>
+                {(() => {
+                  const posFmt = formatOfficialChargePosition({
+                    designation: relievingReportData.designation,
+                    subjectOrOffice: relievingReportData.subject,
+                    bpsScale: relievingReportData.bpsScale,
+                    staffCategory: relievingReportData.staffCategory || inferStaffCategory(relievingReportData.designation),
+                  });
+                  return (
+                    <>
+                      <div className="text-justify text-base leading-relaxed mb-8 indent-8">
+                        In Compliance of the Secretary, Govt: of Baluchistan Quetta Vide. Notification No. <strong>{relievingReportData.notificationNo}</strong> Dated: <strong>{relievingReportData.notificationDate}</strong>, <strong>{relievingReportData.facultyName}</strong> {posFmt.rolePhrase} in <strong>{relievingReportData.collegeName}</strong>, {relievingReportData.collegeAddress} is hereby relieved from this College today on, <strong>{relievingReportData.relievingDate}</strong> {relievingReportData.timeOfDay}.
+                      </div>
 
-                {/* Dispatch Reference & Date */}
-                <div className="text-sm font-semibold mb-8 space-y-1">
-                  <div>NO. Esst: <strong>{relievingReportData.memoNo}</strong> {collegeShortCode || "GCQ"}.</div>
-                  <div>Dated {relievingReportData.station}, the _______{new Date().getFullYear()}.</div>
-                </div>
+                      {/* Dispatch Reference & Date */}
+                      <div className="text-sm font-semibold mb-8 space-y-1">
+                        <div>NO. Esst: <strong>{relievingReportData.memoNo}</strong> {collegeShortCode || "GCQ"}.</div>
+                        <div>Dated {relievingReportData.station}, the _______{new Date().getFullYear()}.</div>
+                      </div>
 
-                {/* Relieved Officer Block (Centered/Right Aligned) */}
-                <div className="flex justify-end mb-12">
-                  <div className="text-center min-w-[280px]">
-                    <div className="h-10"></div>
-                    <div className="font-bold text-base tracking-wide">{relievingReportData.facultyName}</div>
-                    <div className="text-sm font-semibold">{relievingReportData.designation} of {relievingReportData.subject}</div>
-                    <div className="text-xs font-bold uppercase tracking-wide">{relievingReportData.collegeName}</div>
-                    <div className="text-xs">{relievingReportData.collegeAddress}</div>
-                  </div>
-                </div>
+                      {/* Relieved Officer Block (Centered/Right Aligned) */}
+                      <div className="flex justify-end mb-12">
+                        <div className="text-center min-w-[280px]">
+                          <div className="h-10"></div>
+                          <div className="font-bold text-base tracking-wide">{relievingReportData.facultyName}</div>
+                          <div className="text-sm font-semibold">{posFmt.signatureSubLine}</div>
+                          <div className="text-xs font-bold uppercase tracking-wide">{relievingReportData.collegeName}</div>
+                          <div className="text-xs">{relievingReportData.collegeAddress}</div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 {/* Copy to Section */}
                 <div className="text-sm mb-12">
@@ -2207,25 +2686,46 @@ export default function BSFacultyPage() {
             <div>
               <h3 className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                 <span>🏛️</span>
-                <span>Government Service & Posting Dossier</span>
+                <span>Government Service, Domicile &amp; Posting Dossier</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Staff Category &amp; Pay Scale</span>
+                  <span className="font-bold text-indigo-900">
+                    {inferStaffCategory(viewingFaculty.designation, viewingFaculty.staffCategory) === "NON_TEACHING"
+                      ? "🏢 Non-Teaching Staff"
+                      : "🎓 Teaching Faculty"}{" "}
+                    ({inferBpsFromDesignation(viewingFaculty.designation, viewingFaculty.bpsScale)})
+                  </span>
+                </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                   <span className="block text-[11px] font-bold text-gray-500 uppercase">Personal No. (SAP / Personnel ID)</span>
                   <span className="font-mono font-bold text-emerald-900">{viewingFaculty.personalNo || "Not Recorded"}</span>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="block text-[11px] font-bold text-gray-500 uppercase">First Appointment in Govt Service</span>
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Date of Birth (DOB)</span>
+                  <span className="font-semibold text-gray-800">{viewingFaculty.dateOfBirth || "Not Recorded"}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">First Joining Date (Govt Service)</span>
                   <span className="font-semibold text-gray-800">{viewingFaculty.firstAppointmentDate || "Not Recorded"}</span>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Previous College / Station</span>
-                  <span className="font-semibold text-gray-800">{viewingFaculty.previousCollege || "N/A"}</span>
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Division &amp; District to Belongs (Domicile)</span>
+                  <span className="font-semibold text-teal-900">
+                    {viewingFaculty.belongsDivision || viewingFaculty.division || "Not Recorded"}
+                    {viewingFaculty.belongsDistrict || viewingFaculty.district
+                      ? ` (${viewingFaculty.belongsDistrict || viewingFaculty.district})`
+                      : ""}
+                  </span>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Division & District</span>
+                  <span className="block text-[11px] font-bold text-gray-500 uppercase">Previous Station &amp; Posting Division</span>
                   <span className="font-semibold text-gray-800">
-                    {viewingFaculty.division || "Balochistan"} {viewingFaculty.district ? `(${viewingFaculty.district})` : ""}
+                    {viewingFaculty.previousCollege || "N/A"}
+                    {viewingFaculty.division || viewingFaculty.district
+                      ? ` — ${viewingFaculty.district || ""}, ${viewingFaculty.division || ""}`
+                      : ""}
                   </span>
                 </div>
               </div>
@@ -2432,15 +2932,15 @@ export default function BSFacultyPage() {
                 </div>
               </div>
 
-              {/* SECTION 2: Government Service & Posting Dossier */}
+              {/* SECTION 2: Government Service, DOB, Domicile & Posting Dossier */}
               <div className="space-y-3">
                 <div className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
                   <span>🏛️</span>
-                  <span>Government Service & Posting Dossier</span>
+                  <span>Government Service, DOB, Domicile &amp; Posting Dossier</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP / Civil Service ID)</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Personal No. (SAP ID)</label>
                     <input
                       type="text"
                       placeholder="e.g. 10845231"
@@ -2450,12 +2950,62 @@ export default function BSFacultyPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">First Appointment Date in Govt Service</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Date of Birth (DOB)</label>
+                    <input
+                      type="date"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.dateOfBirth || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, dateOfBirth: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-emerald-900 uppercase mb-1">First Joining Date</label>
                     <input
                       type="date"
                       className={INPUT_STYLE}
                       value={editingFaculty.firstAppointmentDate || ""}
                       onChange={(e) => setEditingFaculty({ ...editingFaculty, firstAppointmentDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Belongs To Division & District */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-emerald-50/50 rounded-xl border border-emerald-200/70">
+                  <div>
+                    <label className="block text-xs font-bold text-emerald-900 uppercase mb-1">
+                      Division to Belongs (Domicile)
+                    </label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={editingFaculty.belongsDivision || editingFaculty.division || "Quetta"}
+                      onChange={(e) => {
+                        const div = e.target.value;
+                        const suggested = getSuggestedDistricts(div);
+                        setEditingFaculty({
+                          ...editingFaculty,
+                          belongsDivision: div,
+                          belongsDistrict: suggested[0] || editingFaculty.belongsDistrict || "",
+                        });
+                      }}
+                    >
+                      {BALOCHISTAN_DIVISIONS.map((div) => (
+                        <option key={div} value={div}>
+                          {div === "Other / Outside Balochistan" ? div : `${div} Division`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-emerald-900 uppercase mb-1">
+                      District to Belongs (Domicile)
+                    </label>
+                    <input
+                      type="text"
+                      list="districts-list"
+                      placeholder="e.g. Quetta / Pishin / Kalat"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.belongsDistrict || ""}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, belongsDistrict: e.target.value })}
                     />
                   </div>
                 </div>
@@ -2472,23 +3022,21 @@ export default function BSFacultyPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Division</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Posting Division</label>
                     <select
                       className={INPUT_STYLE}
                       value={editingFaculty.division || "Quetta"}
                       onChange={(e) => setEditingFaculty({ ...editingFaculty, division: e.target.value })}
                     >
-                      <option value="Quetta">Quetta Division</option>
-                      <option value="Kalat">Kalat Division</option>
-                      <option value="Makran">Makran Division</option>
-                      <option value="Nasirabad">Nasirabad Division</option>
-                      <option value="Sibi">Sibi Division</option>
-                      <option value="Zhob">Zhob Division</option>
-                      <option value="Rakhshan">Rakhshan Division</option>
+                      {BALOCHISTAN_DIVISIONS.map((div) => (
+                        <option key={div} value={div}>
+                          {div === "Other / Outside Balochistan" ? div : `${div} Division`}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">District</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Posting District</label>
                     <input
                       type="text"
                       list="districts-list"
@@ -2501,27 +3049,67 @@ export default function BSFacultyPage() {
                 </div>
               </div>
 
-              {/* SECTION 3: Academic Setup */}
+              {/* SECTION 3: Academic & Cadre Setup */}
               <div className="space-y-3">
                 <div className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
                   <span>🎓</span>
-                  <span>Academic & Department Setup</span>
+                  <span>Staff Cadre, Designation &amp; Department Setup</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Designation *</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Staff Category *</label>
                     <select
                       className={INPUT_STYLE}
-                      value={editingFaculty.designation || "Lecturer"}
-                      onChange={(e) => setEditingFaculty({ ...editingFaculty, designation: e.target.value })}
+                      value={inferStaffCategory(editingFaculty.designation, editingFaculty.staffCategory)}
+                      onChange={(e) => {
+                        const cat = e.target.value as StaffCategory;
+                        setEditingFaculty({
+                          ...editingFaculty,
+                          staffCategory: cat,
+                          educationLevel: cat === "NON_TEACHING" ? "NON_TEACHING" : (editingFaculty.educationLevel === "NON_TEACHING" ? "BS" : editingFaculty.educationLevel),
+                        });
+                      }}
                     >
-                      <option value="Professor">Professor</option>
-                      <option value="Associate Professor">Associate Professor</option>
-                      <option value="Assistant Professor">Assistant Professor</option>
-                      <option value="Lecturer">Lecturer</option>
-                      <option value="Visiting Faculty">Visiting Faculty</option>
+                      <option value="TEACHING">🎓 Teaching Faculty</option>
+                      <option value="NON_TEACHING">🏢 Non-Teaching Staff</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Designation *</label>
+                    <input
+                      type="text"
+                      list="staff-designations-list"
+                      className={INPUT_STYLE}
+                      value={editingFaculty.designation || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const cat = inferStaffCategory(val, editingFaculty.staffCategory);
+                        const bps = inferBpsFromDesignation(val);
+                        setEditingFaculty({
+                          ...editingFaculty,
+                          designation: val,
+                          staffCategory: cat,
+                          bpsScale: bps || editingFaculty.bpsScale,
+                        });
+                      }}
+                      placeholder="Lecturer, Superintendent, Senior Clerk..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Pay Scale (BPS)</label>
+                    <select
+                      className={INPUT_STYLE}
+                      value={inferBpsFromDesignation(editingFaculty.designation, editingFaculty.bpsScale)}
+                      onChange={(e) => setEditingFaculty({ ...editingFaculty, bpsScale: e.target.value })}
+                    >
+                      {ALL_BPS_SCALES.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Qualification *</label>
                     <input
@@ -2531,24 +3119,36 @@ export default function BSFacultyPage() {
                       onChange={(e) => setEditingFaculty({ ...editingFaculty, qualification: e.target.value })}
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Department *</label>
-                    <select
-                      className={INPUT_STYLE}
-                      value={editingFaculty.departmentId || ""}
-                      onChange={(e) => setEditingFaculty({ ...editingFaculty, departmentId: e.target.value })}
-                    >
-                      <option value="">-- Select Department --</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
+                      {inferStaffCategory(editingFaculty.designation, editingFaculty.staffCategory) === "NON_TEACHING"
+                        ? "Office / Branch / Wing"
+                        : "Department"}
+                    </label>
+                    {inferStaffCategory(editingFaculty.designation, editingFaculty.staffCategory) === "NON_TEACHING" ? (
+                      <input
+                        type="text"
+                        list="office-sections-list"
+                        className={INPUT_STYLE}
+                        placeholder="Administration, Library, Lab, Transport..."
+                        value={editingFaculty.officeSection || ""}
+                        onChange={(e) => setEditingFaculty({ ...editingFaculty, officeSection: e.target.value })}
+                      />
+                    ) : (
+                      <select
+                        className={INPUT_STYLE}
+                        value={editingFaculty.departmentId || ""}
+                        onChange={(e) => setEditingFaculty({ ...editingFaculty, departmentId: e.target.value })}
+                      >
+                        <option value="">-- Select Department --</option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Faculty Type *</label>
+                    <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Assignment Scope</label>
                     <select
                       className={INPUT_STYLE}
                       value={editingFaculty.educationLevel || "BOTH"}
@@ -2556,7 +3156,8 @@ export default function BSFacultyPage() {
                     >
                       <option value="BS">🎓 BS Faculty</option>
                       <option value="INTERMEDIATE">🏫 Inter Faculty</option>
-                      <option value="BOTH">🎓 Both (BS & Inter)</option>
+                      <option value="BOTH">🎓 Both (BS &amp; Inter)</option>
+                      <option value="NON_TEACHING">🏢 Non-Teaching / Administration</option>
                     </select>
                   </div>
                 </div>
@@ -2809,27 +3410,26 @@ export default function BSFacultyPage() {
 
       {/* Datalist for District Auto-suggestions */}
       <datalist id="districts-list">
-        <option value="Quetta" />
-        <option value="Pishin" />
-        <option value="Killa Abdullah" />
-        <option value="Chaman" />
-        <option value="Killa Saifullah" />
-        <option value="Mastung" />
-        <option value="Kalat" />
-        <option value="Khuzdar" />
-        <option value="Loralai" />
-        <option value="Zhob" />
-        <option value="Sibi" />
-        <option value="Kech (Turbat)" />
-        <option value="Gwadar" />
-        <option value="Hub" />
-        <option value="Lasbela" />
-        <option value="Jafarabad" />
-        <option value="Nasirabad" />
-        <option value="Usta Muhammad" />
-        <option value="Ziarat" />
-        <option value="Nushki" />
-        <option value="Chagai" />
+        {ALL_BALOCHISTAN_DISTRICTS.map((dist) => (
+          <option key={dist} value={dist} />
+        ))}
+      </datalist>
+
+      {/* Datalist for Teaching & Non-Teaching Staff Designations */}
+      <datalist id="staff-designations-list">
+        {TEACHING_POST_PRESETS.map((p) => (
+          <option key={p.id} value={p.designation} />
+        ))}
+        {NON_TEACHING_POST_PRESETS.map((p) => (
+          <option key={p.id} value={p.designation} />
+        ))}
+      </datalist>
+
+      {/* Datalist for Non-Teaching Office / Wing Sections */}
+      <datalist id="office-sections-list">
+        {NON_TEACHING_OFFICE_SECTIONS.map((sec) => (
+          <option key={sec} value={sec} />
+        ))}
       </datalist>
     </div>
   );

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { inferBpsFromDesignation, inferStaffCategory } from "@/lib/staff-categories";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,14 +52,25 @@ export async function GET(req: NextRequest) {
 
     const enrichedFaculty = faculty.map((f) => {
       const extra = extraMap[f.id] || {};
+      const resolvedCategory = inferStaffCategory(
+        f.designation,
+        extra.staffCategory || (f.educationLevel === "NON_TEACHING" ? "NON_TEACHING" : undefined)
+      );
+      const resolvedBps = inferBpsFromDesignation(f.designation, extra.bpsScale);
       return {
         ...f,
         cnic: extra.cnic || null,
         personalNo: extra.personalNo || null,
+        dateOfBirth: extra.dateOfBirth || null,
         firstAppointmentDate: extra.firstAppointmentDate || null,
         previousCollege: extra.previousCollege || null,
         division: extra.division || null,
         district: extra.district || null,
+        belongsDivision: extra.belongsDivision || null,
+        belongsDistrict: extra.belongsDistrict || null,
+        staffCategory: resolvedCategory,
+        bpsScale: resolvedBps,
+        officeSection: extra.officeSection || null,
         photo: extra.photo || null,
         additionalCharge: extra.additionalCharge || null,
         leaveDossier: extra.leaveDossier || null,
@@ -94,10 +106,16 @@ export async function POST(req: NextRequest) {
       collegeId,
       cnic,
       personalNo,
+      dateOfBirth,
       firstAppointmentDate,
       previousCollege,
       division,
       district,
+      belongsDivision,
+      belongsDistrict,
+      staffCategory,
+      bpsScale,
+      officeSection,
       photo,
       additionalCharge,
       leaveDossier,
@@ -105,6 +123,11 @@ export async function POST(req: NextRequest) {
 
     if (!name || !email || !password)
       return NextResponse.json({ error: "Name, email and password are required" }, { status: 400 });
+
+    const resolvedCategory = inferStaffCategory(designation, staffCategory);
+    const resolvedBps = inferBpsFromDesignation(designation, bpsScale);
+    const resolvedEducationLevel =
+      resolvedCategory === "NON_TEACHING" ? "NON_TEACHING" : (educationLevel || "BS");
 
     const targetCollegeId = sessionCollegeId || collegeId || null;
 
@@ -131,7 +154,7 @@ export async function POST(req: NextRequest) {
         qualification: qualification || null,
         contactNumber: contactNumber || null,
         departmentId: departmentId || null,
-        educationLevel: educationLevel || "BS",
+        educationLevel: resolvedEducationLevel,
         collegeId: targetCollegeId,
       } as any,
       include: { user: true, department: true },
@@ -141,10 +164,16 @@ export async function POST(req: NextRequest) {
     const extraProfile = {
       cnic: cnic || "",
       personalNo: personalNo || "",
+      dateOfBirth: dateOfBirth || "",
       firstAppointmentDate: firstAppointmentDate || "",
       previousCollege: previousCollege || "",
-      division: division || "Quetta Division",
+      division: division || "Quetta",
       district: district || "Quetta",
+      belongsDivision: belongsDivision || division || "Quetta",
+      belongsDistrict: belongsDistrict || district || "Quetta",
+      staffCategory: resolvedCategory,
+      bpsScale: resolvedBps,
+      officeSection: officeSection || "",
       photo: photo || "",
       additionalCharge: additionalCharge || null,
       leaveDossier: leaveDossier || null,
