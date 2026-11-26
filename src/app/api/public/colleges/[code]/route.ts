@@ -119,6 +119,8 @@ export async function GET(
       heroImgZoom: 100,
       heroImgPosX: 50,
       heroImgPosY: 50,
+      heroImgFit: "cover",
+      heroSlideConfigs: {},
       primaryColor: "#040d1a",
       ribbonColor: "#dc2626", // Red patii
       bodyBgColor: "#070d19", // Dark body background

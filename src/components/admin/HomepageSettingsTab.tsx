@@ -18,16 +18,21 @@ import {
   Loader2,
   Quote,
   Award,
-  Sliders,
-  ZoomIn,
-  ZoomOut,
-  Move,
-  RotateCcw,
   Layers,
   Sparkle,
   ShieldAlert,
-  Landmark
+  Landmark,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
+import InteractivePhotoController from "./InteractivePhotoController";
+import {
+  PhotoFitMode,
+  PhotoFramingConfig,
+  buildPhotoTransformStyle,
+  getShapeRadiusClasses,
+  resolveSlideFraming,
+} from "@/lib/photo-framing";
 import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS } from "@/lib/chte-settings";
 
 export default function HomepageSettingsTab({
@@ -59,6 +64,7 @@ export default function HomepageSettingsTab({
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingScenery, setUploadingScenery] = useState(false);
   const [uploadingProfileId, setUploadingProfileId] = useState<string | null>(null);
+  const [activeScenerySlideIdx, setActiveScenerySlideIdx] = useState<number>(0);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -83,6 +89,8 @@ export default function HomepageSettingsTab({
     heroSceneryZoom: DEFAULT_CHTE_SETTINGS.heroSceneryZoom,
     heroSceneryPosX: DEFAULT_CHTE_SETTINGS.heroSceneryPosX,
     heroSceneryPosY: DEFAULT_CHTE_SETTINGS.heroSceneryPosY,
+    heroSceneryFit: (DEFAULT_CHTE_SETTINGS.heroSceneryFit || "cover") as PhotoFitMode,
+    heroScenerySlideConfigs: (DEFAULT_CHTE_SETTINGS.heroScenerySlideConfigs || {}) as Record<string, PhotoFramingConfig>,
 
     // Animated News Ticker
     tickerBadge: DEFAULT_CHTE_SETTINGS.tickerBadge,
@@ -147,6 +155,11 @@ export default function HomepageSettingsTab({
           heroSceneryZoom: typeof data.heroSceneryZoom === "number" ? data.heroSceneryZoom : 100,
           heroSceneryPosX: typeof data.heroSceneryPosX === "number" ? data.heroSceneryPosX : 50,
           heroSceneryPosY: typeof data.heroSceneryPosY === "number" ? data.heroSceneryPosY : 50,
+          heroSceneryFit: (data.heroSceneryFit === "contain" || data.heroSceneryFit === "fill" ? data.heroSceneryFit : "cover") as PhotoFitMode,
+          heroScenerySlideConfigs:
+            data.heroScenerySlideConfigs && typeof data.heroScenerySlideConfigs === "object"
+              ? data.heroScenerySlideConfigs
+              : {},
 
           tickerBadge: data.tickerBadge || DEFAULT_CHTE_SETTINGS.tickerBadge,
           tickerText: data.tickerText || DEFAULT_CHTE_SETTINGS.tickerText,
@@ -211,6 +224,12 @@ export default function HomepageSettingsTab({
       zoom: 100,
       posX: 50,
       posY: 50,
+      fit: "cover",
+      shape: "squircle",
+      size: "md",
+      border: "theme",
+      showBadge: true,
+      isVisible: true,
       quote: "Dedicated to advancing higher education standards and institutional transparency.",
       message: "Working collaboratively to modernize colleges and empower students throughout Balochistan.",
       email: "official@chte.balochistan.gov.pk",
@@ -237,6 +256,17 @@ export default function HomepageSettingsTab({
       ...prev,
       featuredProfiles: prev.featuredProfiles.map((p) => (p.id === id ? { ...p, ...updates } : p)),
     }));
+  };
+
+  const moveProfile = (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= formData.featuredProfiles.length) return;
+    setFormData((prev) => {
+      const copy = [...prev.featuredProfiles];
+      const [item] = copy.splice(index, 1);
+      copy.splice(targetIdx, 0, item);
+      return { ...prev, featuredProfiles: copy };
+    });
   };
 
   return (
@@ -673,302 +703,160 @@ export default function HomepageSettingsTab({
                   {(formData.heroSceneryImages && formData.heroSceneryImages.length > 0
                     ? formData.heroSceneryImages
                     : [formData.heroSceneryImage || "/hero-scenery.png"]
-                  ).map((imgUrl, sIdx) => (
-                    <div
-                      key={sIdx}
-                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative group"
-                    >
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px]">
-                            {sIdx + 1}
-                          </span>
-                          <span>Slide {sIdx + 1}</span>
-                          {sIdx === 0 && (
-                            <span className="text-[9px] bg-emerald-50 text-[#0c5938] px-1.5 py-0.2 rounded font-black border border-emerald-200">
-                              Primary
+                  ).map((imgUrl, sIdx) => {
+                    const sceneryList = formData.heroSceneryImages && formData.heroSceneryImages.length > 0
+                      ? formData.heroSceneryImages
+                      : [formData.heroSceneryImage || "/hero-scenery.png"];
+                    const slideFrame = resolveSlideFraming(
+                      sIdx,
+                      {
+                        zoom: formData.heroSceneryZoom,
+                        posX: formData.heroSceneryPosX,
+                        posY: formData.heroSceneryPosY,
+                        fit: formData.heroSceneryFit,
+                      },
+                      formData.heroScenerySlideConfigs
+                    );
+                    const isSelected = Math.min(activeScenerySlideIdx, sceneryList.length - 1) === sIdx;
+                    return (
+                      <div
+                        key={sIdx}
+                        className={`p-3 bg-slate-50 border rounded-xl space-y-2 relative group transition-all ${
+                          isSelected ? "border-emerald-500 ring-2 ring-emerald-200" : "border-slate-200"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px]">
+                              {sIdx + 1}
                             </span>
-                          )}
-                        </span>
+                            <span>Slide {sIdx + 1}</span>
+                            {sIdx === 0 && (
+                              <span className="text-[9px] bg-emerald-50 text-[#0c5938] px-1.5 py-0.2 rounded font-black border border-emerald-200">
+                                Primary
+                              </span>
+                            )}
+                          </span>
 
-                        <div className="flex items-center gap-1">
-                          {(formData.heroSceneryImages || []).length > 1 && (
+                          <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => {
-                                const updated = (formData.heroSceneryImages || []).filter((_, i) => i !== sIdx);
-                                setFormData({
-                                  ...formData,
-                                  heroSceneryImages: updated,
-                                  heroSceneryImage: updated[0] || "/hero-scenery.png",
-                                });
-                              }}
-                              className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
-                              title="Delete Slide"
+                              onClick={() => setActiveScenerySlideIdx(sIdx)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                                isSelected
+                                  ? "bg-[#0c5938] text-white"
+                                  : "bg-emerald-50 text-[#0c5938] hover:bg-emerald-100"
+                              }`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              {isSelected ? "Editing" : "Frame"}
                             </button>
-                          )}
+
+                            {sceneryList.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = sceneryList.filter((_, i) => i !== sIdx);
+                                  setFormData({
+                                    ...formData,
+                                    heroSceneryImages: updated,
+                                    heroSceneryImage: updated[0] || "/hero-scenery.png",
+                                  });
+                                  setActiveScenerySlideIdx((prev) => Math.min(prev, Math.max(0, updated.length - 1)));
+                                }}
+                                className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                                title="Delete Slide"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div
+                          onClick={() => setActiveScenerySlideIdx(sIdx)}
+                          className="h-28 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 relative cursor-pointer"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={imgUrl}
+                            alt={`Slide ${sIdx + 1}`}
+                            className="w-full h-full"
+                            style={buildPhotoTransformStyle(slideFrame)}
+                            onError={(e) => {
+                              e.currentTarget.src = "/hero-scenery.png";
+                            }}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <input
+                            type="text"
+                            value={imgUrl}
+                            onChange={(e) => {
+                              const newArr = [...sceneryList];
+                              newArr[sIdx] = e.target.value;
+                              setFormData({
+                                ...formData,
+                                heroSceneryImages: newArr,
+                                heroSceneryImage: newArr[0] || "/hero-scenery.png",
+                              });
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-800 focus:outline-none"
+                            placeholder="/image.png or https://..."
+                          />
                         </div>
                       </div>
-
-                      <div className="h-28 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={imgUrl}
-                          alt={`Slide ${sIdx + 1}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = "/hero-scenery.png";
-                          }}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <input
-                          type="text"
-                          value={imgUrl}
-                          onChange={(e) => {
-                            const newArr = [
-                              ...(formData.heroSceneryImages || [formData.heroSceneryImage || "/hero-scenery.png"])
-                            ];
-                            newArr[sIdx] = e.target.value;
-                            setFormData({
-                              ...formData,
-                              heroSceneryImages: newArr,
-                              heroSceneryImage: newArr[0] || "/hero-scenery.png",
-                            });
-                          }}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-800 focus:outline-none"
-                          placeholder="/image.png or https://..."
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Live Framing Preview */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                    Live Scenery Framing Preview (as displayed on homepage):
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    Scale: {formData.heroSceneryZoom}% | X: {formData.heroSceneryPosX}% | Y: {formData.heroSceneryPosY}%
-                  </span>
-                </div>
-
-                <div className="relative rounded-2xl overflow-hidden border border-slate-300 bg-slate-900 h-56 flex items-center justify-center shadow-inner group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={formData.heroSceneryImage || "/hero-scenery.png"}
-                    alt="Scenery Preview"
-                    className="w-full h-full object-cover transition-all duration-200"
-                    style={{
-                      objectPosition: `${formData.heroSceneryPosX}% ${formData.heroSceneryPosY}%`,
-                      transform: `scale(${formData.heroSceneryZoom / 100})`,
-                      transformOrigin: `${formData.heroSceneryPosX}% ${formData.heroSceneryPosY}%`,
-                    }}
-                    onError={(e) => {
-                      e.currentTarget.src = "/hero-scenery.png";
+              {/* Interactive Scenery Photo Studio */}
+              {(() => {
+                const sceneryList =
+                  formData.heroSceneryImages && formData.heroSceneryImages.length > 0
+                    ? formData.heroSceneryImages
+                    : [formData.heroSceneryImage || "/hero-scenery.png"];
+                const safeIdx = Math.min(activeScenerySlideIdx, Math.max(0, sceneryList.length - 1));
+                const activeUrl = sceneryList[safeIdx] || formData.heroSceneryImage || "/hero-scenery.png";
+                return (
+                  <InteractivePhotoController
+                    mode="hero"
+                    mediaUrl={activeUrl}
+                    fallbackUrl="/hero-scenery.png"
+                    title={`Scenery Photo Studio${sceneryList.length > 1 ? ` — Slide #${safeIdx + 1}` : ""} (تصویر کا رخ اور سائز ایڈجسٹ کریں)`}
+                    value={resolveSlideFraming(
+                      safeIdx,
+                      {
+                        zoom: formData.heroSceneryZoom,
+                        posX: formData.heroSceneryPosX,
+                        posY: formData.heroSceneryPosY,
+                        fit: formData.heroSceneryFit,
+                      },
+                      formData.heroScenerySlideConfigs
+                    )}
+                    onChange={(next) => {
+                      setFormData((prev) => {
+                        const nextSlides = {
+                          ...(prev.heroScenerySlideConfigs || {}),
+                          [String(safeIdx)]: { ...next },
+                        };
+                        if (safeIdx === 0) {
+                          return {
+                            ...prev,
+                            heroSceneryZoom: next.zoom,
+                            heroSceneryPosX: next.posX,
+                            heroSceneryPosY: next.posY,
+                            heroSceneryFit: next.fit,
+                            heroScenerySlideConfigs: nextSlides,
+                          };
+                        }
+                        return { ...prev, heroScenerySlideConfigs: nextSlides };
+                      });
                     }}
                   />
-
-                  {/* Alignment Crosshairs Overlay */}
-                  <div className="absolute inset-0 border border-white/10 pointer-events-none flex items-center justify-center">
-                    <div className="w-full h-[1px] bg-white/10" />
-                    <div className="h-full w-[1px] bg-white/10 absolute" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Zoom & Horizontal/Vertical Sliders for Scenery Photo */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs font-bold text-slate-800">
-                      Scenery Photo Framing, Zoom & Alignment (تصویر کا رخ اور سائز ایڈجسٹ کریں)
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData({
-                        ...formData,
-                        heroSceneryZoom: 100,
-                        heroSceneryPosX: 50,
-                        heroSceneryPosY: 50,
-                      })
-                    }
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-colors"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset (100% Center)</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* 1. Zoom Slider */}
-                  <div className="space-y-2 p-3 bg-white rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                        <ZoomIn className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Zoom In / Out</span>
-                      </span>
-                      <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 text-[11px]">
-                        {formData.heroSceneryZoom}%
-                      </span>
-                    </div>
-
-                    <input
-                      type="range"
-                      min="50"
-                      max="250"
-                      step="5"
-                      value={formData.heroSceneryZoom}
-                      onChange={(e) =>
-                        setFormData({ ...formData, heroSceneryZoom: Number(e.target.value) })
-                      }
-                      className="w-full accent-blue-600 cursor-pointer"
-                    />
-
-                    <div className="flex items-center justify-between gap-1 pt-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData({
-                            ...formData,
-                            heroSceneryZoom: Math.max(50, formData.heroSceneryZoom - 10),
-                          })
-                        }
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        -10%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, heroSceneryZoom: 100 })}
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        100%
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData({
-                            ...formData,
-                            heroSceneryZoom: Math.min(250, formData.heroSceneryZoom + 10),
-                          })
-                        }
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        +10%
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. Horizontal Position Slider */}
-                  <div className="space-y-2 p-3 bg-white rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                        <Move className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Horizontal (Left / Right)</span>
-                      </span>
-                      <span className="font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[11px]">
-                        {formData.heroSceneryPosX}% {formData.heroSceneryPosX < 45 ? "Left" : formData.heroSceneryPosX > 55 ? "Right" : "Center"}
-                      </span>
-                    </div>
-
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={formData.heroSceneryPosX}
-                      onChange={(e) =>
-                        setFormData({ ...formData, heroSceneryPosX: Number(e.target.value) })
-                      }
-                      className="w-full accent-amber-500 cursor-pointer"
-                    />
-
-                    <div className="flex items-center justify-between gap-1 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, heroSceneryPosX: 0 })}
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        Left (0%)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, heroSceneryPosX: 50 })}
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        Center (50%)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, heroSceneryPosX: 100 })}
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        Right (100%)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 3. Vertical Position Slider */}
-                  <div className="space-y-2 p-3 bg-white rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                        <Move className="w-3.5 h-3.5 text-emerald-600 rotate-90" />
-                        <span>Vertical (Top / Bottom)</span>
-                      </span>
-                      <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                        {formData.heroSceneryPosY}% {formData.heroSceneryPosY < 45 ? "Top" : formData.heroSceneryPosY > 55 ? "Bottom" : "Middle"}
-                      </span>
-                    </div>
-
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={formData.heroSceneryPosY}
-                      onChange={(e) =>
-                        setFormData({ ...formData, heroSceneryPosY: Number(e.target.value) })
-                      }
-                      className="w-full accent-emerald-500 cursor-pointer"
-                    />
-
-                    <div className="flex items-center justify-between gap-1 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, heroSceneryPosY: 0 })}
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        Top (0%)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, heroSceneryPosY: 50 })}
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        Middle (50%)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, heroSceneryPosY: 100 })}
-                        className="px-2 py-1 rounded bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100"
-                      >
-                        Bottom (100%)
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -1150,7 +1038,29 @@ export default function HomepageSettingsTab({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Reorder Buttons */}
+                        <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => moveProfile(idx, -1)}
+                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30"
+                            title="Move Up"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === formData.featuredProfiles.length - 1}
+                            onClick={() => moveProfile(idx, 1)}
+                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 border-l border-slate-200"
+                            title="Move Down"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
                         {/* Category Selector */}
                         <select
                           value={profile.category}
@@ -1178,7 +1088,7 @@ export default function HomepageSettingsTab({
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {/* Name */}
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name & Title</label>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Full Name &amp; Title</label>
                         <input
                           type="text"
                           value={profile.name}
@@ -1209,22 +1119,26 @@ export default function HomepageSettingsTab({
                         />
                       </div>
 
-                      {/* Photo Upload, Framing Preview & Zoom/Align Sliders */}
-                      <div className="sm:col-span-2 lg:col-span-3 p-4 bg-white rounded-xl border border-slate-200 space-y-3">
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                          {/* Live Avatar Preview */}
-                          <div className="flex items-center gap-3.5 w-full sm:w-auto">
-                            <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-emerald-600/40 shadow-md bg-slate-900 flex-shrink-0">
+                      {/* Photo Upload, URL + Shape & Framing Studio */}
+                      <div className="sm:col-span-2 lg:col-span-3 space-y-3">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div
+                              className={`w-14 h-14 overflow-hidden border-2 border-emerald-600/40 shadow-sm bg-slate-900 flex-shrink-0 ${
+                                getShapeRadiusClasses(profile.shape || "squircle", "card").outer
+                              }`}
+                            >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={profile.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80"}
                                 alt={profile.name}
-                                className="w-full h-full object-cover transition-all duration-200"
-                                style={{
-                                  objectPosition: `${profile.posX ?? 50}% ${profile.posY ?? 50}%`,
-                                  transform: `scale(${(profile.zoom ?? 100) / 100})`,
-                                  transformOrigin: `${profile.posX ?? 50}% ${profile.posY ?? 50}%`,
-                                }}
+                                className="w-full h-full"
+                                style={buildPhotoTransformStyle({
+                                  zoom: profile.zoom ?? 100,
+                                  posX: profile.posX ?? 50,
+                                  posY: profile.posY ?? 50,
+                                  fit: profile.fit ?? "cover",
+                                })}
                                 onError={(e) => {
                                   e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80";
                                 }}
@@ -1232,14 +1146,13 @@ export default function HomepageSettingsTab({
                             </div>
 
                             <div>
-                              <span className="text-xs font-bold text-slate-800 block">Leadership Portrait</span>
-                              <span className="text-[10px] text-slate-500 font-mono">
-                                Zoom: {profile.zoom ?? 100}% | X: {profile.posX ?? 50}% | Y: {profile.posY ?? 50}%
+                              <span className="text-xs font-bold text-slate-800 block">Leadership Portrait &amp; Shape</span>
+                              <span className="text-[10px] text-slate-500">
+                                Upload photo, choose frame shape (Circle / Portrait Rect / Wide Rect / Oval / Arch), and drag to frame.
                               </span>
                             </div>
                           </div>
 
-                          {/* Upload Button & URL */}
                           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                             <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0c5938] hover:bg-[#09472d] text-white font-bold text-xs shadow-xs transition-all">
                               {uploadingProfileId === profile.id ? (
@@ -1280,59 +1193,40 @@ export default function HomepageSettingsTab({
                           </div>
                         </div>
 
-                        {/* Individual Photo Zoom, X & Y Sliders */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
-                          {/* Zoom Slider */}
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[11px] font-bold text-slate-700">
-                              <span>Zoom In/Out:</span>
-                              <span className="font-mono text-blue-600">{profile.zoom ?? 100}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="50"
-                              max="250"
-                              step="5"
-                              value={profile.zoom ?? 100}
-                              onChange={(e) => updateProfile(profile.id, { zoom: Number(e.target.value) })}
-                              className="w-full accent-blue-600 cursor-pointer"
-                            />
-                          </div>
-
-                          {/* Horizontal Alignment */}
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[11px] font-bold text-slate-700">
-                              <span>Horizontal (X):</span>
-                              <span className="font-mono text-amber-600">{profile.posX ?? 50}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              step="1"
-                              value={profile.posX ?? 50}
-                              onChange={(e) => updateProfile(profile.id, { posX: Number(e.target.value) })}
-                              className="w-full accent-amber-500 cursor-pointer"
-                            />
-                          </div>
-
-                          {/* Vertical Alignment */}
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[11px] font-bold text-slate-700">
-                              <span>Vertical (Y):</span>
-                              <span className="font-mono text-emerald-600">{profile.posY ?? 50}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              step="1"
-                              value={profile.posY ?? 50}
-                              onChange={(e) => updateProfile(profile.id, { posY: Number(e.target.value) })}
-                              className="w-full accent-emerald-500 cursor-pointer"
-                            />
-                          </div>
-                        </div>
+                        <InteractivePhotoController
+                          mode="profile"
+                          mediaUrl={profile.image}
+                          fallbackUrl="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80"
+                          value={{
+                            zoom: profile.zoom ?? 100,
+                            posX: profile.posX ?? 50,
+                            posY: profile.posY ?? 50,
+                            fit: profile.fit ?? "cover",
+                          }}
+                          onChange={(next) =>
+                            updateProfile(profile.id, {
+                              zoom: next.zoom,
+                              posX: next.posX,
+                              posY: next.posY,
+                              fit: next.fit,
+                            })
+                          }
+                          profileOptions={{
+                            shape: profile.shape ?? "squircle",
+                            size: profile.size ?? "md",
+                            border: profile.border ?? "theme",
+                            showBadge: profile.showBadge !== false,
+                            isVisible: profile.isVisible !== false,
+                            onStyleChange: (updates) =>
+                              updateProfile(profile.id, {
+                                ...(updates.photoShape !== undefined ? { shape: updates.photoShape } : {}),
+                                ...(updates.photoSize !== undefined ? { size: updates.photoSize } : {}),
+                                ...(updates.photoBorder !== undefined ? { border: updates.photoBorder } : {}),
+                                ...(updates.showBadge !== undefined ? { showBadge: updates.showBadge } : {}),
+                                ...(updates.isVisible !== undefined ? { isVisible: updates.isVisible } : {}),
+                              }),
+                          }}
+                        />
                       </div>
 
                       {/* Quote */}

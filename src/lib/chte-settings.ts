@@ -1,3 +1,11 @@
+import type {
+  PhotoFitMode,
+  PhotoFramingConfig,
+  ProfileBorderStyle,
+  ProfileFrameSize,
+  ProfilePhotoShape,
+} from "./photo-framing";
+
 export type ChteFeaturedProfile = {
   id: string;
   name: string;
@@ -5,9 +13,15 @@ export type ChteFeaturedProfile = {
   department: string;
   category: "SECRETARY" | "MINISTER" | "DIRECTOR" | "OFFICIAL";
   image: string;
-  zoom: number; // 50 to 250%
+  zoom: number; // 25 to 300%
   posX: number; // 0 to 100%
   posY: number; // 0 to 100%
+  fit?: PhotoFitMode;
+  shape?: ProfilePhotoShape;
+  size?: ProfileFrameSize;
+  border?: ProfileBorderStyle;
+  showBadge?: boolean;
+  isVisible?: boolean;
   quote?: string;
   message?: string;
   email?: string;
@@ -28,6 +42,8 @@ export type ChteHomepageSettings = {
   heroSceneryZoom: number;
   heroSceneryPosX: number;
   heroSceneryPosY: number;
+  heroSceneryFit?: PhotoFitMode;
+  heroScenerySlideConfigs?: Record<string, PhotoFramingConfig>;
   tickerBadge: string;
   tickerText: string;
   tickerShow: boolean;
@@ -58,9 +74,11 @@ export const DEFAULT_CHTE_SETTINGS: ChteHomepageSettings = {
     "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
     "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
   ],
-  heroSceneryZoom: 100, // 50% to 250%
+  heroSceneryZoom: 100, // 25% to 300%
   heroSceneryPosX: 50,  // 0% to 100%
   heroSceneryPosY: 50,  // 0% to 100%
+  heroSceneryFit: "cover",
+  heroScenerySlideConfigs: {},
 
   // Animated News Ticker
   tickerBadge: "DEVELOPMENT NOTICE:",

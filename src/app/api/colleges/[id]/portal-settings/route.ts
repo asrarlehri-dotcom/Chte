@@ -11,9 +11,11 @@ const DEFAULT_PORTAL_SETTINGS = {
     "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
     "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
   ],
-  heroImgZoom: 100, // Zoom percentage (50% to 250%)
+  heroImgZoom: 100, // Zoom percentage (25% to 300%)
   heroImgPosX: 50,  // Horizontal focal position (0% left to 100% right)
   heroImgPosY: 50,  // Vertical focal position (0% top to 100% bottom)
+  heroImgFit: "cover", // "cover" | "contain" | "fill"
+  heroSlideConfigs: {} as Record<string, any>,
   primaryColor: "#040d1a", // Deep dark navy header & top bar
   ribbonColor: "#dc2626", // Red patii (accent ribbon)
   bodyBgColor: "#070d19", // Dark body background matching uploaded design

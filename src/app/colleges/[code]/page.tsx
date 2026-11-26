@@ -5,6 +5,18 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { compileFillToStyle, compileFillToTextStyle, getRepresentativeColor } from "@/lib/theme-fill-compiler";
 import {
+  PhotoFitMode,
+  PhotoFramingConfig,
+  ProfileBorderStyle,
+  ProfileFrameSize,
+  ProfilePhotoShape,
+  buildPhotoTransformStyle,
+  getProfileBorderWrapperClass,
+  getProfileDimensionsClass,
+  getShapeRadiusClasses,
+  resolveSlideFraming,
+} from "@/lib/photo-framing";
+import {
   GraduationCap,
   Users,
   BookOpen,
@@ -71,6 +83,15 @@ export type FeaturedProfile = {
   department?: string;
   category: "PRINCIPAL" | "DEAN" | "FACULTY" | "ALUMNI";
   photoUrl: string;
+  photoZoom?: number;
+  photoPosX?: number;
+  photoPosY?: number;
+  photoFit?: PhotoFitMode;
+  photoShape?: ProfilePhotoShape;
+  photoSize?: ProfileFrameSize;
+  photoBorder?: ProfileBorderStyle;
+  showBadge?: boolean;
+  isVisible?: boolean;
   quote?: string;
   message?: string;
   email?: string;
@@ -85,6 +106,8 @@ type PortalSettings = {
   heroImgZoom?: number;
   heroImgPosX?: number;
   heroImgPosY?: number;
+  heroImgFit?: PhotoFitMode;
+  heroSlideConfigs?: Record<string, PhotoFramingConfig>;
   primaryColor: any;
   ribbonColor: any; // The "red patii"
   bodyBgColor: any;
@@ -579,12 +602,13 @@ export default function CollegePortalHomePage() {
               loop
               muted
               playsInline
-              className="w-full h-full object-cover transition-all duration-300"
-              style={{
-                objectPosition: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
-                transform: `scale(${(s.heroImgZoom ?? 100) / 100})`,
-                transformOrigin: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
-              }}
+              className="w-full h-full transition-all duration-300"
+              style={buildPhotoTransformStyle({
+                zoom: s.heroImgZoom,
+                posX: s.heroImgPosX,
+                posY: s.heroImgPosY,
+                fit: s.heroImgFit,
+              })}
             >
               <source src={s.heroBgUrl} type="video/mp4" />
               <source src={s.heroBgUrl} type="video/webm" />
@@ -592,25 +616,33 @@ export default function CollegePortalHomePage() {
           </div>
         ) : (
           <div className="absolute inset-0 overflow-hidden">
-            {collegeSlides.map((imgUrl, idx) => (
-              <div
-                key={idx}
-                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === heroSlideIdx ? "opacity-100 z-1" : "opacity-0 z-0 pointer-events-none"
-                  }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imgUrl}
-                  alt={`Hero Backdrop Slide ${idx + 1}`}
-                  className="w-full h-full object-cover transition-all duration-700"
-                  style={{
-                    objectPosition: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
-                    transform: `scale(${(s.heroImgZoom ?? 100) / 100})`,
-                    transformOrigin: `${s.heroImgPosX ?? 50}% ${s.heroImgPosY ?? 50}%`,
-                  }}
-                />
-              </div>
-            ))}
+            {collegeSlides.map((imgUrl, idx) => {
+              const slideFraming = resolveSlideFraming(
+                idx,
+                {
+                  zoom: s.heroImgZoom,
+                  posX: s.heroImgPosX,
+                  posY: s.heroImgPosY,
+                  fit: s.heroImgFit,
+                },
+                s.heroSlideConfigs
+              );
+              return (
+                <div
+                  key={idx}
+                  className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === heroSlideIdx ? "opacity-100 z-1" : "opacity-0 z-0 pointer-events-none"
+                    }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imgUrl}
+                    alt={`Hero Backdrop Slide ${idx + 1}`}
+                    className="w-full h-full transition-all duration-700"
+                    style={buildPhotoTransformStyle(slideFraming)}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -800,8 +832,9 @@ export default function CollegePortalHomePage() {
         </div>
 
         {(() => {
-          const featuredList = (s.featuredProfiles && s.featuredProfiles.length > 0)
-            ? s.featuredProfiles
+          const hasConfiguredProfiles = Array.isArray(s.featuredProfiles) && s.featuredProfiles.length > 0;
+          const baseProfiles = hasConfiguredProfiles
+            ? s.featuredProfiles!
             : [
               {
                 id: "default-principal",
@@ -816,9 +849,19 @@ export default function CollegePortalHomePage() {
                 phone: college.contactPhone || "+92 81 9211000",
               }
             ];
+          const featuredList = [...baseProfiles]
+            .filter((p) => p.isVisible !== false)
+            .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+
+          if (featuredList.length === 0) return null;
 
           const principalProfile = featuredList.find((p) => p.category === "PRINCIPAL") || featuredList[0];
           const otherProfiles = featuredList.filter((p) => p.id !== principalProfile.id);
+
+          const principalShape = principalProfile?.photoShape || "squircle";
+          const principalSize = principalProfile?.photoSize || "md";
+          const principalBorder = principalProfile?.photoBorder || "gold";
+          const principalRadius = getShapeRadiusClasses(principalShape, "spotlight");
 
           return (
             <div className="space-y-8">
@@ -827,22 +870,34 @@ export default function CollegePortalHomePage() {
                 <div className="relative rounded-3xl bg-gradient-to-br from-[#0c1527] to-[#060a14] border border-white/10 p-6 sm:p-10 shadow-2xl overflow-hidden group">
                   <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
                   <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-                    {/* Principal Avatar */}
+                    {/* Principal Avatar with Custom Shape, Framing & Border */}
                     <div className="flex flex-col items-center flex-shrink-0 text-center">
-                      <div className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-3xl p-1 bg-gradient-to-tr from-amber-400 via-red-500 to-amber-200 shadow-2xl">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={principalProfile.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80"}
-                          alt={principalProfile.name}
-                          className="w-full h-full object-cover rounded-[22px]"
-                          onError={(e) => {
-                            e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80";
-                          }}
-                        />
+                      <div
+                        className={`relative flex-shrink-0 ${getProfileDimensionsClass(principalShape, principalSize, "spotlight")} ${principalRadius.outer} ${getProfileBorderWrapperClass(principalBorder, "spotlight")}`}
+                      >
+                        <div className={`w-full h-full overflow-hidden bg-slate-900 ${principalRadius.inner}`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={principalProfile.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80"}
+                            alt={principalProfile.name}
+                            className="w-full h-full transition-transform duration-300"
+                            style={buildPhotoTransformStyle({
+                              zoom: principalProfile.photoZoom,
+                              posX: principalProfile.photoPosX,
+                              posY: principalProfile.photoPosY,
+                              fit: principalProfile.photoFit,
+                            })}
+                            onError={(e) => {
+                              e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80";
+                            }}
+                          />
+                        </div>
                       </div>
-                      <span className="mt-3.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400/10 text-amber-300 border border-amber-400/30">
-                        Message from the Principal
-                      </span>
+                      {principalProfile.showBadge !== false && (
+                        <span className="mt-3.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400/10 text-amber-300 border border-amber-400/30">
+                          Message from the Principal
+                        </span>
+                      )}
                     </div>
 
                     {/* Principal Quote & Message */}
@@ -900,26 +955,45 @@ export default function CollegePortalHomePage() {
               {/* Other Featured Profiles Grid */}
               {otherProfiles.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                  {otherProfiles.map((prof) => (
+                  {otherProfiles.map((prof) => {
+                    const cardShape = prof.photoShape || "squircle";
+                    const cardSize = prof.photoSize || "md";
+                    const cardBorder = prof.photoBorder || "gold";
+                    const cardRadius = getShapeRadiusClasses(cardShape, "card");
+                    return (
                     <div
                       key={prof.id}
                       className="bg-[#0b1324] rounded-2xl border border-white/10 p-5 hover:border-amber-400/40 hover:shadow-xl transition-all flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-center gap-3.5 mb-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={prof.photoUrl || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80"}
-                            alt={prof.name}
-                            className="w-14 h-14 rounded-2xl object-cover border border-white/15 flex-shrink-0 shadow-md"
-                            onError={(e) => {
-                              e.currentTarget.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80";
-                            }}
-                          />
+                          <div
+                            className={`flex-shrink-0 ${getProfileDimensionsClass(cardShape, cardSize, "card")} ${cardRadius.outer} ${getProfileBorderWrapperClass(cardBorder, "card")}`}
+                          >
+                            <div className={`w-full h-full overflow-hidden bg-slate-900 ${cardRadius.inner}`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={prof.photoUrl || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80"}
+                                alt={prof.name}
+                                className="w-full h-full"
+                                style={buildPhotoTransformStyle({
+                                  zoom: prof.photoZoom,
+                                  posX: prof.photoPosX,
+                                  posY: prof.photoPosY,
+                                  fit: prof.photoFit,
+                                })}
+                                onError={(e) => {
+                                  e.currentTarget.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80";
+                                }}
+                              />
+                            </div>
+                          </div>
                           <div className="min-w-0 flex-1">
-                            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20 inline-block mb-1">
-                              {prof.category.replace("_", " ")}
-                            </span>
+                            {prof.showBadge !== false && (
+                              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20 inline-block mb-1">
+                                {prof.category.replace("_", " ")}
+                              </span>
+                            )}
                             <h4 className="text-sm font-bold text-white truncate">{prof.name}</h4>
                             <p className="text-[11px] text-amber-300 font-semibold truncate">{prof.designation}</p>
                           </div>
@@ -969,7 +1043,8 @@ export default function CollegePortalHomePage() {
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -35,6 +35,13 @@ import {
 } from "lucide-react";
 import { ChteFeaturedProfile, DEFAULT_CHTE_SETTINGS, ChteHomepageSettings } from "@/lib/chte-settings";
 import { getRepresentativeColor } from "@/lib/theme-fill-compiler";
+import {
+  buildPhotoTransformStyle,
+  getProfileBorderWrapperClass,
+  getProfileDimensionsClass,
+  getShapeRadiusClasses,
+  resolveSlideFraming,
+} from "@/lib/photo-framing";
 
 interface PublicCollege {
   id: string;
@@ -366,24 +373,33 @@ export default function ChteHomePage() {
       >
         {/* Right Scenery Backdrop with Interactive Slide View / Carousel */}
         <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[56%] select-none z-0 overflow-hidden group/slider">
-          {slideImages.map((imgUrl, idx) => (
-            <div
-              key={idx}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentSlideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-                }`}
-            >
-              <img
-                src={imgUrl}
-                alt={`Balochistan Landscape Slide ${idx + 1}`}
-                className="w-full h-full object-cover transition-transform duration-700"
-                style={{
-                  objectPosition: `${chteSettings.heroSceneryPosX ?? 50}% ${chteSettings.heroSceneryPosY ?? 50}%`,
-                  transform: `scale(${(chteSettings.heroSceneryZoom ?? 100) / 100})`,
-                  transformOrigin: `${chteSettings.heroSceneryPosX ?? 50}% ${chteSettings.heroSceneryPosY ?? 50}%`,
-                }}
-              />
-            </div>
-          ))}
+          {slideImages.map((imgUrl, idx) => {
+            const slideFrame = resolveSlideFraming(
+              idx,
+              {
+                zoom: chteSettings.heroSceneryZoom,
+                posX: chteSettings.heroSceneryPosX,
+                posY: chteSettings.heroSceneryPosY,
+                fit: chteSettings.heroSceneryFit,
+              },
+              chteSettings.heroScenerySlideConfigs
+            );
+            return (
+              <div
+                key={idx}
+                className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${idx === currentSlideIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                  }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imgUrl}
+                  alt={`Balochistan Landscape Slide ${idx + 1}`}
+                  className="w-full h-full transition-transform duration-700"
+                  style={buildPhotoTransformStyle(slideFrame)}
+                />
+              </div>
+            );
+          })}
 
           {/* Subtle gradient to blend scenic image seamlessly into the left white background */}
           <div className="absolute inset-y-0 left-0 w-36 bg-gradient-to-r from-[#ffffff] via-[#ffffff]/60 to-transparent z-20 pointer-events-none" />
@@ -990,7 +1006,12 @@ export default function ChteHomePage() {
           </div>
 
           {/* Dynamic Featured Leadership & Key Officials Profiles */}
-          {Array.isArray(chteSettings.featuredProfiles) && chteSettings.featuredProfiles.length > 0 && (
+          {(() => {
+            const visibleProfiles = Array.isArray(chteSettings.featuredProfiles)
+              ? chteSettings.featuredProfiles.filter((p) => p.isVisible !== false)
+              : [];
+            if (visibleProfiles.length === 0) return null;
+            return (
             <div className="pt-8 border-t border-slate-200/80 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
@@ -1007,12 +1028,17 @@ export default function ChteHomePage() {
                   </div>
                 </div>
                 <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
-                  {chteSettings.featuredProfiles.length} Featured Profiles
+                  {visibleProfiles.length} Featured Profiles
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {chteSettings.featuredProfiles.map((p: ChteFeaturedProfile) => (
+                {visibleProfiles.map((p: ChteFeaturedProfile) => {
+                  const pShape = p.shape || "squircle";
+                  const pSize = p.size || "md";
+                  const pBorder = p.border || "theme";
+                  const pRadius = getShapeRadiusClasses(pShape, "card");
+                  return (
                   <div
                     key={p.id}
                     className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-md hover:shadow-xl hover:border-emerald-500/40 transition-all flex flex-col justify-between group"
@@ -1020,49 +1046,57 @@ export default function ChteHomePage() {
                     <div className="space-y-4">
                       {/* Photo & Identity Row */}
                       <div className="flex items-start gap-4">
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-emerald-600/30 bg-slate-100 shadow-md relative flex-shrink-0">
-                          {p.image ? (
-                            <img
-                              src={p.image}
-                              alt={p.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              style={{
-                                objectPosition: `${p.posX ?? 50}% ${p.posY ?? 50}%`,
-                                transform: `scale(${(p.zoom ?? 100) / 100})`,
-                                transformOrigin: `${p.posX ?? 50}% ${p.posY ?? 50}%`,
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-100">
-                              <User className="w-8 h-8" />
-                            </div>
-                          )}
+                        <div
+                          className={`relative flex-shrink-0 ${getProfileDimensionsClass(pShape, pSize, "card")} ${pRadius.outer} ${getProfileBorderWrapperClass(pBorder, "card")}`}
+                        >
+                          <div className={`w-full h-full overflow-hidden bg-slate-100 ${pRadius.inner}`}>
+                            {p.image ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={p.image}
+                                alt={p.name}
+                                className="w-full h-full transition-transform duration-300"
+                                style={buildPhotoTransformStyle({
+                                  zoom: p.zoom ?? 100,
+                                  posX: p.posX ?? 50,
+                                  posY: p.posY ?? 50,
+                                  fit: p.fit ?? "cover",
+                                })}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-100">
+                                <User className="w-8 h-8" />
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div className="min-w-0 flex-1 space-y-1">
-                          <span
-                            className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
-                            style={{
-                              backgroundColor:
-                                p.category === "SECRETARY"
-                                  ? "#e0f2fe"
-                                  : p.category === "MINISTER"
-                                    ? "#fef3c7"
-                                    : p.category === "DIRECTOR"
-                                      ? "#dcfce7"
-                                      : "#f3e8ff",
-                              color:
-                                p.category === "SECRETARY"
-                                  ? "#0369a1"
-                                  : p.category === "MINISTER"
-                                    ? "#b45309"
-                                    : p.category === "DIRECTOR"
-                                      ? "#15803d"
-                                      : "#7e22ce",
-                            }}
-                          >
-                            {p.category}
-                          </span>
+                          {p.showBadge !== false && (
+                            <span
+                              className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
+                              style={{
+                                backgroundColor:
+                                  p.category === "SECRETARY"
+                                    ? "#e0f2fe"
+                                    : p.category === "MINISTER"
+                                      ? "#fef3c7"
+                                      : p.category === "DIRECTOR"
+                                        ? "#dcfce7"
+                                        : "#f3e8ff",
+                                color:
+                                  p.category === "SECRETARY"
+                                    ? "#0369a1"
+                                    : p.category === "MINISTER"
+                                      ? "#b45309"
+                                      : p.category === "DIRECTOR"
+                                        ? "#15803d"
+                                        : "#7e22ce",
+                              }}
+                            >
+                              {p.category}
+                            </span>
+                          )}
                           <h4 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
                             {p.name}
                           </h4>
@@ -1115,10 +1149,12 @@ export default function ChteHomePage() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
       </section>
 

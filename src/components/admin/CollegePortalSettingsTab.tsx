@@ -21,10 +21,6 @@ import {
   Quote,
   Award,
   Play,
-  Sliders,
-  ZoomIn,
-  ZoomOut,
-  Move,
   RotateCcw,
   Landmark,
   Wand2,
@@ -32,8 +28,21 @@ import {
   Pipette,
   Check,
   Eye,
-  Undo2
+  Undo2,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
+import InteractivePhotoController, { PhotoFramingValue } from "./InteractivePhotoController";
+import {
+  PhotoFitMode,
+  PhotoFramingConfig,
+  ProfileBorderStyle,
+  ProfileFrameSize,
+  ProfilePhotoShape,
+  buildPhotoTransformStyle,
+  getShapeRadiusClasses,
+  resolveSlideFraming,
+} from "@/lib/photo-framing";
 import CorelFillPickerCard from "./CorelFillPickerCard";
 import ThemePresetGallery, { ThemePresetItem, INSTITUTIONAL_PRESETS } from "./ThemePresetGallery";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
@@ -69,6 +78,15 @@ export type FeaturedProfile = {
   department?: string;
   category: "PRINCIPAL" | "DEAN" | "FACULTY" | "ALUMNI";
   photoUrl: string;
+  photoZoom?: number;
+  photoPosX?: number;
+  photoPosY?: number;
+  photoFit?: PhotoFitMode;
+  photoShape?: ProfilePhotoShape;
+  photoSize?: ProfileFrameSize;
+  photoBorder?: ProfileBorderStyle;
+  showBadge?: boolean;
+  isVisible?: boolean;
   quote?: string;
   message?: string;
   email?: string;
@@ -124,6 +142,7 @@ export default function CollegePortalSettingsTab({
     const [uploadingHero, setUploadingHero] = useState(false);
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [uploadingProfileId, setUploadingProfileId] = useState<string | null>(null);
+    const [activeHeroSlideIdx, setActiveHeroSlideIdx] = useState<number>(0);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -171,9 +190,11 @@ export default function CollegePortalSettingsTab({
         "https://images.unsplash.com/photo-1562774053-701939374585?w=1600&q=80",
         "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80"
       ] as string[],
-      heroImgZoom: 100, // 50% - 250%
+      heroImgZoom: 100, // 25% - 300%
       heroImgPosX: 50,  // 0% - 100% (Left to Right)
       heroImgPosY: 50,  // 0% - 100% (Top to Bottom)
+      heroImgFit: "cover" as PhotoFitMode,
+      heroSlideConfigs: {} as Record<string, PhotoFramingConfig>,
       heroBadge: "EXCELLENCE IN HIGHER EDUCATION",
       heroTitle: "",
       heroSubtitle: "A historic institution committed to academic excellence, higher research, and professional student development.",
@@ -816,6 +837,11 @@ export default function CollegePortalSettingsTab({
             heroImgZoom: typeof data.heroImgZoom === "number" ? data.heroImgZoom : 100,
             heroImgPosX: typeof data.heroImgPosX === "number" ? data.heroImgPosX : 50,
             heroImgPosY: typeof data.heroImgPosY === "number" ? data.heroImgPosY : 50,
+            heroImgFit: (data.heroImgFit === "contain" || data.heroImgFit === "fill" ? data.heroImgFit : "cover") as PhotoFitMode,
+            heroSlideConfigs:
+              data.heroSlideConfigs && typeof data.heroSlideConfigs === "object"
+                ? data.heroSlideConfigs
+                : {},
             heroBadge: data.heroBadge || "EXCELLENCE IN HIGHER EDUCATION",
             heroTitle: data.heroTitle || data.collegeName || "",
             heroSubtitle: data.heroSubtitle || "",
@@ -893,11 +919,16 @@ export default function CollegePortalSettingsTab({
         themePresets: customPresets,
 
         heroBgType: formData.heroBgType,
-        heroBgUrl: formData.heroImages?.[0] || formData.heroBgUrl,
+        heroBgUrl:
+          formData.heroBgType === "VIDEO"
+            ? formData.heroBgUrl
+            : (formData.heroImages?.[0] || formData.heroBgUrl),
         heroImages: formData.heroImages && formData.heroImages.length > 0 ? formData.heroImages : (formData.heroBgUrl ? [formData.heroBgUrl] : []),
         heroImgZoom: formData.heroImgZoom,
         heroImgPosX: formData.heroImgPosX,
         heroImgPosY: formData.heroImgPosY,
+        heroImgFit: formData.heroImgFit,
+        heroSlideConfigs: formData.heroSlideConfigs,
         heroBadge: formData.heroBadge,
         heroTitle: formData.heroTitle,
         heroSubtitle: formData.heroSubtitle,
@@ -1031,6 +1062,15 @@ export default function CollegePortalSettingsTab({
         department: "Academic Department",
         category: "FACULTY",
         photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&q=80",
+        photoZoom: 100,
+        photoPosX: 50,
+        photoPosY: 50,
+        photoFit: "cover",
+        photoShape: "squircle",
+        photoSize: "md",
+        photoBorder: "gold",
+        showBadge: true,
+        isVisible: true,
         quote: "Inspiring academic curiosity and higher learning standards.",
         message: "Dedicated to student mentoring, scientific research, and academic leadership.",
         email: "faculty@college.edu.pk",
@@ -1056,6 +1096,75 @@ export default function CollegePortalSettingsTab({
         ...prev,
         featuredProfiles: prev.featuredProfiles.map((p) => (p.id === id ? { ...p, ...updates } : p)),
       }));
+    };
+
+    const moveFeaturedProfile = (index: number, direction: -1 | 1) => {
+      const targetIdx = index + direction;
+      if (targetIdx < 0 || targetIdx >= formData.featuredProfiles.length) return;
+      setFormData((prev) => {
+        const reordered = [...prev.featuredProfiles];
+        const [item] = reordered.splice(index, 1);
+        reordered.splice(targetIdx, 0, item);
+        return {
+          ...prev,
+          featuredProfiles: reordered.map((p, idx) => ({ ...p, order: idx + 1 })),
+        };
+      });
+    };
+
+    const heroSlideList =
+      formData.heroImages && formData.heroImages.length > 0
+        ? formData.heroImages
+        : [formData.heroBgUrl || ""];
+    const safeActiveSlideIdx = Math.min(activeHeroSlideIdx, Math.max(0, heroSlideList.length - 1));
+    const activeHeroMediaUrl =
+      formData.heroBgType === "VIDEO"
+        ? formData.heroBgUrl
+        : heroSlideList[safeActiveSlideIdx] ?? formData.heroBgUrl;
+
+    const updateActiveHeroMediaUrl = (url: string, targetIdx = safeActiveSlideIdx) => {
+      setFormData((prev) => {
+        if (prev.heroBgType === "VIDEO") {
+          return { ...prev, heroBgUrl: url };
+        }
+        const current =
+          prev.heroImages && prev.heroImages.length > 0
+            ? [...prev.heroImages]
+            : prev.heroBgUrl
+              ? [prev.heroBgUrl]
+              : [""];
+        const idx = Math.min(Math.max(0, targetIdx), Math.max(0, current.length - 1));
+        current[idx] = url;
+        return {
+          ...prev,
+          heroImages: current,
+          heroBgUrl: idx === 0 ? url : current[0] || url,
+        };
+      });
+    };
+
+    const updateActiveHeroFraming = (next: PhotoFramingValue) => {
+      setFormData((prev) => {
+        const idx = prev.heroBgType === "VIDEO" ? 0 : safeActiveSlideIdx;
+        const nextSlideConfigs = {
+          ...(prev.heroSlideConfigs || {}),
+          [String(idx)]: { ...next },
+        };
+        if (idx === 0) {
+          return {
+            ...prev,
+            heroImgZoom: next.zoom,
+            heroImgPosX: next.posX,
+            heroImgPosY: next.posY,
+            heroImgFit: next.fit,
+            heroSlideConfigs: nextSlideConfigs,
+          };
+        }
+        return {
+          ...prev,
+          heroSlideConfigs: nextSlideConfigs,
+        };
+      });
     };
 
     const selectedCollege = colleges.find((c) => c.id === selectedCollegeId);
@@ -2455,7 +2564,7 @@ export default function CollegePortalSettingsTab({
                                       </div>
                                     </div>
 
-                                    {/* Direct Upload Box + URL Input */}
+                                    {/* Direct Upload Box + Full Interactive Photo Control */}
                                     <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/60 border border-slate-200 space-y-4">
                                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                         <div>
@@ -2465,7 +2574,7 @@ export default function CollegePortalSettingsTab({
                                           <p className="text-[11px] text-slate-500">
                                             {formData.heroBgType === "VIDEO"
                                               ? "Directly upload an MP4 or WebM video file to loop in the hero background."
-                                              : "Directly upload a high-resolution JPG, PNG, or WebP picture."}
+                                              : "Directly upload a high-resolution JPG, PNG, or WebP picture, then zoom and drag position below."}
                                           </p>
                                         </div>
 
@@ -2483,7 +2592,7 @@ export default function CollegePortalSettingsTab({
                                               ? "Uploading File..."
                                               : formData.heroBgType === "VIDEO"
                                                 ? "Direct Upload Video (MP4 / WebM)"
-                                                : "Direct Upload Picture (JPG / PNG)"}
+                                                : `Direct Upload Picture${heroSlideList.length > 1 ? ` (Slide #${safeActiveSlideIdx + 1})` : " (JPG / PNG)"}`}
                                           </span>
                                           <input
                                             type="file"
@@ -2496,7 +2605,7 @@ export default function CollegePortalSettingsTab({
                                               try {
                                                 setUploadingHero(true);
                                                 const url = await uploadFile(file);
-                                                setFormData((prev) => ({ ...prev, heroBgUrl: url }));
+                                                updateActiveHeroMediaUrl(url);
                                                 setMsg({ type: "success", text: `Successfully uploaded ${file.name}!` });
                                               } catch (err: any) {
                                                 setMsg({ type: "error", text: err.message || "Failed to upload file." });
@@ -2508,10 +2617,35 @@ export default function CollegePortalSettingsTab({
                                         </label>
                                       </div>
 
+                                      {/* Active Slide Selector when multiple slides exist */}
+                                      {formData.heroBgType === "IMAGE" && heroSlideList.length > 1 && (
+                                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                          <span className="text-[10px] font-bold text-slate-500 uppercase mr-1">
+                                            Editing Background Slide:
+                                          </span>
+                                          {heroSlideList.map((_, sIdx) => (
+                                            <button
+                                              key={sIdx}
+                                              type="button"
+                                              onClick={() => setActiveHeroSlideIdx(sIdx)}
+                                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                                                safeActiveSlideIdx === sIdx
+                                                  ? "bg-red-600 text-white border-red-600 shadow-xs"
+                                                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                                              }`}
+                                            >
+                                              Slide #{sIdx + 1}{sIdx === 0 ? " (Primary)" : ""}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+
                                       {/* Media URL Input */}
                                       <div className="space-y-1 pt-1">
                                         <label className="block text-xs font-bold text-slate-700">
-                                          {formData.heroBgType === "VIDEO" ? "Video File URL / Path" : "Picture File URL / Path"}
+                                          {formData.heroBgType === "VIDEO"
+                                            ? "Video File URL / Path"
+                                            : `Picture File URL / Path${heroSlideList.length > 1 ? ` (Slide #${safeActiveSlideIdx + 1})` : ""}`}
                                         </label>
                                         <div className="flex items-center gap-2">
                                           <input
@@ -2521,14 +2655,14 @@ export default function CollegePortalSettingsTab({
                                                 ? "/uploads/... or https://example.com/video.mp4"
                                                 : "/uploads/... or https://images.unsplash.com/..."
                                             }
-                                            value={formData.heroBgUrl}
-                                            onChange={(e) => setFormData({ ...formData, heroBgUrl: e.target.value })}
+                                            value={activeHeroMediaUrl || ""}
+                                            onChange={(e) => updateActiveHeroMediaUrl(e.target.value)}
                                             className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 font-mono"
                                           />
-                                          {formData.heroBgUrl && (
+                                          {activeHeroMediaUrl && (
                                             <button
                                               type="button"
-                                              onClick={() => setFormData({ ...formData, heroBgUrl: "" })}
+                                              onClick={() => updateActiveHeroMediaUrl("")}
                                               className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-red-600 bg-white border border-slate-200 rounded-xl transition-colors"
                                               title="Clear"
                                             >
@@ -2538,6 +2672,68 @@ export default function CollegePortalSettingsTab({
                                         </div>
                                       </div>
 
+                                      {/* FULL PICTURE / VIDEO CONTROL STUDIO RIGHT INSIDE UPLOAD PHOTO BOX */}
+                                      <InteractivePhotoController
+                                        mode="hero"
+                                        mediaType={formData.heroBgType}
+                                        mediaUrl={activeHeroMediaUrl || ""}
+                                        fallbackUrl="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"
+                                        title={
+                                          formData.heroBgType === "VIDEO"
+                                            ? "Video Zoom, Position & Framing Controls"
+                                            : `Background Photo Control Studio${heroSlideList.length > 1 ? ` — Slide #${safeActiveSlideIdx + 1}` : ""} (تصویر کا زوم، پوزیشن اور سائز)`
+                                        }
+                                        value={resolveSlideFraming(
+                                          formData.heroBgType === "VIDEO" ? 0 : safeActiveSlideIdx,
+                                          {
+                                            zoom: formData.heroImgZoom,
+                                            posX: formData.heroImgPosX,
+                                            posY: formData.heroImgPosY,
+                                            fit: formData.heroImgFit,
+                                          },
+                                          formData.heroSlideConfigs
+                                        )}
+                                        onChange={updateActiveHeroFraming}
+                                      />
+
+                                      {/* Quick Image Presets */}
+                                      {formData.heroBgType === "IMAGE" && (
+                                        <div className="pt-1">
+                                          <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">Graphic Presets:</span>
+                                          <div className="flex flex-wrap gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                updateActiveHeroMediaUrl(
+                                                  "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1600&q=80"
+                                                )
+                                              }
+                                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all"
+                                            >
+                                              🌌 Space & Starfield
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                updateActiveHeroMediaUrl(
+                                                  "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"
+                                                )
+                                              }
+                                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all"
+                                            >
+                                              🏛️ Academic Campus
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => updateActiveHeroMediaUrl("/balochistan-landscape.png")}
+                                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all"
+                                            >
+                                              🏔️ Balochistan Landscape
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+
                                       {/* Slide View Multiple Photos Gallery (Only for IMAGE type) */}
                                       {formData.heroBgType === "IMAGE" && (
                                         <div className="pt-3 border-t border-slate-200/80 space-y-3">
@@ -2546,11 +2742,11 @@ export default function CollegePortalSettingsTab({
                                               <label className="text-xs font-bold text-slate-800 flex items-center gap-2">
                                                 <span>📸 Multi-Photo Slideshow Gallery (ایک سے زائد سلائیڈ تصاویر)</span>
                                                 <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-black">
-                                                  {(formData.heroImages || []).length} Slide(s)
+                                                  {heroSlideList.length} Slide(s)
                                                 </span>
                                               </label>
                                               <p className="text-[11px] text-slate-500">
-                                                Add multiple pictures to rotate automatically every 4.5 seconds on the college homepage banner.
+                                                Add multiple pictures to rotate automatically every 4.5 seconds on the college homepage banner. Click any slide to adjust its Zoom & Position above.
                                               </p>
                                             </div>
 
@@ -2558,7 +2754,7 @@ export default function CollegePortalSettingsTab({
                                               {/* Direct Upload Slide Button */}
                                               <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-all hover:scale-105">
                                                 {uploadingHero ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                                                <span>Direct Upload Slide</span>
+                                                <span>Direct Upload New Slide</span>
                                                 <input
                                                   type="file"
                                                   accept="image/*"
@@ -2577,7 +2773,8 @@ export default function CollegePortalSettingsTab({
                                                         heroImages: updated,
                                                         heroBgUrl: updated[0] || url,
                                                       });
-                                                      setMsg({ type: "success", text: `Uploaded ${file.name} to college slideshow!` });
+                                                      setActiveHeroSlideIdx(updated.length - 1);
+                                                      setMsg({ type: "success", text: `Uploaded ${file.name} as Slide #${updated.length}!` });
                                                     } catch (err: any) {
                                                       setMsg({ type: "error", text: err.message || "Failed to upload photo." });
                                                     } finally {
@@ -2602,6 +2799,7 @@ export default function CollegePortalSettingsTab({
                                                     heroImages: newImages,
                                                     heroBgUrl: newImages[0],
                                                   });
+                                                  setActiveHeroSlideIdx(newImages.length - 1);
                                                 }}
                                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-300"
                                               >
@@ -2613,408 +2811,103 @@ export default function CollegePortalSettingsTab({
 
                                           {/* Slides Grid */}
                                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {(formData.heroImages && formData.heroImages.length > 0
-                                              ? formData.heroImages
-                                              : [formData.heroBgUrl || "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80"]
-                                            ).map((imgUrl, sIdx) => (
-                                              <div
-                                                key={sIdx}
-                                                className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 relative group shadow-xs"
-                                              >
-                                                <div className="flex items-center justify-between">
-                                                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                                                    <span>Slide #{sIdx + 1}</span>
-                                                    {sIdx === 0 && (
-                                                      <span className="bg-red-50 text-red-600 px-1.5 py-0.2 rounded text-[9px] font-bold">
-                                                        Hero Active
-                                                      </span>
-                                                    )}
-                                                  </span>
+                                            {heroSlideList.map((imgUrl, sIdx) => {
+                                              const slideFrame = resolveSlideFraming(
+                                                sIdx,
+                                                {
+                                                  zoom: formData.heroImgZoom,
+                                                  posX: formData.heroImgPosX,
+                                                  posY: formData.heroImgPosY,
+                                                  fit: formData.heroImgFit,
+                                                },
+                                                formData.heroSlideConfigs
+                                              );
+                                              const isSelected = safeActiveSlideIdx === sIdx;
+                                              return (
+                                                <div
+                                                  key={sIdx}
+                                                  className={`p-3 bg-white border rounded-xl space-y-2 relative group shadow-xs transition-all ${
+                                                    isSelected
+                                                      ? "border-indigo-500 ring-2 ring-indigo-200"
+                                                      : "border-slate-200"
+                                                  }`}
+                                                >
+                                                  <div className="flex items-center justify-between gap-1">
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                                                      <span>Slide #{sIdx + 1}</span>
+                                                      {sIdx === 0 && (
+                                                        <span className="bg-red-50 text-red-600 px-1.5 py-0.2 rounded text-[9px] font-bold">
+                                                          Primary
+                                                        </span>
+                                                      )}
+                                                    </span>
 
-                                                  <div className="flex items-center gap-1">
-                                                    {(formData.heroImages || []).length > 1 && (
+                                                    <div className="flex items-center gap-1">
                                                       <button
                                                         type="button"
-                                                        onClick={() => {
-                                                          const updated = (formData.heroImages || []).filter((_, i) => i !== sIdx);
-                                                          setFormData({
-                                                            ...formData,
-                                                            heroImages: updated,
-                                                            heroBgUrl: updated[0] || "",
-                                                          });
-                                                        }}
-                                                        className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
-                                                        title="Delete Slide"
+                                                        onClick={() => setActiveHeroSlideIdx(sIdx)}
+                                                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                                                          isSelected
+                                                            ? "bg-indigo-600 text-white"
+                                                            : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                                        }`}
+                                                        title="Edit Zoom & Position for this slide"
                                                       >
-                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        {isSelected ? "Editing" : "Adjust Frame"}
                                                       </button>
-                                                    )}
-                                                  </div>
-                                                </div>
 
-                                                {/* Thumbnail */}
-                                                <div className="h-28 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 relative">
-                                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                  <img
-                                                    src={imgUrl}
-                                                    alt={`Slide ${sIdx + 1}`}
-                                                    className="w-full h-full object-cover"
-                                                    onError={(e) => {
-                                                      e.currentTarget.src =
-                                                        "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&q=80";
-                                                    }}
+                                                      {heroSlideList.length > 1 && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => {
+                                                            const updated = heroSlideList.filter((_, i) => i !== sIdx);
+                                                            setFormData({
+                                                              ...formData,
+                                                              heroImages: updated,
+                                                              heroBgUrl: updated[0] || "",
+                                                            });
+                                                            setActiveHeroSlideIdx((prev) =>
+                                                              Math.min(prev, Math.max(0, updated.length - 1))
+                                                            );
+                                                          }}
+                                                          className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                                                          title="Delete Slide"
+                                                        >
+                                                          <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Thumbnail */}
+                                                  <div
+                                                    onClick={() => setActiveHeroSlideIdx(sIdx)}
+                                                    className="h-28 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 relative cursor-pointer"
+                                                  >
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                      src={imgUrl}
+                                                      alt={`Slide ${sIdx + 1}`}
+                                                      className="w-full h-full"
+                                                      style={buildPhotoTransformStyle(slideFrame)}
+                                                      onError={(e) => {
+                                                        e.currentTarget.src =
+                                                          "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&q=80";
+                                                      }}
+                                                    />
+                                                  </div>
+
+                                                  {/* URL input */}
+                                                  <input
+                                                    type="text"
+                                                    value={imgUrl}
+                                                    onChange={(e) => updateActiveHeroMediaUrl(e.target.value, sIdx)}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-800 focus:outline-none"
+                                                    placeholder="/image.png or https://..."
                                                   />
                                                 </div>
-
-                                                {/* URL input */}
-                                                <input
-                                                  type="text"
-                                                  value={imgUrl}
-                                                  onChange={(e) => {
-                                                    const newArr = [
-                                                      ...(formData.heroImages && formData.heroImages.length > 0
-                                                        ? formData.heroImages
-                                                        : [formData.heroBgUrl || ""])
-                                                    ];
-                                                    newArr[sIdx] = e.target.value;
-                                                    setFormData({
-                                                      ...formData,
-                                                      heroImages: newArr,
-                                                      heroBgUrl: newArr[0] || "",
-                                                    });
-                                                  }}
-                                                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-800 focus:outline-none"
-                                                  placeholder="/image.png or https://..."
-                                                />
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {/* Live Preview Player / Thumbnail */}
-                                      {formData.heroBgUrl && (
-                                        <div className="pt-2">
-                                          <div className="flex items-center justify-between mb-1.5">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                              Live Hero Framing Preview:
-                                            </span>
-                                            <span className="text-[10px] text-slate-400 font-mono">
-                                              Scale: {formData.heroImgZoom}% | Pos: {formData.heroImgPosX}% X, {formData.heroImgPosY}% Y
-                                            </span>
-                                          </div>
-
-                                          <div className="relative rounded-2xl overflow-hidden border border-slate-300 bg-slate-950 h-56 flex items-center justify-center shadow-inner group">
-                                            {formData.heroBgType === "VIDEO" ? (
-                                              <video
-                                                src={formData.heroBgUrl}
-                                                controls
-                                                autoPlay
-                                                muted
-                                                loop
-                                                className="w-full h-full object-cover transition-all duration-200"
-                                                style={{
-                                                  objectPosition: `${formData.heroImgPosX}% ${formData.heroImgPosY}%`,
-                                                  transform: `scale(${formData.heroImgZoom / 100})`,
-                                                  transformOrigin: `${formData.heroImgPosX}% ${formData.heroImgPosY}%`,
-                                                }}
-                                              />
-                                            ) : (
-                                              /* eslint-disable-next-line @next/next/no-img-element */
-                                              <img
-                                                src={formData.heroBgUrl}
-                                                alt="Hero Preview"
-                                                className="w-full h-full object-cover transition-all duration-200"
-                                                style={{
-                                                  objectPosition: `${formData.heroImgPosX}% ${formData.heroImgPosY}%`,
-                                                  transform: `scale(${formData.heroImgZoom / 100})`,
-                                                  transformOrigin: `${formData.heroImgPosX}% ${formData.heroImgPosY}%`,
-                                                }}
-                                                onError={(e) => {
-                                                  e.currentTarget.style.display = "none";
-                                                }}
-                                              />
-                                            )}
-
-                                            {/* Subtle Overlay Guide Grid for Alignment */}
-                                            <div className="absolute inset-0 border border-white/10 pointer-events-none flex items-center justify-center">
-                                              <div className="w-full h-[1px] bg-white/10" />
-                                              <div className="h-full w-[1px] bg-white/10 absolute" />
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {/* Picture / Video Zoom & Horizontal/Vertical Alignment Controls */}
-                                      {formData.heroBgUrl && (
-                                        <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-4">
-                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                                            <div className="flex items-center gap-2">
-                                              <Sliders className="w-4 h-4 text-indigo-600" />
-                                              <span className="text-xs font-bold text-slate-900">
-                                                Picture Framing, Zoom & Alignment Controls (تصویر کا زوم، افقی اور عمودی رخ)
-                                              </span>
-                                            </div>
-
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setFormData({
-                                                  ...formData,
-                                                  heroImgZoom: 100,
-                                                  heroImgPosX: 50,
-                                                  heroImgPosY: 50,
-                                                })
-                                              }
-                                              className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-colors"
-                                            >
-                                              <RotateCcw className="w-3 h-3" />
-                                              <span>Reset to Center (100%)</span>
-                                            </button>
-                                          </div>
-
-                                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            {/* 1. Zoom Slider */}
-                                            <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                                              <div className="flex items-center justify-between text-xs">
-                                                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                                                  <ZoomIn className="w-3.5 h-3.5 text-blue-600" />
-                                                  <span>Zoom In / Out</span>
-                                                </span>
-                                                <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 text-[11px]">
-                                                  {formData.heroImgZoom}%
-                                                </span>
-                                              </div>
-
-                                              <input
-                                                type="range"
-                                                min="50"
-                                                max="250"
-                                                step="5"
-                                                value={formData.heroImgZoom}
-                                                onChange={(e) =>
-                                                  setFormData({ ...formData, heroImgZoom: Number(e.target.value) })
-                                                }
-                                                className="w-full accent-blue-600 cursor-pointer"
-                                              />
-
-                                              <div className="flex items-center justify-between gap-1 pt-1">
-                                                <button
-                                                  type="button"
-                                                  onClick={() =>
-                                                    setFormData({
-                                                      ...formData,
-                                                      heroImgZoom: Math.max(50, formData.heroImgZoom - 10),
-                                                    })
-                                                  }
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-1 shadow-2xs"
-                                                >
-                                                  <ZoomOut className="w-3 h-3" />
-                                                  <span>-10%</span>
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setFormData({ ...formData, heroImgZoom: 100 })}
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 shadow-2xs"
-                                                >
-                                                  100%
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() =>
-                                                    setFormData({
-                                                      ...formData,
-                                                      heroImgZoom: Math.min(250, formData.heroImgZoom + 10),
-                                                    })
-                                                  }
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-1 shadow-2xs"
-                                                >
-                                                  <ZoomIn className="w-3 h-3" />
-                                                  <span>+10%</span>
-                                                </button>
-                                              </div>
-                                            </div>
-
-                                            {/* 2. Horizontal Position Slider (Left / Right) */}
-                                            <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                                              <div className="flex items-center justify-between text-xs">
-                                                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                                                  <Move className="w-3.5 h-3.5 text-amber-600" />
-                                                  <span>Horizontal (Left / Right)</span>
-                                                </span>
-                                                <span className="font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-[11px]">
-                                                  {formData.heroImgPosX}% {formData.heroImgPosX < 45 ? "Left" : formData.heroImgPosX > 55 ? "Right" : "Center"}
-                                                </span>
-                                              </div>
-
-                                              <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
-                                                step="1"
-                                                value={formData.heroImgPosX}
-                                                onChange={(e) =>
-                                                  setFormData({ ...formData, heroImgPosX: Number(e.target.value) })
-                                                }
-                                                className="w-full accent-amber-500 cursor-pointer"
-                                              />
-
-                                              <div className="flex items-center justify-between gap-1 pt-1">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setFormData({ ...formData, heroImgPosX: 0 })}
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 shadow-2xs"
-                                                >
-                                                  Left (0%)
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setFormData({ ...formData, heroImgPosX: 50 })}
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 shadow-2xs"
-                                                >
-                                                  Center (50%)
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setFormData({ ...formData, heroImgPosX: 100 })}
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 shadow-2xs"
-                                                >
-                                                  Right (100%)
-                                                </button>
-                                              </div>
-                                            </div>
-
-                                            {/* 3. Vertical Position Slider (Top / Bottom) */}
-                                            <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-                                              <div className="flex items-center justify-between text-xs">
-                                                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                                                  <Move className="w-3.5 h-3.5 text-emerald-600 rotate-90" />
-                                                  <span>Vertical (Top / Bottom)</span>
-                                                </span>
-                                                <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                                                  {formData.heroImgPosY}% {formData.heroImgPosY < 45 ? "Top" : formData.heroImgPosY > 55 ? "Bottom" : "Middle"}
-                                                </span>
-                                              </div>
-
-                                              <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
-                                                step="1"
-                                                value={formData.heroImgPosY}
-                                                onChange={(e) =>
-                                                  setFormData({ ...formData, heroImgPosY: Number(e.target.value) })
-                                                }
-                                                className="w-full accent-emerald-500 cursor-pointer"
-                                              />
-
-                                              <div className="flex items-center justify-between gap-1 pt-1">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setFormData({ ...formData, heroImgPosY: 0 })}
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 shadow-2xs"
-                                                >
-                                                  Top (0%)
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setFormData({ ...formData, heroImgPosY: 50 })}
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 shadow-2xs"
-                                                >
-                                                  Middle (50%)
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => setFormData({ ...formData, heroImgPosY: 100 })}
-                                                  className="px-2 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 shadow-2xs"
-                                                >
-                                                  Bottom (100%)
-                                                </button>
-                                              </div>
-                                            </div>
-                                          </div>
-
-                                          {/* Framing Presets */}
-                                          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Framing Presets:</span>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setFormData({ ...formData, heroImgZoom: 100, heroImgPosX: 50, heroImgPosY: 50 })
-                                              }
-                                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
-                                            >
-                                              🎯 Default Center
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setFormData({ ...formData, heroImgZoom: 115, heroImgPosX: 50, heroImgPosY: 15 })
-                                              }
-                                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
-                                            >
-                                              🔼 Sky / Top Focus
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setFormData({ ...formData, heroImgZoom: 115, heroImgPosX: 50, heroImgPosY: 85 })
-                                              }
-                                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
-                                            >
-                                              🔽 Ground / Campus Focus
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setFormData({ ...formData, heroImgZoom: 140, heroImgPosX: 50, heroImgPosY: 40 })
-                                              }
-                                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
-                                            >
-                                              🔍 Cinematic Close-up
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {/* Quick Image Presets */}
-                                      {formData.heroBgType === "IMAGE" && (
-                                        <div className="pt-2">
-                                          <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">Graphic Presets:</span>
-                                          <div className="flex flex-wrap gap-2">
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setFormData({
-                                                  ...formData,
-                                                  heroBgUrl:
-                                                    "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=1600&q=80",
-                                                })
-                                              }
-                                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all"
-                                            >
-                                              🌌 Space & Starfield (From Screenshot)
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setFormData({
-                                                  ...formData,
-                                                  heroBgUrl:
-                                                    "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80",
-                                                })
-                                              }
-                                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all"
-                                            >
-                                              🏛️ Academic Campus
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => setFormData({ ...formData, heroBgUrl: "/balochistan-landscape.png" })}
-                                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all"
-                                            >
-                                              🏔️ Balochistan Landscape
-                                            </button>
+                                              );
+                                            })}
                                           </div>
                                         </div>
                                       )}
@@ -3026,13 +2919,7 @@ export default function CollegePortalSettingsTab({
                                           <div className="flex flex-wrap gap-2">
                                             <button
                                               type="button"
-                                              onClick={() =>
-                                                setFormData({
-                                                  ...formData,
-                                                  heroBgUrl:
-                                                    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                                                })
-                                              }
+                                              onClick={() => updateActiveHeroMediaUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4")}
                                               className="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all flex items-center gap-1"
                                             >
                                               <Play className="w-3 h-3 text-indigo-600" />
@@ -3305,7 +3192,29 @@ export default function CollegePortalSettingsTab({
                                                     </div>
                                                   </div>
 
-                                                  <div className="flex items-center gap-2">
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    {/* Reorder Buttons */}
+                                                    <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden">
+                                                      <button
+                                                        type="button"
+                                                        disabled={idx === 0}
+                                                        onClick={() => moveFeaturedProfile(idx, -1)}
+                                                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30"
+                                                        title="Move Up"
+                                                      >
+                                                        <ArrowUp className="w-3.5 h-3.5" />
+                                                      </button>
+                                                      <button
+                                                        type="button"
+                                                        disabled={idx === formData.featuredProfiles.length - 1}
+                                                        onClick={() => moveFeaturedProfile(idx, 1)}
+                                                        className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-30 border-l border-slate-200"
+                                                        title="Move Down"
+                                                      >
+                                                        <ArrowDown className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    </div>
+
                                                     {/* Category Selector */}
                                                     <select
                                                       value={profile.category}
@@ -3316,7 +3225,7 @@ export default function CollegePortalSettingsTab({
                                                       }
                                                       className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none"
                                                     >
-                                                      <option value="PRINCIPAL">Principal's Desk / Message</option>
+                                                      <option value="PRINCIPAL">Principal&apos;s Desk / Message</option>
                                                       <option value="DEAN">Dean / Vice Principal</option>
                                                       <option value="FACULTY">Distinguished Faculty</option>
                                                       <option value="ALUMNI">Notable Alumni Spotlight</option>
@@ -3368,64 +3277,106 @@ export default function CollegePortalSettingsTab({
                                                     />
                                                   </div>
 
-                                                  {/* Photo Direct Upload & URL */}
-                                                  <div className="sm:col-span-2 lg:col-span-3 p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-                                                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                      <img
-                                                        src={profile.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80"}
-                                                        alt={profile.name}
-                                                        className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-xs flex-shrink-0"
-                                                        onError={(e) => {
-                                                          e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80";
-                                                        }}
-                                                      />
-                                                      <div>
-                                                        <span className="text-xs font-bold text-slate-800 block">Profile Photo</span>
-                                                        <span className="text-[10px] text-slate-500">
-                                                          Upload portrait picture directly from your computer.
-                                                        </span>
+                                                  {/* Photo Upload, URL + FULL FRAMING & SHAPE STUDIO */}
+                                                  <div className="sm:col-span-2 lg:col-span-3 space-y-3">
+                                                    <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                                      <div className="flex items-center gap-3 w-full sm:w-auto">
+                                                        <div
+                                                          className={`w-12 h-12 overflow-hidden border border-slate-200 shadow-xs flex-shrink-0 bg-slate-900 ${
+                                                            getShapeRadiusClasses(profile.photoShape || "squircle", "card").outer
+                                                          }`}
+                                                        >
+                                                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                          <img
+                                                            src={profile.photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80"}
+                                                            alt={profile.name}
+                                                            className="w-full h-full"
+                                                            style={buildPhotoTransformStyle({
+                                                              zoom: profile.photoZoom,
+                                                              posX: profile.photoPosX,
+                                                              posY: profile.photoPosY,
+                                                              fit: profile.photoFit,
+                                                            })}
+                                                            onError={(e) => {
+                                                              e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80";
+                                                            }}
+                                                          />
+                                                        </div>
+                                                        <div>
+                                                          <span className="text-xs font-bold text-slate-800 block">Profile Photo & Options</span>
+                                                          <span className="text-[10px] text-slate-500">
+                                                            Upload portrait photo, choose frame shape (Circle / Rectangle / Oval / Arch), and adjust Zoom & Position.
+                                                          </span>
+                                                        </div>
+                                                      </div>
+
+                                                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-all">
+                                                          {uploadingProfileId === profile.id ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                          ) : (
+                                                            <Upload className="w-3.5 h-3.5" />
+                                                          )}
+                                                          <span>{uploadingProfileId === profile.id ? "Uploading..." : "Direct Upload Photo"}</span>
+                                                          <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            disabled={uploadingProfileId === profile.id}
+                                                            onChange={async (e) => {
+                                                              const file = e.target.files?.[0];
+                                                              if (!file) return;
+                                                              try {
+                                                                setUploadingProfileId(profile.id);
+                                                                const url = await uploadFile(file);
+                                                                updateFeaturedProfile(profile.id, { photoUrl: url });
+                                                                setMsg({ type: "success", text: `Uploaded photo for ${profile.name}!` });
+                                                              } catch (err: any) {
+                                                                setMsg({ type: "error", text: err.message || "Failed to upload photo." });
+                                                              } finally {
+                                                                setUploadingProfileId(null);
+                                                              }
+                                                            }}
+                                                          />
+                                                        </label>
+
+                                                        <input
+                                                          type="text"
+                                                          placeholder="or Photo URL"
+                                                          value={profile.photoUrl}
+                                                          onChange={(e) => updateFeaturedProfile(profile.id, { photoUrl: e.target.value })}
+                                                          className="w-36 sm:w-48 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono focus:outline-none"
+                                                        />
                                                       </div>
                                                     </div>
 
-                                                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                                                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-all">
-                                                        {uploadingProfileId === profile.id ? (
-                                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                        ) : (
-                                                          <Upload className="w-3.5 h-3.5" />
-                                                        )}
-                                                        <span>{uploadingProfileId === profile.id ? "Uploading..." : "Direct Upload Photo"}</span>
-                                                        <input
-                                                          type="file"
-                                                          accept="image/*"
-                                                          className="hidden"
-                                                          disabled={uploadingProfileId === profile.id}
-                                                          onChange={async (e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (!file) return;
-                                                            try {
-                                                              setUploadingProfileId(profile.id);
-                                                              const url = await uploadFile(file);
-                                                              updateFeaturedProfile(profile.id, { photoUrl: url });
-                                                              setMsg({ type: "success", text: `Uploaded photo for ${profile.name}!` });
-                                                            } catch (err: any) {
-                                                              setMsg({ type: "error", text: err.message || "Failed to upload photo." });
-                                                            } finally {
-                                                              setUploadingProfileId(null);
-                                                            }
-                                                          }}
-                                                        />
-                                                      </label>
-
-                                                      <input
-                                                        type="text"
-                                                        placeholder="or Photo URL"
-                                                        value={profile.photoUrl}
-                                                        onChange={(e) => updateFeaturedProfile(profile.id, { photoUrl: e.target.value })}
-                                                        className="w-36 sm:w-48 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono focus:outline-none"
-                                                      />
-                                                    </div>
+                                                    <InteractivePhotoController
+                                                      mode="profile"
+                                                      mediaUrl={profile.photoUrl}
+                                                      fallbackUrl="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80"
+                                                      value={{
+                                                        zoom: profile.photoZoom ?? 100,
+                                                        posX: profile.photoPosX ?? 50,
+                                                        posY: profile.photoPosY ?? 50,
+                                                        fit: profile.photoFit ?? "cover",
+                                                      }}
+                                                      onChange={(next) =>
+                                                        updateFeaturedProfile(profile.id, {
+                                                          photoZoom: next.zoom,
+                                                          photoPosX: next.posX,
+                                                          photoPosY: next.posY,
+                                                          photoFit: next.fit,
+                                                        })
+                                                      }
+                                                      profileOptions={{
+                                                        shape: profile.photoShape ?? "squircle",
+                                                        size: profile.photoSize ?? "md",
+                                                        border: profile.photoBorder ?? "gold",
+                                                        showBadge: profile.showBadge !== false,
+                                                        isVisible: profile.isVisible !== false,
+                                                        onStyleChange: (updates) => updateFeaturedProfile(profile.id, updates),
+                                                      }}
+                                                    />
                                                   </div>
 
                                                   {/* Quote */}
