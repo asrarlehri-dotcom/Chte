@@ -30,6 +30,13 @@ export async function getFilterData() {
     },
     include: { user: true, department: true }
   });
+  const supportStaff = await prisma.faculty.findMany({
+    where: {
+      isActive: true,
+      educationLevel: "NON_TEACHING",
+    },
+    include: { user: true, department: true }
+  });
   const studentGroups = await prisma.student.groupBy({
     by: ["programId", "currentSemester"],
     where: { educationLevel: "BS", isActive: true },
@@ -40,7 +47,7 @@ export async function getFilterData() {
     semester: g.currentSemester,
     count: g._count.id
   }));
-  return { programs, departments, faculties, rooms: [], studentCounts };
+  return { programs, departments, faculties, supportStaff, rooms: [], studentCounts };
 }
 
 export async function getTimetables(
@@ -1008,31 +1015,46 @@ export async function unfinalizeDatesheet(
 // EXAM DUTY ACTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
+function normalizeMultiStringFilter(val?: string | string[]): string[] | undefined {
+  if (!val) return undefined;
+  const list = Array.isArray(val) ? val : [val];
+  const cleaned = list.map((x) => (x || "").trim()).filter((x) => x && x !== "ALL");
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+function normalizeMultiNumberFilter(val?: number | number[]): number[] | undefined {
+  if (val === undefined || val === null) return undefined;
+  const list = Array.isArray(val) ? val : [val];
+  const cleaned = list.map((n) => Number(n)).filter((n) => !Number.isNaN(n) && n > 0);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
 export async function getDuties(
-  session?: string,
-  programId?: string,
-  semester?: number,
+  session?: string | string[],
+  programId?: string | string[],
+  semester?: number | number[],
   examType?: string
 ) {
-  const cleanSession = session && session !== "ALL" ? session : undefined;
-  const cleanProgramId = programId && programId !== "ALL" ? programId : undefined;
-  const cleanSemester = semester && semester !== 0 ? semester : undefined;
+  const cleanSessions = normalizeMultiStringFilter(session);
+  const cleanProgramIds = normalizeMultiStringFilter(programId);
+  const cleanSemesters = normalizeMultiNumberFilter(semester);
   const cleanExamType = examType && examType !== "ALL" ? examType : undefined;
 
   const datesheets = await prisma.datesheet.findMany({
     where: {
-      isFinalized: true,
-      ...(cleanSession ? { session: cleanSession } : {}),
-      ...(cleanProgramId ? { programId: cleanProgramId } : {}),
-      ...(cleanSemester ? { semester: cleanSemester } : {}),
+      isActive: true,
+      ...(cleanSessions ? { session: { in: cleanSessions } } : {}),
+      ...(cleanProgramIds ? { programId: { in: cleanProgramIds } } : {}),
+      ...(cleanSemesters ? { semester: { in: cleanSemesters } } : {}),
       ...(cleanExamType ? { examType: cleanExamType } : {}),
     },
     select: { id: true }
   });
   const dsIds = datesheets.map(d => d.id);
+  if (dsIds.length === 0) return [];
 
   return prisma.examDuty.findMany({
-    where: { datesheetId: { in: dsIds } },
+    where: { datesheetId: { in: dsIds }, isActive: true },
     include: {
       faculty: { include: { user: true, department: true } },
       datesheet: { include: { course: true, program: true } }
@@ -1042,36 +1064,40 @@ export async function getDuties(
 }
 
 export async function generateDutiesAction(
-  programId: string,
-  session: string,
-  semester: number,
+  programId: string | string[],
+  session: string | string[],
+  semester: number | number[],
   examType: string,
-  maxInvigilatorsPerPaper: number = 2
+  maxInvigilatorsPerPaper: number = 2,
+  defaultHall?: string,
+  excludeFacultyIds: string[] = []
 ) {
-  const cleanSession = session && session !== "ALL" ? session : undefined;
-  const cleanProgramId = programId && programId !== "ALL" ? programId : undefined;
-  const cleanSemester = semester && semester !== 0 ? semester : undefined;
+  const cleanSessions = normalizeMultiStringFilter(session);
+  const cleanProgramIds = normalizeMultiStringFilter(programId);
+  const cleanSemesters = normalizeMultiNumberFilter(semester);
   const cleanExamType = examType && examType !== "ALL" ? examType : undefined;
 
   const datesheets = await prisma.datesheet.findMany({
     where: {
+      isActive: true,
       isFinalized: true,
-      ...(cleanSession ? { session: cleanSession } : {}),
-      ...(cleanProgramId ? { programId: cleanProgramId } : {}),
-      ...(cleanSemester ? { semester: cleanSemester } : {}),
+      ...(cleanSessions ? { session: { in: cleanSessions } } : {}),
+      ...(cleanProgramIds ? { programId: { in: cleanProgramIds } } : {}),
+      ...(cleanSemesters ? { semester: { in: cleanSemesters } } : {}),
       ...(cleanExamType ? { examType: cleanExamType } : {}),
     },
     include: {
       course: { include: { faculty: { include: { user: true } } } },
-      duties: true,
+      duties: { where: { isActive: true } },
     },
     orderBy: { date: "asc" },
   });
 
   if (datesheets.length === 0) {
-    return { success: false, error: "No finalized datesheet entries found. Finalize the datesheet first." };
+    return { success: false, error: "No finalized datesheet entries found for the selected Exam / Session / Semester / Program(s). Finalize the Date Sheet first." };
   }
 
+  const excludedFacSet = new Set((excludeFacultyIds || []).filter(Boolean));
   const allFaculty = await prisma.faculty.findMany({
     where: {
       isActive: true,
@@ -1080,12 +1106,13 @@ export async function generateDutiesAction(
     include: { user: true },
   });
 
-  const created: any[] = [];
+  const created: Array<{ type: string; course?: string; date: string; faculty?: string | null }> = [];
   const warnings: string[] = [];
   const assignedOnDate = new Map<string, boolean>();
 
   // Pre-load existing assignments
   const existingAllDuties = await prisma.examDuty.findMany({
+    where: { isActive: true },
     include: { datesheet: true }
   });
   for (const d of existingAllDuties) {
@@ -1098,8 +1125,9 @@ export async function generateDutiesAction(
     const dateKey = ds.date.toISOString().split("T")[0];
     const shiftTime = `${ds.startTime}-${ds.endTime}`;
     const mandatoryFacultyId = ds.course?.facultyId;
+    const roomVal = (defaultHall || "").trim() || null;
 
-    // Step A: Mandatory duty
+    // Step A: Mandatory duty (course instructor)
     if (mandatoryFacultyId) {
       const alreadyAssigned = ds.duties.some(d => d.facultyId === mandatoryFacultyId);
       if (!alreadyAssigned) {
@@ -1110,8 +1138,8 @@ export async function generateDutiesAction(
         try {
           await prisma.examDuty.upsert({
             where: { datesheetId_facultyId: { datesheetId: ds.id, facultyId: mandatoryFacultyId } },
-            update: { dutyType: "MANDATORY", isMandatory: true, shiftTime, isOverride: hasConflict },
-            create: { datesheetId: ds.id, facultyId: mandatoryFacultyId, dutyType: "MANDATORY", isMandatory: true, shiftTime, isOverride: hasConflict },
+            update: { dutyType: "MANDATORY", isMandatory: true, shiftTime, room: roomVal, isOverride: hasConflict, isActive: true },
+            create: { datesheetId: ds.id, facultyId: mandatoryFacultyId, dutyType: "MANDATORY", isMandatory: true, shiftTime, room: roomVal, isOverride: hasConflict },
           });
           assignedOnDate.set(`${mandatoryFacultyId}|${dateKey}|${shiftTime}`, true);
           created.push({ type: "MANDATORY", course: ds.course?.title, date: dateKey });
@@ -1121,20 +1149,23 @@ export async function generateDutiesAction(
       warnings.push(`No faculty assigned to course "${ds.course?.title}" — no mandatory duty created.`);
     }
 
-    // Step B: Fill invigilator slots
-    const currentCount = ds.duties.length + (mandatoryFacultyId ? 1 : 0);
+    // Step B: Fill remaining invigilator slots (skipping Superintendent / Inspection Team unless no one else)
+    const currentCount = ds.duties.length + (mandatoryFacultyId && !ds.duties.some(d => d.facultyId === mandatoryFacultyId) ? 1 : 0);
     const slotsNeeded = Math.max(0, maxInvigilatorsPerPaper - currentCount);
     let filled = 0;
 
     for (const fac of allFaculty) {
       if (filled >= slotsNeeded) break;
       if (fac.id === mandatoryFacultyId) continue;
+      if (excludedFacSet.has(fac.id)) continue;
       if (ds.duties.some(d => d.facultyId === fac.id)) continue;
       if (assignedOnDate.has(`${fac.id}|${dateKey}|${shiftTime}`)) continue;
 
       try {
-        await prisma.examDuty.create({
-          data: { datesheetId: ds.id, facultyId: fac.id, dutyType: "INVIGILATOR", isMandatory: false, shiftTime },
+        await prisma.examDuty.upsert({
+          where: { datesheetId_facultyId: { datesheetId: ds.id, facultyId: fac.id } },
+          update: { dutyType: "INVIGILATOR", isMandatory: false, shiftTime, room: roomVal, isActive: true },
+          create: { datesheetId: ds.id, facultyId: fac.id, dutyType: "INVIGILATOR", isMandatory: false, shiftTime, room: roomVal },
         });
         assignedOnDate.set(`${fac.id}|${dateKey}|${shiftTime}`, true);
         created.push({ type: "INVIGILATOR", course: ds.course?.title, date: dateKey, faculty: fac.user?.name });
@@ -1147,27 +1178,99 @@ export async function generateDutiesAction(
   return { success: true, created: created.length, warnings };
 }
 
-export async function saveManualDuty(data: any) {
+export async function saveManualDuty(data: {
+  id?: string;
+  datesheetId: string;
+  facultyId: string;
+  dutyType?: string;
+  room?: string;
+  shiftTime?: string;
+  notes?: string;
+  isOverride?: boolean;
+}) {
   const { id, datesheetId, facultyId, dutyType, room, shiftTime, notes, isOverride } = data;
   try {
-    if (!datesheetId || !facultyId) return { success: false, error: "datesheetId and facultyId required" };
+    if (!datesheetId || !facultyId) return { success: false, error: "Exam Paper and Faculty member are required." };
+
+    const targetDs = await prisma.datesheet.findUnique({ where: { id: datesheetId } });
+    if (!targetDs) return { success: false, error: "Selected datesheet paper not found." };
+
+    const resolvedShift = shiftTime || `${targetDs.startTime}-${targetDs.endTime}`;
+    const targetDateStr = targetDs.date.toISOString().split("T")[0];
+
+    // Check faculty duty conflict on same exam date & overlapping shift unless override is approved
+    if (!isOverride) {
+      const sameFacDuties = await prisma.examDuty.findMany({
+        where: {
+          facultyId,
+          isActive: true,
+          ...(id ? { id: { not: id } } : {}),
+          datesheetId: { not: datesheetId },
+        },
+        include: { datesheet: { include: { course: true } }, faculty: { include: { user: true } } },
+      });
+
+      const conflictDuty = sameFacDuties.find((d) => {
+        const dStr = d.datesheet.date.toISOString().split("T")[0];
+        if (dStr !== targetDateStr) return false;
+        const existShift = d.shiftTime || `${d.datesheet.startTime}-${d.datesheet.endTime}`;
+        return existShift === resolvedShift;
+      });
+
+      if (conflictDuty) {
+        return {
+          success: false,
+          hasConflict: true,
+          error: `${conflictDuty.faculty?.user?.name || "This faculty"} already has a duty for "${conflictDuty.datesheet?.course?.title || "another paper"}" on ${targetDateStr} (${resolvedShift}). Enable "Override Conflict" to force assign.`,
+        };
+      }
+    }
+
+    const isMandatoryRole = dutyType === "MANDATORY";
 
     if (id) {
       await prisma.examDuty.update({
         where: { id },
-        data: { facultyId, dutyType: dutyType || "INVIGILATOR", room, shiftTime, notes, isOverride: Boolean(isOverride) }
+        data: {
+          datesheetId,
+          facultyId,
+          dutyType: dutyType || "INVIGILATOR",
+          isMandatory: isMandatoryRole,
+          room,
+          shiftTime: resolvedShift,
+          notes,
+          isOverride: Boolean(isOverride),
+          isActive: true,
+        }
       });
     } else {
       await prisma.examDuty.upsert({
         where: { datesheetId_facultyId: { datesheetId, facultyId } },
-        update: { dutyType: dutyType || "INVIGILATOR", room, shiftTime, notes, isOverride: Boolean(isOverride) },
-        create: { datesheetId, facultyId, dutyType: dutyType || "INVIGILATOR", room, shiftTime, notes, isOverride: Boolean(isOverride) },
+        update: {
+          dutyType: dutyType || "INVIGILATOR",
+          isMandatory: isMandatoryRole,
+          room,
+          shiftTime: resolvedShift,
+          notes,
+          isOverride: Boolean(isOverride),
+          isActive: true,
+        },
+        create: {
+          datesheetId,
+          facultyId,
+          dutyType: dutyType || "INVIGILATOR",
+          isMandatory: isMandatoryRole,
+          room,
+          shiftTime: resolvedShift,
+          notes,
+          isOverride: Boolean(isOverride),
+        },
       });
     }
     revalidatePath("/bs/timetable-datesheet");
     return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+  } catch (e: unknown) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed to save duty." };
   }
 }
 

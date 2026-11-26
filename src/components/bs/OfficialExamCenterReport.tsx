@@ -34,6 +34,11 @@ export interface OfficialDatesheetRowInput {
   hall?: string;
 }
 
+export interface OfficialStaffMemberEntry {
+  name: string;
+  role?: string;
+}
+
 interface OfficialExamCenterReportProps {
   variant: "duty" | "datesheet";
   collegeName: string;
@@ -45,6 +50,8 @@ interface OfficialExamCenterReportProps {
   superintendentDepartment?: string;
   deputySuperintendent?: string;
   mobileCollector: string;
+  inspectionTeam?: OfficialStaffMemberEntry[];
+  lowerStaff?: OfficialStaffMemberEntry[];
   dutyNote: string;
   examTitle?: string;
   sessionLabel?: string;
@@ -98,6 +105,8 @@ export default function OfficialExamCenterReport({
   superintendentDepartment,
   deputySuperintendent,
   mobileCollector,
+  inspectionTeam = [],
+  lowerStaff = [],
   dutyNote,
   examTitle,
   sessionLabel,
@@ -193,12 +202,13 @@ export default function OfficialExamCenterReport({
           <div className="text-sm sm:text-base font-black text-black pt-0.5">
             {examTitle || (variant === "duty" ? `Center No ${centerNumber}` : "OFFICIAL EXAMINATION DATE SHEET")}
           </div>
-          {variant === "datesheet" && centerNumber && (
+          {(centerNumber && (variant === "datesheet" || Boolean(examTitle))) || sessionLabel ? (
             <div className="text-xs font-bold text-slate-800 print:text-black">
-              Center No {centerNumber}
-              {sessionLabel ? ` • Session: ${sessionLabel}` : ""}
+              {centerNumber && (variant === "datesheet" || Boolean(examTitle)) ? `Center No ${centerNumber}` : ""}
+              {centerNumber && (variant === "datesheet" || Boolean(examTitle)) && sessionLabel ? " • " : ""}
+              {sessionLabel ? `Session: ${sessionLabel}` : ""}
             </div>
-          )}
+          ) : null}
         </div>
         <div className="w-14 shrink-0 text-right text-[10px] font-bold text-slate-500 print:text-black">
           {new Date().toLocaleDateString("en-GB")}
@@ -370,8 +380,43 @@ export default function OfficialExamCenterReport({
         </div>
       )}
 
-      {/* Official Note, Mobile Collector Officer & Signature Strip */}
-      <div className="pt-4 space-y-5 text-xs sm:text-sm text-black">
+      {/* Official Inspection Team, Lower Staff, Note, Mobile Collector Officer & Signature Strip */}
+      <div className="pt-4 space-y-4 text-xs sm:text-sm text-black">
+        {(inspectionTeam.length > 0 || lowerStaff.length > 0) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border border-black/80 p-3 bg-slate-50/60 print:bg-white">
+            {inspectionTeam.length > 0 && (
+              <div>
+                <div className="font-black uppercase text-[11px] tracking-wide underline mb-1">
+                  Inspection Team
+                </div>
+                <ul className="space-y-0.5 text-xs font-medium">
+                  {inspectionTeam.map((member, idx) => (
+                    <li key={`insp-${idx}`}>
+                      {idx + 1}. {member.name}
+                      {member.role ? ` (${member.role})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {lowerStaff.length > 0 && (
+              <div>
+                <div className="font-black uppercase text-[11px] tracking-wide underline mb-1">
+                  Support / Lower Staff (Class-IV)
+                </div>
+                <ul className="space-y-0.5 text-xs font-medium">
+                  {lowerStaff.map((staff, idx) => (
+                    <li key={`lower-${idx}`}>
+                      {idx + 1}. {staff.name}
+                      {staff.role ? ` (${staff.role})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         <p className="font-semibold">
           <strong>Note:</strong> {dutyNote}
         </p>

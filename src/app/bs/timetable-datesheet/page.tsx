@@ -58,9 +58,6 @@ import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 import OfficialTimetableMatrixReport, { toOrdinalUpper } from "@/components/bs/OfficialTimetableMatrixReport";
 import OfficialExamCenterReport from "@/components/bs/OfficialExamCenterReport";
 
-const SELECT_CLS =
-  "w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-2xs transition-all";
-
 function downloadCSV(filename: string, headers: string[], rows: (string | number)[][]) {
   const csvContent = [
     headers.join(","),
@@ -87,6 +84,9 @@ export default function BSTimetableDatesheetPage() {
   const [allPrograms, setAllPrograms] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [faculties, setFaculties] = useState<any[]>([]);
+  const [supportStaff, setSupportStaff] = useState<
+    Array<{ id: string; designation?: string | null; user?: { name?: string | null } | null }>
+  >([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [sessions, setSessions] = useState<string[]>([]);
 
@@ -107,18 +107,16 @@ export default function BSTimetableDatesheetPage() {
   const [excludedDatesInput, setExcludedDatesInput] = useState("");
   const [datesheets, setDatesheets] = useState<any[]>([]);
 
-  // ── DUTY LIST — DB-backed (new Exam Duty tab)
+  // ── CONSOLIDATED EXAM DUTY / INVIGILATORS — DB-backed
   const [dbDuties, setDbDuties] = useState<any[]>([]);
-  const [dutySession, setDutySession] = useState("ALL");
-  const [dutyProgramId, setDutyProgramId] = useState("ALL");
-  const [dutySemester, setDutySemester] = useState("0");
+  const [dutySessions, setDutySessions] = useState<string[]>([]);
+  const [dutyProgramIds, setDutyProgramIds] = useState<string[]>([]);
+  const [dutySemesters, setDutySemesters] = useState<number[]>([]);
   const [dutyExamType, setDutyExamType] = useState("ALL");
+  const [dutyExamName, setDutyExamName] = useState("");
   const [maxInvigilatorsPerPaper, setMaxInvigilatorsPerPaper] = useState(2);
   const [generatingDuties, setGeneratingDuties] = useState(false);
   const [dutyWarnings, setDutyWarnings] = useState<string[]>([]);
-
-  // ── Legacy duties (used by old Superintendent + Staff Duty tabs)
-  const [duties, setDuties] = useState<any[]>([]);
 
 
   // Finalization status (computed from timetable/datesheet data)
@@ -258,38 +256,41 @@ export default function BSTimetableDatesheetPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Manual Duty Modal
+  // Manual Exam Duty Modal (DB-backed)
   const [showManualDutyModal, setShowManualDutyModal] = useState(false);
   const [dutyFacultyId, setDutyFacultyId] = useState("");
   const [dutyDatesheetId, setDutyDatesheetId] = useState("");
   const [dutyType, setDutyType] = useState("INVIGILATOR");
   const [dutyRoom, setDutyRoom] = useState("");
+  const [dutyShiftTime, setDutyShiftTime] = useState("");
+  const [dutyOverrideConflict, setDutyOverrideConflict] = useState(false);
+  const [dutyNotes, setDutyNotes] = useState("");
   const [editingDuty, setEditingDuty] = useState<any>(null);
 
-  // ── SUPERINTENDENT & OFFICIAL CENTER REPORT PARAMETERS
+  // ── EXAM CENTER, SUPERINTENDENT, INSPECTION TEAM & LOWER STAFF PARAMETERS
   const [centerNumber, setCenterNumber] = useState("5");
-  const [superintendentName, setSuperintendentName] = useState("Dr. Muhammad Usman");
-  const [superintendentDesignation, setSuperintendentDesignation] = useState("Chief Superintendent / HOD");
-  const [superintendentDepartment, setSuperintendentDepartment] = useState("Computer Science");
-  const [deputySuperintendent, setDeputySuperintendent] = useState("Prof. Shahida Kakar (Deputy Superintendent)");
+  const [superintendentFacultyId, setSuperintendentFacultyId] = useState("");
+  const [superintendentName, setSuperintendentName] = useState("");
+  const [superintendentDepartment, setSuperintendentDepartment] = useState("");
+  const [deputySuperintendent, setDeputySuperintendent] = useState("");
   const [examHallName, setExamHallName] = useState("1st Floor BS New Block");
-  const [mobileCollector, setMobileCollector] = useState("Mr. Munir Ahmed (Botany LAB)");
-  const [dutyNote, setDutyNote] = useState("All respected professors are advised to note and ensure their presence on allocated duty.");
-  const [isHallMerged, setIsHallMerged] = useState(true);
-  const [selectedMergedPrograms, setSelectedMergedPrograms] = useState<string[]>([]);
+  const [mobileCollector, setMobileCollector] = useState("");
+  const [inspectionTeam, setInspectionTeam] = useState<Array<{ name: string; role: string; facultyId?: string }>>([]);
+  const [inspFacultyDraftId, setInspFacultyDraftId] = useState("");
+  const [inspNameDraft, setInspNameDraft] = useState("");
+  const [inspRoleDraft, setInspRoleDraft] = useState("Member Inspection Team");
+  const [lowerStaff, setLowerStaff] = useState<Array<{ name: string; role: string }>>([]);
+  const [lowerStaffDraftId, setLowerStaffDraftId] = useState("");
+  const [lowerNameDraft, setLowerNameDraft] = useState("");
+  const [lowerRoleDraft, setLowerRoleDraft] = useState("Peon / Naib Qasid");
+  const [dutyNote, setDutyNote] = useState("All respected professors and examination staff are advised to note and ensure their presence on allocated duty.");
   const [studentCounts, setStudentCounts] = useState<Array<{ programId: string | null; semester: number | null; count: number }>>([]);
+  const [centerMetaLoaded, setCenterMetaLoaded] = useState(false);
 
   // Official Report View Toggles
   const [ttViewMode, setTtViewMode] = useState<"matrix" | "list">("matrix");
   const [dsViewMode, setDsViewMode] = useState<"official" | "list">("official");
   const [dbDutyViewMode, setDbDutyViewMode] = useState<"official" | "list">("official");
-  const [suptViewMode, setSuptViewMode] = useState<"official" | "list">("official");
-  const [staffDutyViewMode, setStaffDutyViewMode] = useState<"official" | "list">("official");
-
-  // Multi-selection options for Superintendent
-  const [selectedSuptSessions, setSelectedSuptSessions] = useState<string[]>(["2024", "2025"]);
-  const [selectedSuptSemesters, setSelectedSuptSemesters] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8]);
-  const [selectedSuptPrograms, setSelectedSuptPrograms] = useState<string[]>([]);
 
   // ── MANUAL MODALS
   const [showTimetableModal, setShowTimetableModal] = useState(false);
@@ -397,14 +398,6 @@ export default function BSTimetableDatesheetPage() {
   const [dsStart, setDsStart] = useState("09:00");
   const [dsEnd, setDsEnd] = useState("12:00");
   const [dsCourseId, setDsCourseId] = useState("");
-
-  // ── MANUAL DUTIES & SUPERINTENDENT STATE
-  const [dutyFilterMode, setDutyFilterMode] = useState<"ALL" | "AUTO" | "MANUAL">("ALL");
-  const [suptFilterMode, setSuptFilterMode] = useState<"ALL" | "AUTO" | "MANUAL">("ALL");
-  const [maxDutiesPerInvigilator, setMaxDutiesPerInvigilator] = useState<number>(3);
-
-  const [manualDuties, setManualDuties] = useState<any[]>([]);
-  const [manualSuptEntries, setManualSuptEntries] = useState<any[]>([]);
 
   // Shared helper to derive Center Summary mini-table (Semesters label & Program Student Counts)
   const buildCenterSummaryMeta = (
@@ -571,74 +564,109 @@ export default function BSTimetableDatesheetPage() {
     setShowTimetableModal(true);
   };
 
-  // Time overlap helper function
-  const isTimeOverlap = (timeStr1: string, timeStr2: string) => {
-    if (!timeStr1 || !timeStr2) return false;
-    if (timeStr1 === timeStr2) return true;
-    const parseRange = (s: string) => {
-      const parts = s.split("-").map(p => p.trim());
-      if (parts.length < 2) return { start: s, end: s };
-      return { start: parts[0], end: parts[1] };
-    };
-    const r1 = parseRange(timeStr1);
-    const r2 = parseRange(timeStr2);
-    return r1.start < r2.end && r1.end > r2.start;
+  const dutyEligibleDatesheets = useMemo(() => {
+    return datesheets.filter((ds) => {
+      if (dutyExamType !== "ALL" && ds.examType !== dutyExamType) return false;
+      if (dutySessions.length > 0 && !dutySessions.includes(ds.session)) return false;
+      if (dutySemesters.length > 0 && !dutySemesters.includes(Number(ds.semester))) return false;
+      if (dutyProgramIds.length > 0 && (!ds.programId || !dutyProgramIds.includes(ds.programId))) return false;
+      return true;
+    });
+  }, [datesheets, dutyExamType, dutySessions, dutySemesters, dutyProgramIds]);
+
+  const openManualDutyModal = (dutyToEdit?: any) => {
+    setError("");
+    const pool = dutyEligibleDatesheets.length > 0 ? dutyEligibleDatesheets : datesheets;
+    if (dutyToEdit) {
+      setEditingDuty(dutyToEdit);
+      setDutyDatesheetId(dutyToEdit.datesheetId || "");
+      setDutyFacultyId(dutyToEdit.facultyId || "");
+      setDutyType(dutyToEdit.dutyType || "INVIGILATOR");
+      setDutyRoom(dutyToEdit.room || examHallName);
+      setDutyShiftTime(
+        dutyToEdit.shiftTime ||
+          (dutyToEdit.datesheet?.startTime
+            ? `${dutyToEdit.datesheet.startTime}-${dutyToEdit.datesheet.endTime}`
+            : "09:00-12:00")
+      );
+      setDutyOverrideConflict(Boolean(dutyToEdit.isOverride));
+      setDutyNotes(dutyToEdit.notes || "");
+    } else {
+      const firstDs = pool[0];
+      setEditingDuty(null);
+      setDutyDatesheetId(firstDs?.id || "");
+      setDutyFacultyId(faculties[0]?.id || "");
+      setDutyType("INVIGILATOR");
+      setDutyRoom(examHallName || "Examination Hall");
+      setDutyShiftTime(firstDs?.startTime ? `${firstDs.startTime}-${firstDs.endTime}` : "09:00-12:00");
+      setDutyOverrideConflict(false);
+      setDutyNotes("");
+    }
+    setShowManualDutyModal(true);
   };
 
-  // Staff Duty Modal
-  const [showStaffDutyModal, setShowStaffDutyModal] = useState(false);
-  const [editingStaffDuty, setEditingStaffDuty] = useState<any>(null);
-  const [dutyForm, setDutyForm] = useState({
-    date: new Date().toISOString().split("T")[0],
-    time: "09:00 - 12:00",
-    course: "",
-    courseCode: "",
-    invigilator: "",
-    superintendent: "Dr. Muhammad Usman (Chief Superintendent / HOD)",
-    hall: "Main Auditorium",
-    status: "ASSIGNED"
-  });
-
-  // Superintendent Modal
-  const [showSuptModal, setShowSuptModal] = useState(false);
-  const [editingSuptEntry, setEditingSuptEntry] = useState<any>(null);
-  const [suptForm, setSuptForm] = useState({
-    date: new Date().toISOString().split("T")[0],
-    time: "09:00 - 12:00",
-    course: "",
-    hall: "Main Auditorium",
-    programName: "BS Programs",
-    chief: "Dr. Muhammad Usman",
-    designation: "Chief Superintendent / HOD",
-    department: "Computer Science",
-    deputy: "Prof. Shahida Kakar (Deputy Superintendent)",
-    sessions: ["2024", "2025"] as string[],
-    semesters: [1, 2, 3, 4, 5, 6, 7, 8] as number[],
-    programs: [] as string[]
-  });
+  const handleSaveManualDuty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dutyDatesheetId || !dutyFacultyId) {
+      return setError("Please select both an Exam Paper and a Faculty Invigilator.");
+    }
+    setError("");
+    const res = await saveManualDuty({
+      id: editingDuty?.id,
+      datesheetId: dutyDatesheetId,
+      facultyId: dutyFacultyId,
+      dutyType,
+      room: dutyRoom,
+      shiftTime: dutyShiftTime,
+      notes: dutyNotes,
+      isOverride: dutyOverrideConflict,
+    });
+    if (res.success) {
+      setSuccess(editingDuty ? "Exam duty updated successfully!" : "Manual exam duty assigned successfully!");
+      setShowManualDutyModal(false);
+      setEditingDuty(null);
+      await loadDuties();
+    } else {
+      setError(res.error || "Failed to save exam duty");
+    }
+  };
 
   useEffect(() => {
-    try {
-      const savedMD = localStorage.getItem("manual_staff_duties");
-      if (savedMD) setManualDuties(JSON.parse(savedMD));
-      const savedMS = localStorage.getItem("manual_supt_entries");
-      if (savedMS) setManualSuptEntries(JSON.parse(savedMS));
-      const savedLimit = localStorage.getItem("max_invigilation_duties");
-      if (savedLimit) setMaxDutiesPerInvigilator(parseInt(savedLimit));
-    } catch (e) {}
+    Promise.resolve().then(() => {
+      try {
+        const savedCenterMeta = localStorage.getItem("bs_exam_center_meta");
+        if (savedCenterMeta) {
+          const parsed = JSON.parse(savedCenterMeta);
+          if (parsed.centerNumber !== undefined) setCenterNumber(parsed.centerNumber);
+          if (parsed.examHallName !== undefined) setExamHallName(parsed.examHallName);
+          if (parsed.dutyExamName !== undefined) setDutyExamName(parsed.dutyExamName);
+          if (parsed.superintendentFacultyId !== undefined) setSuperintendentFacultyId(parsed.superintendentFacultyId);
+          if (parsed.superintendentName !== undefined) setSuperintendentName(parsed.superintendentName);
+          if (parsed.superintendentDepartment !== undefined) setSuperintendentDepartment(parsed.superintendentDepartment);
+          if (parsed.deputySuperintendent !== undefined) setDeputySuperintendent(parsed.deputySuperintendent);
+          if (parsed.mobileCollector !== undefined) setMobileCollector(parsed.mobileCollector);
+          if (Array.isArray(parsed.inspectionTeam)) setInspectionTeam(parsed.inspectionTeam);
+          if (Array.isArray(parsed.lowerStaff)) setLowerStaff(parsed.lowerStaff);
+          if (parsed.dutyNote !== undefined) setDutyNote(parsed.dutyNote);
+        }
+      } catch {}
+      setCenterMetaLoaded(true);
+    });
 
     getFilterData().then((data) => {
-      const bsProgs = data.programs.filter((p: any) => p.educationLevel === "BS");
+      const bsProgs = data.programs.filter((p) => p.educationLevel === "BS");
       setAllPrograms(bsProgs);
       setDepartments(data.departments);
       setFaculties(data.faculties);
-      if (Array.isArray((data as any).studentCounts)) {
-        setStudentCounts((data as any).studentCounts);
+      if (Array.isArray(data.supportStaff)) {
+        setSupportStaff(data.supportStaff);
+      }
+      if (Array.isArray(data.studentCounts)) {
+        setStudentCounts(data.studentCounts);
       }
       if (bsProgs.length > 0) {
         setTtProgramIdModal(bsProgs[0].id);
         setDsProgramIdModal(bsProgs[0].id);
-        setSelectedMergedPrograms(bsProgs.map(p => p.name));
       }
     });
 
@@ -791,11 +819,57 @@ export default function BSTimetableDatesheetPage() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    if (!centerMetaLoaded) return;
+    try {
+      localStorage.setItem(
+        "bs_exam_center_meta",
+        JSON.stringify({
+          centerNumber,
+          examHallName,
+          dutyExamName,
+          superintendentFacultyId,
+          superintendentName,
+          superintendentDepartment,
+          deputySuperintendent,
+          mobileCollector,
+          inspectionTeam,
+          lowerStaff,
+          dutyNote,
+        })
+      );
+    } catch {}
+  }, [
+    centerMetaLoaded,
+    centerNumber,
+    examHallName,
+    dutyExamName,
+    superintendentFacultyId,
+    superintendentName,
+    superintendentDepartment,
+    deputySuperintendent,
+    mobileCollector,
+    inspectionTeam,
+    lowerStaff,
+    dutyNote,
+  ]);
+
   // Fetch DB-backed Duties
   const loadDuties = async () => {
-    const data = await getDuties(dutySession, dutyProgramId, parseInt(dutySemester), dutyExamType);
+    const data = await getDuties(
+      dutySessions.length > 0 ? dutySessions : "ALL",
+      dutyProgramIds.length > 0 ? dutyProgramIds : "ALL",
+      dutySemesters.length > 0 ? dutySemesters : 0,
+      dutyExamType
+    );
     setDbDuties(data);
   };
+
+  useEffect(() => {
+    if (activeTab === "examduty") {
+      loadDuties();
+    }
+  }, [dutySessions, dutyProgramIds, dutySemesters, dutyExamType, activeTab]);
 
   useEffect(() => {
     loadDatesheet();
@@ -882,21 +956,27 @@ export default function BSTimetableDatesheetPage() {
   };
 
   const handleGenerateDuties = async () => {
-    if (!confirm("Generate Exam Duties? This will auto-assign mandatory duties (course faculty) and fill remaining invigilator slots from eligible faculty.")) return;
+    if (!confirm("Auto-assign Exam Duties? Mandatory course teachers and conflict-free invigilators will be assigned across selected Exam / Session / Semester / Program(s).")) return;
     setGeneratingDuties(true);
     setDutyWarnings([]);
+    const excludedIds = [
+      superintendentFacultyId,
+      ...inspectionTeam.map((m) => m.facultyId || ""),
+    ].filter(Boolean);
     const res = await generateDutiesAction(
-      dutyProgramId,
-      dutySession,
-      parseInt(dutySemester),
+      dutyProgramIds.length > 0 ? dutyProgramIds : "ALL",
+      dutySessions.length > 0 ? dutySessions : "ALL",
+      dutySemesters.length > 0 ? dutySemesters : 0,
       dutyExamType,
-      maxInvigilatorsPerPaper
+      maxInvigilatorsPerPaper,
+      examHallName,
+      excludedIds
     );
     if (res.success) {
-      setSuccess(`✅ Duties generated: ${res.created} assignments created.`);
+      setSuccess(`✅ Duties auto-assigned: ${res.created} assignments created.`);
       if (res.warnings && res.warnings.length > 0) setDutyWarnings(res.warnings);
     } else {
-      setError((res as any).error || "Duty generation failed");
+      setError((res as { error?: string }).error || "Duty generation failed");
     }
     await loadDuties();
     setGeneratingDuties(false);
@@ -908,149 +988,6 @@ export default function BSTimetableDatesheetPage() {
     await loadDuties();
     setSuccess("Duty removed.");
   };
-
-  // Manual Duty Handler with Conflict Check & Duty Limit Enforcement
-  const handleSaveStaffDuty = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!dutyForm.course || !dutyForm.invigilator) return alert("Please enter Course and Invigilator name.");
-
-    const targetDateStr = new Date(dutyForm.date).toISOString().split('T')[0];
-
-    // 1. Conflict Check: Check if Invigilator is ALREADY assigned to an overlapping duty
-    const existingConflict = allDutiesList.find(d => {
-      if (editingStaffDuty && d.id === editingStaffDuty.id) return false;
-      const dDateStr = new Date(d.date).toISOString().split('T')[0];
-      if (d.invigilator === dutyForm.invigilator && dDateStr === targetDateStr && isTimeOverlap(d.time, dutyForm.time)) {
-        return true;
-      }
-      return false;
-    });
-
-    if (existingConflict) {
-      return alert(
-        `❌ Invigilator Time Conflict!\n\n${dutyForm.invigilator} is ALREADY assigned to an invigilation duty in "${existingConflict.hall}" under "${existingConflict.superintendent || superintendentName}" on ${targetDateStr} (${existingConflict.time}).\n\nDouble-booking an invigilator across halls or superintendents at the same time is strictly not allowed.`
-      );
-    }
-
-    // 2. Max Duty Limit Check
-    const currentDutiesCount = allDutiesList.filter(d => {
-      if (editingStaffDuty && d.id === editingStaffDuty.id) return false;
-      return d.invigilator === dutyForm.invigilator;
-    }).length;
-
-    if (currentDutiesCount >= maxDutiesPerInvigilator) {
-      const proceed = confirm(
-        `⚠️ Duty Limit Reached!\n\n${dutyForm.invigilator} already has ${currentDutiesCount} duty slot(s) assigned (Configured max limit is ${maxDutiesPerInvigilator}).\n\nDo you want to override and assign this extra duty anyway?`
-      );
-      if (!proceed) return;
-    }
-
-    if (editingStaffDuty) {
-      if (editingStaffDuty.isManual) {
-        const updated = manualDuties.map(d => d.id === editingStaffDuty.id ? { ...d, ...dutyForm } : d);
-        setManualDuties(updated);
-        try { localStorage.setItem("manual_staff_duties", JSON.stringify(updated)); } catch(e){}
-      } else {
-        const updated = duties.map(d => d.id === editingStaffDuty.id ? { ...d, ...dutyForm } : d);
-        setDuties(updated);
-      }
-    } else {
-      const newEntry = {
-        id: `manual_duty_${Date.now()}`,
-        ...dutyForm,
-        isManual: true
-      };
-      const updated = [newEntry, ...manualDuties];
-      setManualDuties(updated);
-      try { localStorage.setItem("manual_staff_duties", JSON.stringify(updated)); } catch(e){}
-    }
-    setShowStaffDutyModal(false);
-    setEditingStaffDuty(null);
-    setSuccess("Invigilation duty entry saved successfully!");
-  };
-
-  const handleDeleteStaffDuty = (duty: any) => {
-    if (duty.isManual) {
-      const updated = manualDuties.filter(d => d.id !== duty.id);
-      setManualDuties(updated);
-      try { localStorage.setItem("manual_staff_duties", JSON.stringify(updated)); } catch(e){}
-    } else {
-      setDuties(duties.filter(d => d.id !== duty.id));
-    }
-    setSuccess("Invigilation duty entry removed!");
-  };
-
-  const handleSaveSuptEntry = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!suptForm.course || !suptForm.hall) return alert("Please enter Exam Subject and Hall name.");
-
-    if (editingSuptEntry) {
-      if (editingSuptEntry.isManual) {
-        const updated = manualSuptEntries.map(s => s.id === editingSuptEntry.id ? { ...s, ...suptForm } : s);
-        setManualSuptEntries(updated);
-        try { localStorage.setItem("manual_supt_entries", JSON.stringify(updated)); } catch(e){}
-      } else {
-        const newManual = {
-          id: editingSuptEntry.id,
-          ...suptForm,
-          isManual: true
-        };
-        const updated = [newManual, ...manualSuptEntries];
-        setManualSuptEntries(updated);
-        try { localStorage.setItem("manual_supt_entries", JSON.stringify(updated)); } catch(e){}
-      }
-    } else {
-      const newEntry = {
-        id: `manual_supt_${Date.now()}`,
-        ...suptForm,
-        isManual: true
-      };
-      const updated = [newEntry, ...manualSuptEntries];
-      setManualSuptEntries(updated);
-      try { localStorage.setItem("manual_supt_entries", JSON.stringify(updated)); } catch(e){}
-    }
-    setShowSuptModal(false);
-    setEditingSuptEntry(null);
-    setSuccess("Superintendent roster entry saved!");
-  };
-
-  const handleDeleteSuptEntry = (entry: any) => {
-    if (entry.isManual) {
-      const updated = manualSuptEntries.filter(s => s.id !== entry.id);
-      setManualSuptEntries(updated);
-      try { localStorage.setItem("manual_supt_entries", JSON.stringify(updated)); } catch(e){}
-    } else {
-      setDuties(duties.filter(d => `auto_supt_${d.id}` !== entry.id));
-    }
-    setSuccess("Superintendent roster entry removed!");
-  };
-
-  // Computed display lists
-  const allDutiesList = [...manualDuties, ...duties];
-  const displayDuties = allDutiesList.filter((d: any) => {
-    if (dutyFilterMode === "AUTO") return !d.isManual;
-    if (dutyFilterMode === "MANUAL") return Boolean(d.isManual);
-    return true;
-  });
-
-  const autoSuptList = duties.map((d: any) => ({
-    id: `auto_supt_${d.id}`,
-    date: d.date,
-    time: d.time,
-    course: `${d.course} (${d.courseCode})`,
-    hall: d.hall,
-    programName: isHallMerged ? selectedMergedPrograms.join(" + ") : d.programName,
-    chief: superintendentName,
-    deputy: deputySuperintendent,
-    isManual: false
-  }));
-
-  const allSuptList = [...manualSuptEntries, ...autoSuptList];
-  const displaySuptList = allSuptList.filter((s: any) => {
-    if (suptFilterMode === "AUTO") return !s.isManual;
-    if (suptFilterMode === "MANUAL") return Boolean(s.isManual);
-    return true;
-  });
 
   // CSV EXPORTERS
   const exportTimetableCSV = () => {
@@ -1085,35 +1022,6 @@ export default function BSTimetableDatesheetPage() {
     downloadCSV("Exam_Datesheet.csv", headers, rows);
   };
 
-  const exportDutyListCSV = () => {
-    const headers = ["Exam Date", "Time Slot", "Course Title", "Assigned Invigilator", "Exam Hall", "Chief Superintendent", "Deputy Superintendent", "Status"];
-    const rows = duties.map(d => [
-      new Date(d.date).toISOString().split('T')[0],
-      d.time,
-      d.course,
-      d.invigilator,
-      d.hall,
-      superintendentName,
-      deputySuperintendent,
-      d.status
-    ]);
-    downloadCSV("Invigilation_Duty_Roster.csv", headers, rows);
-  };
-
-  const exportSuperintendentCSV = () => {
-    const headers = ["Chief Superintendent", "Deputy Superintendent", "Exam Center / Hall", "Merged Programs", "Exam Date", "Shift Window", "Course Exam Paper"];
-    const rows = duties.map(d => [
-      superintendentName,
-      deputySuperintendent,
-      d.hall,
-      isHallMerged ? selectedMergedPrograms.join(" + ") : d.programName,
-      new Date(d.date).toISOString().split('T')[0],
-      d.time,
-      d.course
-    ]);
-    downloadCSV("Superintendent_Duty_Allocation.csv", headers, rows);
-  };
-
   const isMatrixPrintLandscape = activeTab === "timetable" && ttViewMode === "matrix";
 
   return (
@@ -1139,7 +1047,7 @@ export default function BSTimetableDatesheetPage() {
       {/* Top Header */}
       <PortalPageHeader
         title={<>Timetable &amp; Datesheet</>}
-        subtitle="Manage weekly class schedules, examination datesheets, faculty invigilation duties, and superintendent hall rosters."
+        subtitle="Manage weekly class schedules, examination datesheets, exam centers, superintendents, invigilators, and support staff duties."
         icon={
           collegeLogo ? (
             <img src={collegeLogo} alt="Logo" className="w-8 h-8 object-contain" />
@@ -1163,18 +1071,16 @@ export default function BSTimetableDatesheetPage() {
       {success && <div className="bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 font-semibold text-xs print:hidden">{success}</div>}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print:border-none print:shadow-none print:rounded-none print:overflow-visible">
-        {/* Tabs */}
+        {/* Consolidated 3-Tab Bar */}
         <div className="flex border-b border-gray-200 bg-white flex-wrap print:hidden">
           {[
             { id: "timetable", label: "Class Timetable", icon: "🕒", subIcon: "📅" },
             { id: "datesheet", label: "Exam Datesheet", icon: "📅", subIcon: "📝" },
-            { id: "examduty", label: "Exam Duty", icon: "🛡️", subIcon: "🛡️" },
-            { id: "superintendent", label: "Superintendent", icon: "📜", subIcon: "🧑‍🏫" },
-            { id: "dutylist", label: "Staff Duty List", icon: "🛡️", subIcon: "👮" },
+            { id: "examduty", label: "Exam Duty / Invigilators", icon: "🛡️", subIcon: "🧑‍⚖️" },
           ].map((tab) => (
             <button
               key={tab.id}
-              className={`px-5 py-3.5 font-bold text-sm transition-all flex items-center gap-2 border-r border-gray-100 ${
+              className={`px-5 py-3.5 font-bold text-sm transition-all flex items-center gap-2 border-r border-gray-100 cursor-pointer ${
                 activeTab === tab.id
                   ? "border-b-2 border-b-blue-600 text-blue-600 bg-white"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-50/60 border-b-2 border-b-transparent"
@@ -2046,25 +1952,43 @@ export default function BSTimetableDatesheetPage() {
             </div>
           )}
 
-          {/* ----------------- EXAM DUTY TAB ----------------- */}
+          {/* ----------------- CONSOLIDATED EXAM DUTY / INVIGILATORS TAB ----------------- */}
           {activeTab === "examduty" && (
             <div className="space-y-5">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-5 rounded-2xl shadow-md print:hidden">
-                <h2 className="text-lg font-black flex items-center gap-2">
-                  <span>🛡️ Exam Duty Assignment</span>
-                </h2>
-                <p className="text-xs text-orange-100 mt-1">
-                  Mandatory duties are auto-assigned based on the faculty-course mapping from the finalized timetable.
-                  Additional invigilator slots are filled from eligible faculty (conflict-free).
-                </p>
+              {/* Banner */}
+              <div className="bg-gradient-to-r from-orange-600 via-red-600 to-rose-600 text-white p-5 rounded-2xl shadow-md print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black flex items-center gap-2">
+                    <span>🛡️ Exam Duty / Invigilators &amp; Center Roster</span>
+                  </h2>
+                  <p className="text-xs text-orange-100 mt-1">
+                    Configure Exam Name, Sessions, Semesters, Programs, Center No &amp; Hall, Superintendent, Invigilators (Auto &amp; Manual), Inspection Team, Lower Staff, and optional Mobile Collector in one place.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px] font-bold shrink-0">
+                  <span className="px-2.5 py-1 rounded-full bg-white/15 border border-white/25">
+                    📄 {dutyEligibleDatesheets.length} Paper(s) in Scope
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-white/15 border border-white/25">
+                    👥 {dbDuties.length} Assigned Invigilation Slot(s)
+                  </span>
+                </div>
               </div>
 
-              {/* Duty Warnings */}
+              {/* Duty Generation Warnings */}
               {dutyWarnings.length > 0 && (
-                <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl space-y-2 print:hidden">
-                  <div className="font-bold text-amber-800 text-sm flex items-center gap-2">
-                    <span>⚠️</span> Duty Generation Warnings ({dutyWarnings.length})
+                <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl space-y-1.5 print:hidden">
+                  <div className="font-bold text-amber-800 text-sm flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <span>⚠️</span> Duty Generation Warnings ({dutyWarnings.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDutyWarnings([])}
+                      className="text-xs font-bold text-amber-700 hover:underline cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
                   </div>
                   {dutyWarnings.map((w, i) => (
                     <p key={i} className="text-xs text-amber-700 font-semibold pl-5">{w}</p>
@@ -2072,178 +1996,768 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               )}
 
-              {/* Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 print:hidden">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">PROGRAM</label>
-                  <select value={dutyProgramId} onChange={e => setDutyProgramId(e.target.value)} className={SELECT_CLS}>
-                    <option value="ALL">-- All Programs --</option>
-                    {allPrograms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+              {/* STEP 1: EXAM NAME, SESSIONS, SEMESTERS, PROGRAMS & CENTER SETUP */}
+              <div className="bg-slate-50/80 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-4 print:hidden">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    1. Exam Selection, Cohort Scope &amp; Examination Center Details
+                  </h3>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Select 1 or more Programs, Sessions &amp; Semesters
+                  </span>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">SESSION</label>
-                  <select value={dutySession} onChange={e => setDutySession(e.target.value)} className={SELECT_CLS}>
-                    <option value="ALL">-- All Sessions --</option>
-                    {sessions.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">SEMESTER</label>
-                  <select value={dutySemester} onChange={e => setDutySemester(e.target.value)} className={SELECT_CLS}>
-                    <option value="0">-- All Semesters --</option>
-                    {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>{`Semester ${s}`}</option>)}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">EXAM TYPE</label>
-                  <select value={dutyExamType} onChange={e => setDutyExamType(e.target.value)} className={SELECT_CLS}>
-                    <option value="ALL">-- All Exam Types --</option>
-                    <option value="TERMINAL">Terminal Exam</option>
-                    <option value="FINAL_TERM">Final Term</option>
-                    <option value="MID_TERM">Mid Term</option>
-                  </select>
-                </div>
-              </div>
 
-              {/* Center Metadata Strip for Official Sheet */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs print:hidden">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Center No</label>
-                  <input
-                    type="text"
-                    value={centerNumber}
-                    onChange={(e) => setCenterNumber(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Center / Block</label>
-                  <input
-                    type="text"
-                    value={examHallName}
-                    onChange={(e) => setExamHallName(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Center Superintendent</label>
-                  <input
-                    type="text"
-                    value={superintendentName}
-                    onChange={(e) => setSuperintendentName(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Mobile Collector Officer</label>
-                  <input
-                    type="text"
-                    value={mobileCollector}
-                    onChange={(e) => setMobileCollector(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2 items-center justify-between print:hidden">
-                <div className="flex flex-wrap gap-2 items-center">
-                  <button
-                    onClick={loadDuties}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-300/80 transition-all shadow-2xs flex items-center gap-1.5"
-                  >
-                    <span>🔍</span>
-                    <span>Filter Duties</span>
-                  </button>
-                  <button
-                    onClick={handleGenerateDuties}
-                    disabled={generatingDuties}
-                    className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <span>{generatingDuties ? "⏳ Generating..." : "⚡ Generate Duties (Auto)"}</span>
-                  </button>
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
-                    <label className="text-xs font-bold text-slate-600">Max Invigilators/Paper:</label>
+                {/* Row 1: Exam Type, Custom Exam Name, Center No, Center Name */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                      Exam Name / Category
+                    </label>
+                    <select
+                      value={dutyExamType}
+                      onChange={(e) => setDutyExamType(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                    >
+                      <option value="ALL">All Exam Types</option>
+                      <option value="FINAL_TERM">Final Term Examination</option>
+                      <option value="MID_TERM">Mid Term Examination</option>
+                      <option value="TERMINAL">Terminal Examination</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                      Custom Exam Title (Optional)
+                    </label>
                     <input
-                      type="number"
-                      min={1} max={5}
-                      value={maxInvigilatorsPerPaper}
-                      onChange={e => setMaxInvigilatorsPerPaper(parseInt(e.target.value) || 2)}
-                      className="w-12 px-1.5 py-0.5 border border-slate-300 rounded text-xs font-bold text-center bg-white"
+                      type="text"
+                      value={dutyExamName}
+                      onChange={(e) => setDutyExamName(e.target.value)}
+                      placeholder="e.g. BS Final Term Exam Fall 2026"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                      Center No *
+                    </label>
+                    <input
+                      type="text"
+                      value={centerNumber}
+                      onChange={(e) => setCenterNumber(e.target.value)}
+                      placeholder="e.g. 5"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                      Center Name / Hall Block *
+                    </label>
+                    <input
+                      type="text"
+                      value={examHallName}
+                      onChange={(e) => setExamHallName(e.target.value)}
+                      placeholder="e.g. 1st Floor BS New Block"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-white"
                     />
                   </div>
                 </div>
+
+                {/* Row 2: Multi-Select Sessions, Semesters, Programs */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-1">
+                  {/* Sessions Multi-select */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                        Session(s): {dutySessions.length === 0 ? "All" : `${dutySessions.length} Selected`}
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setDutySessions([...availableSessionOptions])}
+                          className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer"
+                        >
+                          All
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setDutySessions([])}
+                          className="text-[10px] font-bold text-slate-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                      {availableSessionOptions.map((sess) => {
+                        const active = dutySessions.includes(sess);
+                        return (
+                          <button
+                            key={sess}
+                            type="button"
+                            onClick={() =>
+                              setDutySessions(
+                                active ? dutySessions.filter((s) => s !== sess) : [...dutySessions, sess]
+                              )
+                            }
+                            className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
+                              active
+                                ? "bg-orange-600 text-white border-orange-600 shadow-2xs"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            {sess}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Semesters Multi-select */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                        Semester(s): {dutySemesters.length === 0 ? "All" : `${dutySemesters.length} Selected`}
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setDutySemesters([1, 2, 3, 4, 5, 6, 7, 8])}
+                          className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer"
+                        >
+                          All
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setDutySemesters([])}
+                          className="text-[10px] font-bold text-slate-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
+                        const active = dutySemesters.includes(sem);
+                        return (
+                          <button
+                            key={sem}
+                            type="button"
+                            onClick={() =>
+                              setDutySemesters(
+                                active ? dutySemesters.filter((s) => s !== sem) : [...dutySemesters, sem]
+                              )
+                            }
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
+                              active
+                                ? "bg-orange-600 text-white border-orange-600 shadow-2xs"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            Sem {sem}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Programs Multi-select (1 or more) */}
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                        Program(s): {dutyProgramIds.length === 0 ? "All" : `${dutyProgramIds.length} Selected`}
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setDutyProgramIds(allPrograms.map((p) => p.id))}
+                          className="text-[10px] font-bold text-orange-600 hover:underline cursor-pointer"
+                        >
+                          All
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setDutyProgramIds([])}
+                          className="text-[10px] font-bold text-slate-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                      {allPrograms.map((p) => {
+                        const active = dutyProgramIds.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() =>
+                              setDutyProgramIds(
+                                active ? dutyProgramIds.filter((id) => id !== p.id) : [...dutyProgramIds, p.id]
+                              )
+                            }
+                            className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
+                              active
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* STEP 2: CENTER SUPERINTENDENT, INSPECTION TEAM, LOWER STAFF & OPTIONAL MOBILE COLLECTOR */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4 print:hidden">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    2. Center Superintendent, Inspection Team, Support Staff &amp; Mobile Collector (Optional)
+                  </h3>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Superintendent &amp; Inspection Team faculty are automatically excluded from hall invigilation slots
+                  </span>
+                </div>
+
+                {/* Superintendent + Deputy + Optional Mobile Collector */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-slate-600 uppercase">
+                        Center Superintendent (From Faculty)
+                      </label>
+                      {superintendentName && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSuperintendentFacultyId("");
+                            setSuperintendentName("");
+                            setSuperintendentDepartment("");
+                          }}
+                          className="text-[10px] font-bold text-red-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <select
+                      value={superintendentFacultyId}
+                      onChange={(e) => {
+                        const fid = e.target.value;
+                        setSuperintendentFacultyId(fid);
+                        const found = faculties.find((f) => f.id === fid);
+                        if (found) {
+                          setSuperintendentName(found.user?.name || "");
+                          setSuperintendentDepartment(found.department?.name || found.designation || "");
+                        }
+                      }}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                    >
+                      <option value="">-- Select Center Superintendent from Faculty --</option>
+                      {faculties.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.user?.name} ({f.department?.name || f.designation || "Faculty"})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={superintendentName}
+                        onChange={(e) => setSuperintendentName(e.target.value)}
+                        placeholder="Superintendent Name"
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={superintendentDepartment}
+                        onChange={(e) => setSuperintendentDepartment(e.target.value)}
+                        placeholder="Department / Post"
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <label className="block text-[10px] font-black text-slate-600 uppercase">
+                      Deputy Superintendent (If Any)
+                    </label>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const found = faculties.find((f) => f.id === e.target.value);
+                        if (found) {
+                          const dept = found.department?.name || found.designation || "";
+                          setDeputySuperintendent(`${found.user?.name}${dept ? ` (${dept})` : ""}`);
+                        }
+                      }}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                    >
+                      <option value="">-- Quick Pick from Faculty (Optional) --</option>
+                      {faculties.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.user?.name} ({f.department?.name || f.designation || "Faculty"})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={deputySuperintendent}
+                        onChange={(e) => setDeputySuperintendent(e.target.value)}
+                        placeholder="Leave blank if none"
+                        className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                      {deputySuperintendent && (
+                        <button
+                          type="button"
+                          onClick={() => setDeputySuperintendent("")}
+                          className="px-2 py-1 text-[10px] font-bold text-red-600 bg-red-50 rounded-lg border border-red-200 cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50/70 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <label className="block text-[10px] font-black text-slate-600 uppercase">
+                      Mobile Collector Officer (If Assigned)
+                    </label>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const pickedId = e.target.value;
+                        const foundStaff = [...supportStaff, ...faculties].find((m) => m.id === pickedId);
+                        if (foundStaff) {
+                          const info = foundStaff.department?.name || foundStaff.designation || "";
+                          setMobileCollector(`${foundStaff.user?.name}${info ? ` (${info})` : ""}`);
+                        }
+                      }}
+                      className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-bold bg-white"
+                    >
+                      <option value="">-- Quick Pick Staff / Faculty (Optional) --</option>
+                      {supportStaff.length > 0 && (
+                        <optgroup label="Non-Teaching / Support Staff">
+                          {supportStaff.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.user?.name} ({s.designation || "Support Staff"})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="Teaching Faculty">
+                        {faculties.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.user?.name} ({f.department?.name || f.designation || "Faculty"})
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={mobileCollector}
+                        onChange={(e) => setMobileCollector(e.target.value)}
+                        placeholder="Optional — blank hides from print"
+                        className="flex-1 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                      {mobileCollector && (
+                        <button
+                          type="button"
+                          onClick={() => setMobileCollector("")}
+                          className="px-2 py-1 text-[10px] font-bold text-red-600 bg-red-50 rounded-lg border border-red-200 cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Inspection Team & Lower / Support Staff Builders */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Inspection Team Builder */}
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-700 uppercase">
+                        🔍 Inspection Team ({inspectionTeam.length})
+                      </span>
+                      {inspectionTeam.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setInspectionTeam([])}
+                          className="text-[10px] font-bold text-red-500 hover:underline cursor-pointer"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <select
+                        value={inspFacultyDraftId}
+                        onChange={(e) => {
+                          const fid = e.target.value;
+                          setInspFacultyDraftId(fid);
+                          const f = faculties.find((item) => item.id === fid);
+                          if (f) {
+                            const dept = f.department?.name ? ` (${f.department.name})` : "";
+                            setInspNameDraft(`${f.user?.name || ""}${dept}`);
+                          }
+                        }}
+                        className="sm:col-span-5 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      >
+                        <option value="">-- Faculty or Type Name --</option>
+                        {faculties.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.user?.name} ({f.department?.name || f.designation || "Faculty"})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={inspNameDraft}
+                        onChange={(e) => setInspNameDraft(e.target.value)}
+                        placeholder="Inspector Name"
+                        className="sm:col-span-3 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={inspRoleDraft}
+                        onChange={(e) => setInspRoleDraft(e.target.value)}
+                        placeholder="Role (e.g. Convener)"
+                        className="sm:col-span-2 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!inspNameDraft.trim()) return;
+                          setInspectionTeam([
+                            ...inspectionTeam,
+                            {
+                              name: inspNameDraft.trim(),
+                              role: inspRoleDraft.trim() || "Member Inspection Team",
+                              facultyId: inspFacultyDraftId || undefined,
+                            },
+                          ]);
+                          setInspFacultyDraftId("");
+                          setInspNameDraft("");
+                          setInspRoleDraft("Member Inspection Team");
+                        }}
+                        className="sm:col-span-2 px-2.5 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    {inspectionTeam.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {inspectionTeam.map((m, idx) => (
+                          <span
+                            key={`${m.name}-${idx}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200"
+                          >
+                            <span>{m.name}</span>
+                            {m.role && <span className="text-indigo-500 font-semibold">• {m.role}</span>}
+                            <button
+                              type="button"
+                              onClick={() => setInspectionTeam(inspectionTeam.filter((_, i) => i !== idx))}
+                              className="text-indigo-400 hover:text-red-600 font-black ml-0.5 cursor-pointer"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Lower / Support Staff Builder */}
+                  <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-700 uppercase">
+                        🧰 Lower / Support Staff — Peon, Attendant, etc. ({lowerStaff.length})
+                      </span>
+                      {lowerStaff.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setLowerStaff([])}
+                          className="text-[10px] font-bold text-red-500 hover:underline cursor-pointer"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <select
+                        value={lowerStaffDraftId}
+                        onChange={(e) => {
+                          const sid = e.target.value;
+                          setLowerStaffDraftId(sid);
+                          const st = supportStaff.find((item) => item.id === sid);
+                          if (st) {
+                            setLowerNameDraft(st.user?.name || "");
+                            if (st.designation) setLowerRoleDraft(st.designation);
+                          }
+                        }}
+                        className="sm:col-span-4 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      >
+                        <option value="">-- Non-Teaching Staff --</option>
+                        {supportStaff.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.user?.name} ({s.designation || "Support Staff"})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={lowerNameDraft}
+                        onChange={(e) => setLowerNameDraft(e.target.value)}
+                        placeholder="Staff Name"
+                        className="sm:col-span-3 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      />
+                      <select
+                        value={lowerRoleDraft}
+                        onChange={(e) => setLowerRoleDraft(e.target.value)}
+                        className="sm:col-span-3 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white"
+                      >
+                        <option value="Peon / Naib Qasid">Peon / Naib Qasid</option>
+                        <option value="Lab Attendant">Lab Attendant</option>
+                        <option value="Junior Clerk / Assistant">Junior Clerk / Assistant</option>
+                        <option value="Chowkidar / Gatekeeper">Chowkidar / Gatekeeper</option>
+                        <option value="Sanitary Worker / Mali">Sanitary Worker / Mali</option>
+                        <option value="Water Attendant">Water Attendant</option>
+                        {![
+                          "Peon / Naib Qasid",
+                          "Lab Attendant",
+                          "Junior Clerk / Assistant",
+                          "Chowkidar / Gatekeeper",
+                          "Sanitary Worker / Mali",
+                          "Water Attendant",
+                        ].includes(lowerRoleDraft) && (
+                          <option value={lowerRoleDraft}>{lowerRoleDraft}</option>
+                        )}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!lowerNameDraft.trim()) return;
+                          setLowerStaff([
+                            ...lowerStaff,
+                            {
+                              name: lowerNameDraft.trim(),
+                              role: lowerRoleDraft.trim() || "Peon / Naib Qasid",
+                            },
+                          ]);
+                          setLowerStaffDraftId("");
+                          setLowerNameDraft("");
+                          setLowerRoleDraft("Peon / Naib Qasid");
+                        }}
+                        className="sm:col-span-2 px-2.5 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    {lowerStaff.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {lowerStaff.map((s, idx) => (
+                          <span
+                            key={`${s.name}-${idx}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          >
+                            <span>{s.name}</span>
+                            {s.role && <span className="text-emerald-600 font-semibold">• {s.role}</span>}
+                            <button
+                              type="button"
+                              onClick={() => setLowerStaff(lowerStaff.filter((_, i) => i !== idx))}
+                              className="text-emerald-400 hover:text-red-600 font-black ml-0.5 cursor-pointer"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Official Center Note */}
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                    Official Instruction Note (Bottom of Center Sheet)
+                  </label>
+                  <input
+                    type="text"
+                    value={dutyNote}
+                    onChange={(e) => setDutyNote(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium bg-slate-50/50"
+                  />
+                </div>
+              </div>
+
+              {/* STEP 3: INVIGILATORS ACTION BAR (AUTO + MANUAL + EXPORT / PRINT) */}
+              <div className="flex flex-wrap gap-2 items-center justify-between bg-slate-50 p-3.5 rounded-2xl border border-slate-200 print:hidden">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <button
+                    type="button"
+                    onClick={handleGenerateDuties}
+                    disabled={generatingDuties}
+                    className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    <span>{generatingDuties ? "⏳ Assigning..." : "⚡ Auto-Assign Invigilators"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openManualDutyModal()}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>➕ Manual Duty Assign</span>
+                  </button>
+                  <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5">
+                    <label className="text-[11px] font-bold text-slate-600">Invigilators/Paper:</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={6}
+                      value={maxInvigilatorsPerPaper}
+                      onChange={(e) => setMaxInvigilatorsPerPaper(parseInt(e.target.value) || 2)}
+                      className="w-11 px-1 py-0.5 border border-slate-200 rounded text-xs font-bold text-center bg-slate-50"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={loadDuties}
+                    className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 transition-all cursor-pointer"
+                  >
+                    🔄 Refresh
+                  </button>
+                </div>
+
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200">
                     <button
                       type="button"
                       onClick={() => setDbDutyViewMode("official")}
-                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${dbDutyViewMode === "official"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-white"
-                        }`}
+                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${
+                        dbDutyViewMode === "official"
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
                     >
                       📄 Official Center Sheet
                     </button>
                     <button
                       type="button"
                       onClick={() => setDbDutyViewMode("list")}
-                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${dbDutyViewMode === "list"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-white"
-                        }`}
+                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${
+                        dbDutyViewMode === "list"
+                          ? "bg-slate-900 text-white"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
                     >
                       📋 Detailed Table
                     </button>
                   </div>
                   <button
+                    type="button"
                     onClick={() => {
-                      const headers = ["Date", "Course", "Faculty", "Duty Type", "Mandatory", "Room", "Shift", "Override"];
-                      const rows = dbDuties.map(d => [
-                        new Date(d.datesheet?.date).toLocaleDateString(),
+                      const headers = [
+                        "Exam Date",
+                        "Program",
+                        "Semester",
+                        "Session",
+                        "Course Code",
+                        "Course Title",
+                        "Shift",
+                        "Faculty / Invigilator",
+                        "Department",
+                        "Duty Role",
+                        "Mandatory",
+                        "Hall / Room",
+                        "Center No",
+                        "Superintendent",
+                      ];
+                      const rows = dbDuties.map((d) => [
+                        d.datesheet?.date ? new Date(d.datesheet.date).toLocaleDateString("en-GB") : "",
+                        d.datesheet?.program?.name || "",
+                        d.datesheet?.semester ? `Sem ${d.datesheet.semester}` : "",
+                        d.datesheet?.session || "",
+                        d.datesheet?.course?.code || "",
                         d.datesheet?.course?.title || "",
+                        d.shiftTime || (d.datesheet?.startTime ? `${d.datesheet.startTime} - ${d.datesheet.endTime}` : ""),
                         d.faculty?.user?.name || "",
-                        d.dutyType,
+                        d.faculty?.department?.name || d.faculty?.designation || "",
+                        d.dutyType || "INVIGILATOR",
                         d.isMandatory ? "YES" : "NO",
-                        d.room || "",
-                        d.shiftTime || "",
-                        d.isOverride ? "YES (Override)" : "NO"
+                        d.room || examHallName || "",
+                        centerNumber,
+                        superintendentName,
                       ]);
-                      downloadCSV("Exam_Duty_List.csv", headers, rows);
+                      downloadCSV(`Exam_Duty_Roster_Center_${centerNumber || "1"}.csv`, headers, rows);
                     }}
-                    className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     📥 Export CSV
                   </button>
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-2 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
-                    📄 Export PDF / Print
+                    🖨️ Export PDF / Print
                   </button>
                 </div>
               </div>
 
-              {/* Duty View */}
+              {/* STEP 4: DUTY ROSTER VIEW (OFFICIAL SHEET OR DETAILED TABLE) */}
               {dbDuties.length === 0 ? (
-                <div className="text-center py-12 border rounded-xl space-y-3 print:hidden">
-                  <p className="text-gray-500 text-sm font-semibold">No duty assignments found.</p>
-                  <p className="text-gray-400 text-xs">Make sure the Date Sheet is finalized, then click "Generate Duties (Auto)".</p>
-                  <button
-                    onClick={handleGenerateDuties}
-                    disabled={generatingDuties}
-                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                  >
-                    ⚡ Generate Duties Now
-                  </button>
+                <div className="text-center py-12 border rounded-2xl bg-white space-y-3 print:hidden">
+                  <p className="text-gray-600 text-sm font-bold">No invigilation duty assignments match the selected Exam / Session / Semester / Program filter.</p>
+                  <p className="text-gray-400 text-xs max-w-lg mx-auto">
+                    Use <strong>Auto-Assign Invigilators</strong> to generate conflict-free duties from scheduled papers ({dutyEligibleDatesheets.length} paper(s) in current scope), or assign an invigilator manually.
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleGenerateDuties}
+                      disabled={generatingDuties}
+                      className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow transition-all cursor-pointer"
+                    >
+                      ⚡ Auto-Assign Invigilators
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openManualDutyModal()}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition-all cursor-pointer"
+                    >
+                      ➕ Manual Duty Assign
+                    </button>
+                  </div>
                 </div>
               ) : dbDutyViewMode === "official" ? (
                 (() => {
-                  const dutyProgIds = Array.from(new Set(dbDuties.map((d) => d.datesheet?.programId).filter(Boolean))) as string[];
-                  const dutySems = Array.from(new Set(dbDuties.map((d) => d.datesheet?.semester).filter(Boolean))) as number[];
+                  const dutyProgIds =
+                    dutyProgramIds.length > 0
+                      ? dutyProgramIds
+                      : (Array.from(new Set(dbDuties.map((d) => d.datesheet?.programId).filter(Boolean))) as string[]);
+                  const dutySems =
+                    dutySemesters.length > 0
+                      ? dutySemesters
+                      : (Array.from(new Set(dbDuties.map((d) => d.datesheet?.semester).filter(Boolean))) as number[]);
                   const { semesterLabel, programCounts } = buildCenterSummaryMeta(dutyProgIds, dutySems);
+                  const resolvedExamTitle = dutyExamName.trim()
+                    ? dutyExamName.trim().toUpperCase()
+                    : dutyExamType === "FINAL_TERM"
+                      ? "FINAL TERM EXAMINATION DUTY ROSTER"
+                      : dutyExamType === "MID_TERM"
+                        ? "MID TERM EXAMINATION DUTY ROSTER"
+                        : dutyExamType === "TERMINAL"
+                          ? "TERMINAL EXAMINATION DUTY ROSTER"
+                          : undefined;
                   return (
                     <OfficialExamCenterReport
                       variant="duty"
@@ -2256,8 +2770,11 @@ export default function BSTimetableDatesheetPage() {
                       superintendentDepartment={superintendentDepartment}
                       deputySuperintendent={deputySuperintendent}
                       mobileCollector={mobileCollector}
+                      inspectionTeam={inspectionTeam}
+                      lowerStaff={lowerStaff}
                       dutyNote={dutyNote}
-                      sessionLabel={dutySession !== "ALL" ? dutySession : undefined}
+                      examTitle={resolvedExamTitle}
+                      sessionLabel={dutySessions.length > 0 ? dutySessions.join(", ") : undefined}
                       semesterLabel={semesterLabel}
                       programCounts={programCounts}
                       dutyRows={dbDuties.map((d) => ({
@@ -2276,864 +2793,24 @@ export default function BSTimetableDatesheetPage() {
                   );
                 })()
               ) : (
-                <div className="overflow-x-auto border rounded-xl mt-2 relative">
-                  {(collegeBackground || collegeWatermark || collegeLogo) && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
-                      <img
-                        src={collegeBackground || collegeWatermark || collegeLogo}
-                        alt="Watermark"
-                        className="w-72 h-72 sm:w-96 sm:h-96 object-contain grayscale"
-                      />
-                    </div>
-                  )}
-                  <div className="relative z-10">
-                    <table className="w-full text-left border-collapse text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 border-b">
-                          <th className="p-3 font-semibold text-gray-600">Exam Date</th>
-                          <th className="p-3 font-semibold text-gray-600">Course</th>
-                          <th className="p-3 font-semibold text-gray-600">Shift</th>
-                          <th className="p-3 font-semibold text-gray-600">Faculty / Invigilator</th>
-                          <th className="p-3 font-semibold text-gray-600">Duty Type</th>
-                          <th className="p-3 font-semibold text-gray-600">Room</th>
-                          <th className="p-3 font-semibold text-gray-600 print:hidden">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dbDuties.map(duty => (
-                          <tr key={duty.id} className={`border-b hover:bg-gray-50 ${duty.isOverride ? "bg-amber-50/40" : ""}`}>
-                            <td className="p-3 font-bold text-gray-900">
-                              {new Date(duty.datesheet?.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                            </td>
-                            <td className="p-3">
-                              <div className="font-bold text-gray-900 text-sm">{duty.datesheet?.course?.title}</div>
-                              <div className="text-xs text-gray-400 font-mono">{duty.datesheet?.course?.code}</div>
-                            </td>
-                            <td className="p-3 font-mono text-xs text-gray-600 font-semibold">{duty.shiftTime || `${duty.datesheet?.startTime} - ${duty.datesheet?.endTime}`}</td>
-                            <td className="p-3">
-                              <div className="font-bold text-gray-900">{duty.faculty?.user?.name}</div>
-                              <div className="text-xs text-gray-400">{duty.faculty?.department?.name || duty.faculty?.designation}</div>
-                            </td>
-                            <td className="p-3">
-                              <div className="flex flex-col gap-1">
-                                <span className={`px-2.5 py-1 text-xs font-extrabold rounded-full inline-block w-fit ${
-                                  duty.isMandatory
-                                    ? "bg-red-100 text-red-700 border border-red-300"
-                                    : "bg-blue-100 text-blue-700 border border-blue-200"
-                                }`}>
-                                  {duty.isMandatory ? "🔴 MANDATORY" : "🔵 INVIGILATOR"}
-                                </span>
-                                {duty.isOverride && (
-                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 rounded-full inline-block w-fit">
-                                    ⚠️ Override
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-3 text-xs text-gray-600">{duty.room || "—"}</td>
-                            <td className="p-3 print:hidden">
-                              <button
-                                onClick={() => handleDeleteDuty(duty.id)}
-                                className="text-red-500 text-xs font-semibold hover:underline"
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ----------------- TAB 3: CHIEF SUPERINTENDENT DUTY ROSTER ----------------- */}
-          {activeTab === "superintendent" && (
-
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white p-6 rounded-2xl shadow-md flex items-center justify-between flex-wrap gap-4 print:hidden">
-                <div>
-                  <h2 className="text-xl font-black flex items-center gap-2">
-                    <span>👨‍⚖️ Standalone Chief Superintendent & Hall Allotment Roster</span>
-                  </h2>
-                  <p className="text-xs text-indigo-200 mt-1">
-                    Configure Chief Superintendent profile, select multiple sessions, semesters & programs, and manage hall allotments.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={loadDatesheet}
-                    className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                  >
-                    <span>⚡ Auto-Generate Roster</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingSuptEntry(null);
-                      setSuptForm({
-                        date: new Date().toISOString().split("T")[0],
-                        time: "09:00 - 12:00",
-                        course: "",
-                        hall: examHallName,
-                        programName: selectedSuptPrograms.length > 0 ? selectedSuptPrograms.join(" + ") : (isHallMerged ? selectedMergedPrograms.join(" + ") : "BS Programs"),
-                        chief: superintendentName,
-                        designation: superintendentDesignation,
-                        department: superintendentDepartment,
-                        deputy: deputySuperintendent,
-                        sessions: selectedSuptSessions,
-                        semesters: selectedSuptSemesters,
-                        programs: selectedSuptPrograms
-                      });
-                      setShowSuptModal(true);
-                    }}
-                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                  >
-                    <span>➕ Add Manual Entry</span>
-                  </button>
-                  <button
-                    onClick={exportSuperintendentCSV}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                  >
-                    <span>📥 Export CSV</span>
-                  </button>
-                  <button
-                    onClick={() => window.print()}
-                    className="px-3 py-1.5 bg-white text-purple-900 hover:bg-indigo-50 font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                  >
-                    <span>📄 Export PDF / Print Roster</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Mode Selector */}
-              <div className="flex items-center justify-between flex-wrap gap-2 bg-white p-3 rounded-xl border print:hidden">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-extrabold text-purple-950 uppercase">Roster Display Mode:</span>
-                  {[
-                    { id: "ALL", label: `ALL (${displaySuptList.length})` },
-                    { id: "AUTO", label: `⚡ Auto-Mapped (${autoSuptList.length})` },
-                    { id: "MANUAL", label: `✍️ Manual Entries (${manualSuptEntries.length})` },
-                  ].map(mode => (
-                    <button
-                      key={mode.id}
-                      onClick={() => setSuptFilterMode(mode.id as any)}
-                      className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
-                        suptFilterMode === mode.id
-                          ? "bg-purple-800 text-white border-purple-800 shadow"
-                          : "bg-white text-gray-700 border-purple-200 hover:bg-purple-50"
-                      }`}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setSuptViewMode("official")}
-                    className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${suptViewMode === "official"
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-600 hover:bg-white"
-                      }`}
-                  >
-                    📄 Official Center Sheet
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSuptViewMode("list")}
-                    className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${suptViewMode === "list"
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-600 hover:bg-white"
-                      }`}
-                  >
-                    📋 Editable Roster Table
-                  </button>
-                </div>
-              </div>
-
-              {/* Chief Superintendent Setup Parameters & Multi-Selections Form */}
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 space-y-6 print:hidden">
-                <div className="border-b pb-3">
-                  <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                    ⚙️ Chief Superintendent Parameters & Allocation Controls
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Configure Superintendent profile info and select multiple sessions, semesters, and programs.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Chief Superintendent Name</label>
-                    <div className="space-y-1.5">
-                      <select
-                        value={superintendentName}
-                        onChange={(e) => setSuperintendentName(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900 bg-white"
-                      >
-                        <option value="Dr. Muhammad Usman">Dr. Muhammad Usman</option>
-                        {faculties.map(f => (
-                          <option key={f.id} value={f.user?.name}>{f.user?.name} ({f.designation || 'Faculty'})</option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="Or enter custom name..."
-                        className="w-full px-3 py-1.5 border rounded-lg text-xs font-bold text-gray-900"
-                        value={superintendentName}
-                        onChange={(e) => setSuperintendentName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Designation</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
-                      value={superintendentDesignation}
-                      onChange={(e) => setSuperintendentDesignation(e.target.value)}
-                      placeholder="e.g. Chief Superintendent / HOD"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Department</label>
-                    <select
-                      value={superintendentDepartment}
-                      onChange={(e) => setSuperintendentDepartment(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900 bg-white"
-                    >
-                      <option value="Computer Science">Computer Science</option>
-                      {departments.map(d => (
-                        <option key={d.id} value={d.name}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Deputy Superintendent</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
-                      value={deputySuperintendent}
-                      onChange={(e) => setDeputySuperintendent(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Center No</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
-                      value={centerNumber}
-                      onChange={(e) => setCenterNumber(e.target.value)}
-                      placeholder="e.g. 5"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Examination Center / Main Hall</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
-                      value={examHallName}
-                      onChange={(e) => setExamHallName(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Mobile Collector Officer</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold text-gray-900"
-                      value={mobileCollector}
-                      onChange={(e) => setMobileCollector(e.target.value)}
-                      placeholder="e.g. Mr. Munir Ahmed (Botany LAB)"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Official Note (Printed Footer)</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border rounded-lg text-xs font-semibold text-gray-800"
-                      value={dutyNote}
-                      onChange={(e) => setDutyNote(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* MULTI SELECTION SECTION 1: Academic Sessions */}
-                <div className="p-4 bg-purple-50/60 rounded-xl border border-purple-100 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-black text-purple-950 uppercase flex items-center gap-1.5">
-                      📅 Academic Sessions (Multiple Selection)
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedSuptSessions(["2022", "2023", "2024", "2025", "2026", "2027"])}
-                        className="text-[10px] font-bold text-purple-700 hover:underline"
-                      >
-                        Select All
-                      </button>
-                      <span className="text-purple-300">|</span>
-                      <button
-                        onClick={() => setSelectedSuptSessions([])}
-                        className="text-[10px] font-bold text-purple-700 hover:underline"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {["2022", "2023", "2024", "2025", "2026", "2027"].map(s => {
-                      const isSelected = selectedSuptSessions.includes(s);
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) setSelectedSuptSessions(selectedSuptSessions.filter(x => x !== s));
-                            else setSelectedSuptSessions([...selectedSuptSessions, s]);
-                          }}
-                          className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
-                            isSelected
-                              ? "bg-purple-700 text-white border-purple-700 shadow-sm"
-                              : "bg-white text-gray-700 border-purple-200 hover:bg-purple-100"
-                          }`}
-                        >
-                          {isSelected ? "✓ Session " : "+ Session "} {s}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* MULTI SELECTION SECTION 2: Semesters */}
-                <div className="p-4 bg-indigo-50/60 rounded-xl border border-indigo-100 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-black text-indigo-950 uppercase flex items-center gap-1.5">
-                      📚 Semesters (Multiple Selection)
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedSuptSemesters([1, 2, 3, 4, 5, 6, 7, 8])}
-                        className="text-[10px] font-bold text-indigo-700 hover:underline"
-                      >
-                        Select All (1 to 8)
-                      </button>
-                      <span className="text-indigo-300">|</span>
-                      <button
-                        onClick={() => setSelectedSuptSemesters([])}
-                        className="text-[10px] font-bold text-indigo-700 hover:underline"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => {
-                      const isSelected = selectedSuptSemesters.includes(sem);
-                      return (
-                        <button
-                          key={sem}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) setSelectedSuptSemesters(selectedSuptSemesters.filter(x => x !== sem));
-                            else setSelectedSuptSemesters([...selectedSuptSemesters, sem]);
-                          }}
-                          className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
-                            isSelected
-                              ? "bg-indigo-700 text-white border-indigo-700 shadow-sm"
-                              : "bg-white text-gray-700 border-indigo-200 hover:bg-indigo-100"
-                          }`}
-                        >
-                          {isSelected ? "✓ Semester " : "+ Semester "} {sem}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* MULTI SELECTION SECTION 3: Programs */}
-                <div className="p-4 bg-blue-50/60 rounded-xl border border-blue-100 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-black text-blue-950 uppercase flex items-center gap-1.5">
-                      🎓 Programs (Multiple Selection)
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedSuptPrograms(allPrograms.map(p => p.name))}
-                        className="text-[10px] font-bold text-blue-700 hover:underline"
-                      >
-                        Select All Programs
-                      </button>
-                      <span className="text-blue-300">|</span>
-                      <button
-                        onClick={() => setSelectedSuptPrograms([])}
-                        className="text-[10px] font-bold text-blue-700 hover:underline"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {allPrograms.map(p => {
-                      const isSelected = selectedSuptPrograms.includes(p.name);
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) setSelectedSuptPrograms(selectedSuptPrograms.filter(x => x !== p.name));
-                            else setSelectedSuptPrograms([...selectedSuptPrograms, p.name]);
-                          }}
-                          className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
-                            isSelected
-                              ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                              : "bg-white text-gray-700 border-blue-200 hover:bg-blue-100"
-                          }`}
-                        >
-                          {isSelected ? "✓ " : "+ "} {p.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Official Superintendent Roster Document */}
-              {displaySuptList.length > 0 && suptViewMode === "official" ? (
-                (() => {
-                  const targetProgIds =
-                    selectedSuptPrograms.length > 0
-                      ? allPrograms.filter((p) => selectedSuptPrograms.includes(p.name)).map((p) => p.id)
-                      : allPrograms.map((p) => p.id);
-                  const { semesterLabel, programCounts } = buildCenterSummaryMeta(targetProgIds, selectedSuptSemesters);
-                  return (
-                    <OfficialExamCenterReport
-                      variant="duty"
-                      collegeName={collegeName}
-                      collegeLogo={collegeLogo}
-                      collegeTagline={collegeTagline}
-                      centerNumber={centerNumber}
-                      centerLocation={examHallName}
-                      superintendentName={superintendentName}
-                      superintendentDepartment={superintendentDepartment}
-                      deputySuperintendent={deputySuperintendent}
-                      mobileCollector={mobileCollector}
-                      dutyNote={dutyNote}
-                      sessionLabel={selectedSuptSessions.join(", ") || undefined}
-                      semesterLabel={semesterLabel}
-                      programCounts={programCounts}
-                      dutyRows={displaySuptList.map((d) => {
-                        const matchedDuty = duties.find((item) => `auto_supt_${item.id}` === d.id);
-                        const personName = matchedDuty?.invigilator || d.chief || superintendentName;
-                        const facMatch = faculties.find((f) => f.user?.name === personName);
-                        const dept = facMatch?.department?.name || d.department || superintendentDepartment;
-                        return {
-                          id: d.id,
-                          date: d.date,
-                          shiftTime: d.time,
-                          courseTitle: d.course,
-                          facultyName: personName,
-                          facultyDept: dept,
-                          hall: d.hall,
-                        };
-                      })}
-                    />
-                  );
-                })()
-              ) : (
-                <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
-                  <div className="text-center border-b-2 border-gray-800 pb-4 space-y-1">
-                    {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
-                    <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
-                    <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
-                    <h2 className="text-base font-extrabold text-gray-900 uppercase pt-2">
-                      OFFICIAL CHIEF SUPERINTENDENT EXAM HALL ALLOTMENT ROSTER
-                    </h2>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl border text-xs">
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Chief Superintendent</span>
-                      <strong className="text-gray-900 font-bold">{superintendentName} ({superintendentDesignation})</strong>
-                      <span className="text-[10px] text-gray-500 block">Dept: {superintendentDepartment}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Deputy Superintendent</span>
-                      <strong className="text-gray-900 font-bold">{deputySuperintendent}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Allotted Center / Hall</span>
-                      <strong className="text-purple-900 font-bold">{examHallName}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-bold uppercase block">Allotted Sessions & Semesters</span>
-                      <strong className="text-blue-900 font-bold">
-                        Sessions: {selectedSuptSessions.join(", ") || "All"} | Sems: {selectedSuptSemesters.join(", ") || "All"}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto border rounded-xl">
-                    {displaySuptList.length > 0 ? (
-                      <table className="w-full text-left border-collapse text-sm">
-                        <thead>
-                          <tr className="bg-gray-100 border-b">
-                            <th className="p-3 font-bold text-gray-800">Date & Shift</th>
-                            <th className="p-3 font-bold text-gray-800">Exam Subject / Code</th>
-                            <th className="p-3 font-bold text-gray-800">Chief Superintendent</th>
-                            <th className="p-3 font-bold text-gray-800">Allotted Exam Hall</th>
-                            <th className="p-3 font-bold text-gray-800">Assigned Programs</th>
-                            <th className="p-3 font-bold text-gray-800">Type</th>
-                            <th className="p-3 font-bold text-gray-800 text-center print:hidden">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {displaySuptList.map((d) => (
-                            <tr key={d.id} className="border-b hover:bg-gray-50">
-                              <td className="p-3 font-bold text-gray-900">
-                                <div>{new Date(d.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                                <div className="font-mono text-xs text-purple-700 font-bold">{d.time}</div>
-                              </td>
-                              <td className="p-3 font-bold text-gray-900">{d.course}</td>
-                              <td className="p-3 text-xs">
-                                <div className="font-bold text-gray-900">👨‍⚖️ {d.chief || superintendentName}</div>
-                                <div className="text-[10px] text-gray-500">{d.designation || superintendentDesignation} ({d.department || superintendentDepartment})</div>
-                              </td>
-                              <td className="p-3 font-bold text-purple-900">{d.hall}</td>
-                              <td className="p-3 text-xs font-semibold text-blue-900">{d.programName}</td>
-                              <td className="p-3">
-                                <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${d.isManual ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-blue-100 text-blue-800 border border-blue-200'}`}>
-                                  {d.isManual ? '✍️ Manual' : '⚡ Auto'}
-                                </span>
-                              </td>
-                              <td className="p-3 text-center print:hidden">
-                                <div className="flex justify-center gap-2">
-                                  <button
-                                    onClick={() => {
-                                      setEditingSuptEntry(d);
-                                      setSuptForm({
-                                        date: new Date(d.date).toISOString().split('T')[0],
-                                        time: d.time,
-                                        course: d.course,
-                                        hall: d.hall,
-                                        programName: d.programName,
-                                        chief: d.chief || superintendentName,
-                                        designation: d.designation || superintendentDesignation,
-                                        department: d.department || superintendentDepartment,
-                                        deputy: d.deputy || deputySuperintendent,
-                                        sessions: d.sessions || selectedSuptSessions,
-                                        semesters: d.semesters || selectedSuptSemesters,
-                                        programs: d.programs || selectedSuptPrograms
-                                      });
-                                      setShowSuptModal(true);
-                                    }}
-                                    className="text-blue-600 text-xs font-bold hover:underline"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteSuptEntry(d)}
-                                    className="text-red-500 text-xs font-semibold hover:underline"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div className="text-center py-12 space-y-3 print:hidden">
-                        <p className="text-gray-500 text-sm font-semibold">No superintendent roster entries found.</p>
-                        <div className="flex justify-center gap-3">
-                          <button
-                            onClick={loadDatesheet}
-                            className="px-5 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow transition-all"
-                          >
-                            ⚡ Auto-Generate Roster
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingSuptEntry(null);
-                              setSuptForm({
-                                date: new Date().toISOString().split("T")[0],
-                                time: "09:00 - 12:00",
-                                course: "",
-                                hall: examHallName,
-                                programName: selectedSuptPrograms.length > 0 ? selectedSuptPrograms.join(" + ") : (isHallMerged ? selectedMergedPrograms.join(" + ") : "BS Programs"),
-                                chief: superintendentName,
-                                designation: superintendentDesignation,
-                                department: superintendentDepartment,
-                                deputy: deputySuperintendent,
-                                sessions: selectedSuptSessions,
-                                semesters: selectedSuptSemesters,
-                                programs: selectedSuptPrograms
-                              });
-                              setShowSuptModal(true);
-                            }}
-                            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                          >
-                            ➕ Add Manual Entry
-                          </button>
-                        </div>
-                      </div>
+                <div className="space-y-3">
+                  {/* Center Personnel Strip in Detailed View */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap gap-x-6 gap-y-1.5 text-xs text-slate-700">
+                    <span><strong>Center:</strong> {centerNumber} — {examHallName}</span>
+                    {superintendentName && (
+                      <span><strong>Superintendent:</strong> {superintendentName}{superintendentDepartment ? ` (${superintendentDepartment})` : ""}</span>
                     )}
+                    {deputySuperintendent && <span><strong>Deputy Supt:</strong> {deputySuperintendent}</span>}
+                    {inspectionTeam.length > 0 && (
+                      <span><strong>Inspection Team:</strong> {inspectionTeam.map((m) => `${m.name} (${m.role})`).join(", ")}</span>
+                    )}
+                    {lowerStaff.length > 0 && (
+                      <span><strong>Lower Staff:</strong> {lowerStaff.map((s) => `${s.name} (${s.role})`).join(", ")}</span>
+                    )}
+                    {mobileCollector && <span><strong>Mobile Collector:</strong> {mobileCollector}</span>}
                   </div>
 
-                  {/* Signature Block */}
-                  <div className="pt-12 grid grid-cols-2 gap-8 text-center text-xs">
-                    <div className="space-y-8">
-                      <div className="border-b border-gray-400"></div>
-                      <div className="font-bold text-gray-800">Chief Superintendent Signature & Stamp</div>
-                    </div>
-                    <div className="space-y-8">
-                      <div className="border-b border-gray-400"></div>
-                      <div className="font-bold text-gray-800">Principal / Controller of Examinations</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ----------------- TAB 4: STAFF DUTY LIST TAB ----------------- */}
-          {activeTab === "dutylist" && (
-            <div className="space-y-4">
-              {/* Invigilation Setup Card */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-200 space-y-4 print:hidden">
-                <div className="flex justify-between items-center flex-wrap gap-3 border-b border-blue-200/60 pb-3">
-                  <div>
-                    <h3 className="text-base font-bold text-blue-900 flex items-center gap-2">
-                      🛡️ Invigilation Roster Setup & Duty Allocation
-                    </h3>
-                    <p className="text-xs text-blue-700 mt-0.5">
-                      Assign faculty invigilators, exam dates, time windows, and select Chief Superintendent for each duty.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={handleAutoGenerateDatesheet}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                    >
-                      <span>⚡ Auto-Map Duties</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingStaffDuty(null);
-                        setDutyForm({
-                          date: new Date().toISOString().split("T")[0],
-                          time: "09:00 - 12:00",
-                          course: "",
-                          courseCode: "",
-                          invigilator: faculties[0]?.user?.name || "",
-                          superintendent: `${superintendentName} (${superintendentDesignation})`,
-                          hall: examHallName,
-                          status: "ASSIGNED"
-                        });
-                        setShowStaffDutyModal(true);
-                      }}
-                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                    >
-                      <span>➕ Add Manual Duty</span>
-                    </button>
-                    <button
-                      onClick={exportDutyListCSV}
-                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                    >
-                      <span>📥 Export CSV</span>
-                    </button>
-                    <button
-                      onClick={() => window.print()}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
-                    >
-                      <span>📄 Export PDF / Print</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Auto vs Manual Filter Buttons */}
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-extrabold text-blue-950 uppercase">Duty Display Mode:</span>
-                    {[
-                      { id: "ALL", label: `ALL (${displayDuties.length})` },
-                      { id: "AUTO", label: `⚡ Auto-Mapped (${duties.length})` },
-                      { id: "MANUAL", label: `✍️ Manual Entries (${manualDuties.length})` },
-                    ].map(mode => (
-                      <button
-                        key={mode.id}
-                        onClick={() => setDutyFilterMode(mode.id as any)}
-                        className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
-                          dutyFilterMode === mode.id
-                            ? "bg-blue-600 text-white border-blue-600 shadow"
-                            : "bg-white text-gray-700 border-blue-200 hover:bg-blue-100"
-                        }`}
-                      >
-                        {mode.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-blue-200">
-                    <button
-                      type="button"
-                      onClick={() => setStaffDutyViewMode("official")}
-                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${staffDutyViewMode === "official"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-slate-100"
-                        }`}
-                    >
-                      📄 Official Center Sheet
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStaffDutyViewMode("list")}
-                      className={`px-2.5 py-1 rounded text-xs font-bold cursor-pointer transition-all ${staffDutyViewMode === "list"
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-600 hover:bg-slate-100"
-                        }`}
-                    >
-                      📋 Editable Duty List
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-                  <div>
-                    <label className="block font-bold text-blue-900 uppercase mb-1">Max Duties / Faculty</label>
-                    <select
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
-                      value={maxDutiesPerInvigilator}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setMaxDutiesPerInvigilator(val);
-                        try { localStorage.setItem("max_invigilation_duties", val.toString()); } catch(e){}
-                      }}
-                    >
-                      <option value={1}>Max 1 Duty / Invigilator</option>
-                      <option value={2}>Max 2 Duties / Invigilator</option>
-                      <option value={3}>Max 3 Duties (Recommended)</option>
-                      <option value={4}>Max 4 Duties / Invigilator</option>
-                      <option value={5}>Max 5 Duties / Invigilator</option>
-                      <option value={10}>Max 10 Duties (High Capacity)</option>
-                      <option value={999}>Unlimited Duties</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-bold text-blue-900 uppercase mb-1">Center No</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
-                      value={centerNumber}
-                      onChange={(e) => setCenterNumber(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-blue-900 uppercase mb-1">Default Chief Superintendent</label>
-                    <select
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
-                      value={superintendentName}
-                      onChange={(e) => setSuperintendentName(e.target.value)}
-                    >
-                      <option value="Dr. Muhammad Usman">Dr. Muhammad Usman (HOD / CS)</option>
-                      {faculties.map(f => (
-                        <option key={f.id} value={f.user?.name}>{f.user?.name} ({f.designation || 'Faculty'})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-bold text-blue-900 uppercase mb-1">Deputy Superintendent</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
-                      value={deputySuperintendent}
-                      onChange={(e) => setDeputySuperintendent(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-blue-900 uppercase mb-1">Examination Hall / Center</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
-                      value={examHallName}
-                      onChange={(e) => setExamHallName(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-blue-900 uppercase mb-1">Mobile Collector Officer</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs font-bold text-gray-900 bg-white"
-                      value={mobileCollector}
-                      onChange={(e) => setMobileCollector(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {displayDuties.length > 0 && staffDutyViewMode === "official" ? (
-                (() => {
-                  const targetProgIds =
-                    isHallMerged && selectedMergedPrograms.length > 0
-                      ? allPrograms.filter((p) => selectedMergedPrograms.includes(p.name)).map((p) => p.id)
-                      : allPrograms.map((p) => p.id);
-                  const { semesterLabel, programCounts } = buildCenterSummaryMeta(targetProgIds, selectedSuptSemesters);
-                  return (
-                    <OfficialExamCenterReport
-                      variant="duty"
-                      collegeName={collegeName}
-                      collegeLogo={collegeLogo}
-                      collegeTagline={collegeTagline}
-                      centerNumber={centerNumber}
-                      centerLocation={examHallName}
-                      superintendentName={superintendentName}
-                      superintendentDepartment={superintendentDepartment}
-                      deputySuperintendent={deputySuperintendent}
-                      mobileCollector={mobileCollector}
-                      dutyNote={dutyNote}
-                      semesterLabel={semesterLabel}
-                      programCounts={programCounts}
-                      dutyRows={displayDuties.map((d) => {
-                        const facMatch = faculties.find((f) => f.user?.name === d.invigilator);
-                        return {
-                          id: d.id,
-                          date: d.date,
-                          shiftTime: d.time,
-                          courseTitle: d.course,
-                          courseCode: d.courseCode,
-                          facultyName: d.invigilator || "TBA",
-                          facultyDept: facMatch?.department?.name || facMatch?.designation || undefined,
-                          hall: d.hall,
-                        };
-                      })}
-                    />
-                  );
-                })()
-              ) : (
-                <>
-                  {/* Printable Official Duty Roster Header */}
-                  <div className="hidden print:block text-center border-b-2 border-gray-800 pb-4 space-y-1">
-                    {collegeLogo && <img src={collegeLogo} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-1" />}
-                    <h1 className="text-2xl font-black text-gray-900 uppercase tracking-wide">{collegeName}</h1>
-                    <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{collegeTagline}</p>
-                    <h2 className="text-base font-extrabold text-gray-800 uppercase pt-1">
-                      Official Examination Invigilation Duty Roster
-                    </h2>
-                    <div className="text-xs text-gray-600 flex justify-center gap-6 pt-1">
-                      <span><strong>Chief Superintendent:</strong> {superintendentName} ({superintendentDesignation})</span>
-                      <span><strong>Deputy Superintendent:</strong> {deputySuperintendent}</span>
-                      <span><strong>Exam Center:</strong> {examHallName}</span>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto border rounded-xl mt-4 relative">
+                  <div className="overflow-x-auto border rounded-xl relative bg-white">
                     {(collegeBackground || collegeWatermark || collegeLogo) && (
                       <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none z-0">
                         <img
@@ -3144,68 +2821,85 @@ export default function BSTimetableDatesheetPage() {
                       </div>
                     )}
                     <div className="relative z-10">
-                    {displayDuties.length > 0 ? (
                       <table className="w-full text-left border-collapse text-sm">
                         <thead>
-                          <tr className="bg-gray-50 border-b">
+                          <tr className="bg-gray-50 border-b text-xs">
                             <th className="p-3 font-semibold text-gray-600">Exam Date</th>
-                            <th className="p-3 font-semibold text-gray-600">Time Window</th>
-                            <th className="p-3 font-semibold text-gray-600">Course / Exam Paper</th>
-                            <th className="p-3 font-semibold text-gray-600">Assigned Invigilator (Faculty)</th>
-                            <th className="p-3 font-semibold text-gray-600">Assigned Superintendent</th>
-                            <th className="p-3 font-semibold text-gray-600">Exam Hall Center</th>
-                            <th className="p-3 font-semibold text-gray-600">Type</th>
-                            <th className="p-3 font-semibold text-gray-600">Status</th>
-                            <th className="p-3 font-semibold text-gray-600 text-center print:hidden">Actions</th>
+                            <th className="p-3 font-semibold text-gray-600">Program / Sem</th>
+                            <th className="p-3 font-semibold text-gray-600">Course</th>
+                            <th className="p-3 font-semibold text-gray-600">Shift</th>
+                            <th className="p-3 font-semibold text-gray-600">Faculty / Invigilator</th>
+                            <th className="p-3 font-semibold text-gray-600">Duty Role</th>
+                            <th className="p-3 font-semibold text-gray-600">Room / Hall</th>
+                            <th className="p-3 font-semibold text-gray-600 print:hidden">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {displayDuties.map((duty) => (
-                            <tr key={duty.id} className="border-b hover:bg-gray-50">
-                              <td className="p-3 font-bold text-gray-900">{new Date(duty.date).toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                              <td className="p-3 font-mono text-gray-700 font-bold">{duty.time}</td>
-                              <td className="p-3 font-bold text-gray-900">{duty.course} {duty.courseCode && <span className="text-xs text-gray-500 font-mono">({duty.courseCode})</span>}</td>
-                              <td className="p-3 font-bold text-indigo-900 flex items-center gap-1.5">
-                                <span>👨‍🏫</span> {duty.invigilator}
+                          {dbDuties.map((duty) => (
+                            <tr key={duty.id} className={`border-b hover:bg-gray-50 ${duty.isOverride ? "bg-amber-50/40" : ""}`}>
+                              <td className="p-3 font-bold text-gray-900 text-xs whitespace-nowrap">
+                                {new Date(duty.datesheet?.date).toLocaleDateString("en-US", {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
                               </td>
-                              <td className="p-3 text-xs font-bold text-purple-900">
-                                <span>👨‍⚖️</span> {duty.superintendent || superintendentName}
+                              <td className="p-3 text-xs">
+                                <div className="font-bold text-gray-800">{duty.datesheet?.program?.name || "BS"}</div>
+                                <div className="text-[11px] text-gray-500">
+                                  Sem {duty.datesheet?.semester} • {duty.datesheet?.session}
+                                </div>
                               </td>
-                              <td className="p-3 text-xs font-semibold text-gray-700">{duty.hall}</td>
                               <td className="p-3">
-                                <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${duty.isManual ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-blue-100 text-blue-800 border border-blue-200'}`}>
-                                  {duty.isManual ? '✍️ Manual' : '⚡ Auto'}
-                                </span>
+                                <div className="font-bold text-gray-900 text-xs">{duty.datesheet?.course?.title}</div>
+                                <div className="text-[11px] text-gray-400 font-mono">{duty.datesheet?.course?.code}</div>
+                              </td>
+                              <td className="p-3 font-mono text-xs text-gray-600 font-semibold whitespace-nowrap">
+                                {duty.shiftTime || `${duty.datesheet?.startTime} - ${duty.datesheet?.endTime}`}
                               </td>
                               <td className="p-3">
-                                <span className="px-2.5 py-1 text-xs rounded-full font-extrabold bg-green-100 text-green-800 border border-green-200">
-                                  {duty.status || 'ASSIGNED'}
-                                </span>
+                                <div className="font-bold text-gray-900 text-xs">{duty.faculty?.user?.name}</div>
+                                <div className="text-[11px] text-gray-400">{duty.faculty?.department?.name || duty.faculty?.designation}</div>
                               </td>
-                              <td className="p-3 text-center print:hidden">
-                                <div className="flex justify-center gap-2">
+                              <td className="p-3">
+                                <div className="flex flex-col gap-1">
+                                  <span
+                                    className={`px-2 py-0.5 text-[11px] font-extrabold rounded-full inline-block w-fit ${
+                                      duty.isMandatory
+                                        ? "bg-red-100 text-red-700 border border-red-300"
+                                        : duty.dutyType === "RELIEVING_SUPT"
+                                          ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                          : "bg-blue-100 text-blue-700 border border-blue-200"
+                                    }`}
+                                  >
+                                    {duty.isMandatory
+                                      ? "🔴 MANDATORY"
+                                      : duty.dutyType === "RELIEVING_SUPT"
+                                        ? "🟣 RELIEVING SUPT"
+                                        : "🔵 INVIGILATOR"}
+                                  </span>
+                                  {duty.isOverride && (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 rounded-full inline-block w-fit">
+                                      ⚠️ Override
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3 text-xs text-gray-600">{duty.room || examHallName || "—"}</td>
+                              <td className="p-3 print:hidden">
+                                <div className="flex items-center gap-2.5">
                                   <button
-                                    onClick={() => {
-                                      setEditingStaffDuty(duty);
-                                      setDutyForm({
-                                        date: new Date(duty.date).toISOString().split('T')[0],
-                                        time: duty.time,
-                                        course: duty.course,
-                                        courseCode: duty.courseCode || "",
-                                        invigilator: duty.invigilator,
-                                        superintendent: duty.superintendent || superintendentName,
-                                        hall: duty.hall,
-                                        status: duty.status || "ASSIGNED"
-                                      });
-                                      setShowStaffDutyModal(true);
-                                    }}
-                                    className="text-blue-600 text-xs font-bold hover:underline"
+                                    type="button"
+                                    onClick={() => openManualDutyModal(duty)}
+                                    className="text-blue-600 text-xs font-bold hover:underline cursor-pointer"
                                   >
                                     Edit
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteStaffDuty(duty)}
-                                    className="text-red-500 text-xs font-semibold hover:underline"
+                                    type="button"
+                                    onClick={() => handleDeleteDuty(duty.id)}
+                                    className="text-red-500 text-xs font-semibold hover:underline cursor-pointer"
                                   >
                                     Remove
                                   </button>
@@ -3215,56 +2909,13 @@ export default function BSTimetableDatesheetPage() {
                           ))}
                         </tbody>
                       </table>
-                    ) : (
-                      <div className="text-center py-12 space-y-3 print:hidden">
-                        <p className="text-gray-500 text-sm font-semibold">No invigilation duties found.</p>
-                        <div className="flex justify-center gap-3">
-                          <button
-                            onClick={handleAutoGenerateDatesheet}
-                            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                          >
-                            ⚡ Auto-Generate Exam Dates &amp; Duties
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingStaffDuty(null);
-                              setDutyForm({
-                                date: new Date().toISOString().split("T")[0],
-                                time: "09:00 - 12:00",
-                                course: "",
-                                courseCode: "",
-                                invigilator: faculties[0]?.user?.name || "",
-                                superintendent: `${superintendentName} (${superintendentDesignation})`,
-                                hall: examHallName,
-                                status: "ASSIGNED"
-                              });
-                              setShowStaffDutyModal(true);
-                            }}
-                            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-all"
-                          >
-                            ➕ Add Manual Invigilation Duty
-                          </button>
-                        </div>
-                      </div>
-                    )}
                     </div>
                   </div>
-
-                  {/* Printable Signature & Guidelines Block */}
-                  <div className="hidden print:grid grid-cols-2 gap-8 text-center text-xs pt-12">
-                    <div className="space-y-8">
-                      <div className="border-b border-gray-400"></div>
-                      <div className="font-bold text-gray-800">Deputy Superintendent Signature</div>
-                    </div>
-                    <div className="space-y-8">
-                      <div className="border-b border-gray-400"></div>
-                      <div className="font-bold text-gray-800">Chief Superintendent / Principal Signature &amp; Stamp</div>
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
             </div>
           )}
+
         </div>
       </div>
 
@@ -3984,297 +3635,158 @@ export default function BSTimetableDatesheetPage() {
         </div>
       )}
 
-      {/* ---------------- MODAL 3: MANUAL STAFF IN VIGILATION DUTY ---------------- */}
-      {showStaffDutyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl max-w-md w-full mx-4 space-y-4">
+      {/* ---------------- MODAL 3: MANUAL EXAM DUTY / INVIGILATOR ASSIGNMENT (DB-BACKED) ---------------- */}
+      {showManualDutyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl max-w-lg w-full max-h-[92vh] overflow-y-auto space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">
-                {editingStaffDuty ? "✏️ Edit Invigilation Duty Entry" : "➕ Add Manual Invigilation Duty"}
-              </h3>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">
+                  {editingDuty ? "✏️ Edit Exam Duty / Invigilator" : "➕ Manual Exam Duty / Invigilator Assignment"}
+                </h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Assign an Invigilator, Mandatory Subject Teacher, or Relieving Superintendent to a Datesheet paper.
+                </p>
+              </div>
               <button
-                onClick={() => { setShowStaffDutyModal(false); setEditingStaffDuty(null); }}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                type="button"
+                onClick={() => { setShowManualDutyModal(false); setEditingDuty(null); }}
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
               >
                 &times;
               </button>
             </div>
 
-            <form onSubmit={handleSaveStaffDuty} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Exam Date</label>
-                  <input
-                    type="date"
-                    required
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={dutyForm.date}
-                    onChange={(e) => setDutyForm({ ...dutyForm, date: e.target.value })}
-                  />
+            <form onSubmit={handleSaveManualDuty} className="space-y-4">
+              {error && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+                  {error}
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Time Window</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="09:00 - 12:00"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={dutyForm.time}
-                    onChange={(e) => setDutyForm({ ...dutyForm, time: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Course Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Data Structures"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={dutyForm.course}
-                    onChange={(e) => setDutyForm({ ...dutyForm, course: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Course Code</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. CS-201"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={dutyForm.courseCode}
-                    onChange={(e) => setDutyForm({ ...dutyForm, courseCode: e.target.value })}
-                  />
-                </div>
-              </div>
+              )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Invigilator (Faculty Member)</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                  Exam Paper (From Exam Datesheet) *
+                </label>
                 <select
-                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white mb-2"
+                  value={dutyDatesheetId}
                   onChange={(e) => {
-                    if (e.target.value) setDutyForm({ ...dutyForm, invigilator: e.target.value });
+                    const nextDsId = e.target.value;
+                    setDutyDatesheetId(nextDsId);
+                    const ds = datesheets.find((item) => item.id === nextDsId);
+                    if (ds) {
+                      setDutyShiftTime(`${ds.startTime}-${ds.endTime}`);
+                      if (ds.course?.facultyId && dutyType === "MANDATORY") {
+                        setDutyFacultyId(ds.course.facultyId);
+                      }
+                    }
                   }}
-                >
-                  <option value="">-- Select from Registered Faculty --</option>
-                  {faculties.map(f => (
-                    <option key={f.id} value={f.user?.name}>{f.user?.name} ({f.designation || 'Faculty'})</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
                   required
-                  placeholder="Or type Invigilator Name..."
                   className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  value={dutyForm.invigilator}
-                  onChange={(e) => setDutyForm({ ...dutyForm, invigilator: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Chief Superintendent</label>
-                <select
-                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  value={dutyForm.superintendent}
-                  onChange={(e) => setDutyForm({ ...dutyForm, superintendent: e.target.value })}
                 >
-                  <option value={`${superintendentName} (${superintendentDesignation})`}>
-                    {superintendentName} ({superintendentDesignation})
-                  </option>
-                  {faculties.map(f => (
-                    <option key={f.id} value={`${f.user?.name} (${f.designation || 'Faculty'})`}>
-                      {f.user?.name} ({f.designation || 'Faculty'})
+                  <option value="">-- Select Exam Paper --</option>
+                  {(dutyEligibleDatesheets.length > 0 ? dutyEligibleDatesheets : datesheets).map((ds) => (
+                    <option key={ds.id} value={ds.id}>
+                      {new Date(ds.date).toLocaleDateString("en-GB")} ({ds.startTime}-{ds.endTime}) — {ds.course?.title || "Paper"} [{ds.program?.name || "BS"} • Sem {ds.semester} • {ds.session}]
                     </option>
                   ))}
                 </select>
+                {datesheets.length === 0 && (
+                  <p className="text-[11px] text-amber-700 font-semibold mt-1">
+                    No datesheet entries exist yet. Generate or add an exam paper in Exam Datesheet first.
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Exam Hall Center</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Hall A / Auditorium"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={dutyForm.hall}
-                    onChange={(e) => setDutyForm({ ...dutyForm, hall: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Faculty Member *</label>
                   <select
+                    value={dutyFacultyId}
+                    onChange={(e) => setDutyFacultyId(e.target.value)}
+                    required
                     className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={dutyForm.status}
-                    onChange={(e) => setDutyForm({ ...dutyForm, status: e.target.value })}
                   >
-                    <option value="ASSIGNED">ASSIGNED</option>
-                    <option value="CONFIRMED">CONFIRMED</option>
-                    <option value="COMPLETED">COMPLETED</option>
+                    <option value="">-- Select Faculty --</option>
+                    {faculties.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.user?.name} ({f.department?.name || f.designation || "Faculty"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Duty Role / Type</label>
+                  <select
+                    value={dutyType}
+                    onChange={(e) => setDutyType(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
+                  >
+                    <option value="INVIGILATOR">Invigilator</option>
+                    <option value="MANDATORY">Mandatory Subject Teacher</option>
+                    <option value="RELIEVING_SUPT">Relieving / Asst. Superintendent</option>
                   </select>
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Exam Center / Hall / Room</label>
+                  <input
+                    type="text"
+                    value={dutyRoom}
+                    onChange={(e) => setDutyRoom(e.target.value)}
+                    placeholder="e.g. 1st Floor BS New Block"
+                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Shift / Time Window</label>
+                  <input
+                    type="text"
+                    value={dutyShiftTime}
+                    onChange={(e) => setDutyShiftTime(e.target.value)}
+                    placeholder="09:00-12:00"
+                    className="w-full px-3 py-2 border rounded-lg text-xs font-mono font-bold bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Notes (Optional)</label>
+                <input
+                  type="text"
+                  value={dutyNotes}
+                  onChange={(e) => setDutyNotes(e.target.value)}
+                  placeholder="Optional instructions or hall note"
+                  className="w-full px-3 py-2 border rounded-lg text-xs bg-white"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 p-2.5 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dutyOverrideConflict}
+                  onChange={(e) => setDutyOverrideConflict(e.target.checked)}
+                  className="rounded accent-amber-600"
+                />
+                <span>Override Conflict (Force assign even if this faculty already has another duty in this shift)</span>
+              </label>
+
               <div className="flex justify-end gap-3 pt-3 border-t">
                 <button
                   type="button"
-                  onClick={() => { setShowStaffDutyModal(false); setEditingStaffDuty(null); }}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg"
+                  onClick={() => { setShowManualDutyModal(false); setEditingDuty(null); }}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow cursor-pointer"
                 >
-                  Save Duty Entry
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------- MODAL 4: MANUAL SUPERINTENDENT ENTRY ---------------- */}
-      {showSuptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl max-w-md w-full mx-4 space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">
-                {editingSuptEntry ? "✏️ Edit Superintendent Roster Entry" : "➕ Add Manual Superintendent Roster Entry"}
-              </h3>
-              <button
-                onClick={() => { setShowSuptModal(false); setEditingSuptEntry(null); }}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-              >
-                &times;
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSuptEntry} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Exam Date</label>
-                  <input
-                    type="date"
-                    required
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={suptForm.date}
-                    onChange={(e) => setSuptForm({ ...suptForm, date: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Shift Window</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="09:00 - 12:00"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={suptForm.time}
-                    onChange={(e) => setSuptForm({ ...suptForm, time: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Exam Subject / Code</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Physics II (PHY-102)"
-                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  value={suptForm.course}
-                  onChange={(e) => setSuptForm({ ...suptForm, course: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Chief Superintendent</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={suptForm.chief}
-                    onChange={(e) => setSuptForm({ ...suptForm, chief: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Designation</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={suptForm.designation}
-                    onChange={(e) => setSuptForm({ ...suptForm, designation: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Department</label>
-                <select
-                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  value={suptForm.department}
-                  onChange={(e) => setSuptForm({ ...suptForm, department: e.target.value })}
-                >
-                  <option value="Computer Science">Computer Science</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.name}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Allotted Exam Hall</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Main Auditorium"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={suptForm.hall}
-                    onChange={(e) => setSuptForm({ ...suptForm, hall: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Programs</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="BS CS + BS Math"
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                    value={suptForm.programName}
-                    onChange={(e) => setSuptForm({ ...suptForm, programName: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Deputy Superintendent</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  value={suptForm.deputy}
-                  onChange={(e) => setSuptForm({ ...suptForm, deputy: e.target.value })}
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={() => { setShowSuptModal(false); setEditingSuptEntry(null); }}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-lg shadow"
-                >
-                  Save Roster Entry
+                  {editingDuty ? "Update Duty Assignment" : "Save Duty Assignment"}
                 </button>
               </div>
             </form>
