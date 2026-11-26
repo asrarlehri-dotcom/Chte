@@ -1,8 +1,15 @@
 "use server";
 
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { daysOverlap } from "@/lib/timetable-days";
+import {
+  COMBINED_CLASS_PREFIX,
+  buildCombinedClassTag,
+  normalizeSubjectKey,
+  parseCombinedClassTag,
+} from "@/lib/timetable-recommendations";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const TIMETABLE_SLOTS = [
@@ -49,6 +56,7 @@ export async function getTimetables(
 
   return prisma.timetable.findMany({
     where: {
+      isActive: true,
       ...(cleanSession ? { session: cleanSession } : {}),
       ...(cleanProgramId ? { programId: cleanProgramId } : {}),
       ...(cleanSemester ? { semester: cleanSemester } : {}),
@@ -88,6 +96,7 @@ export async function generateTimetable(session: string, programId: string, depa
   // 2. Fetch all existing active timetables across the system to avoid faculty & semester conflicts
   const existingTimetables = await prisma.timetable.findMany({
     where: {
+      isActive: true,
       NOT: {
         AND: [
           { programId: { in: progIds } },
@@ -219,6 +228,7 @@ export async function generateTimetable(session: string, programId: string, depa
             dayOfWeek: chosenDay,
             startTime: chosenSlot.start,
             endTime: chosenSlot.end,
+            educationLevel: level,
             generationMode: "AUTO",
             status: "DRAFT"
           }
@@ -244,48 +254,320 @@ export async function generateTimetable(session: string, programId: string, depa
 }
 
 export async function saveManualTimetable(data: any) {
-  const { id, session, programId, departmentId, semester, courseId, facultyId, dayOfWeek, startTime, endTime } = data;
+  const {
+    id,
+    session,
+    programId,
+    departmentId,
+    semester,
+    courseId,
+    facultyId,
+    dayOfWeek,
+    startTime,
+    endTime,
+    allowCombinedSharedClass = false,
+    allowOptionalParallel = false,
+    combinedGroupId = null,
+    applyToCombinedGroup = false,
+    cohorts,
+  } = data;
+
   try {
-    const cleanProgId = programId && programId !== "ALL" ? programId : (await prisma.program.findFirst({ where: { isActive: true } }))?.id;
+    const primaryCourse = courseId
+      ? await prisma.course.findUnique({ where: { id: courseId }, select: { id: true, title: true, code: true, departmentId: true } })
+      : null;
+
+    // ─── MULTI-COHORT COMBINED / JOINT CLASS SAVE ───
+    if (Array.isArray(cohorts) && cohorts.length > 0) {
+      // Deduplicate cohorts cleanly by (programId, session, semester)
+      const uniqueCohorts: Array<{ programId: string; session: string; semester: number; courseId: string; departmentId?: string | null }> = [];
+      const seenKey = new Set<string>();
+
+      for (const rawCohort of cohorts) {
+        const cProgId = String(rawCohort.programId || "").trim();
+        const cSess = String(rawCohort.session || session || "2024-2028").trim();
+        const cSem = parseInt(String(rawCohort.semester || semester || "1"), 10) || 1;
+        const cCourseId = String(rawCohort.courseId || courseId || "").trim();
+        if (!cProgId || !cCourseId) continue;
+
+        const key = `${cProgId}__${cSess}__${cSem}`;
+        if (seenKey.has(key)) continue;
+        seenKey.add(key);
+
+        uniqueCohorts.push({
+          programId: cProgId,
+          session: cSess,
+          semester: cSem,
+          courseId: cCourseId,
+          departmentId: rawCohort.departmentId || null,
+        });
+      }
+
+      if (uniqueCohorts.length === 0) {
+        return { success: false, error: "Please select at least one program/semester cohort for the combined class." };
+      }
+
+      const activeGroupId =
+        combinedGroupId ||
+        `grp-${crypto.randomUUID().slice(0, 8)}`;
+      const combinedTag =
+        uniqueCohorts.length > 1 || allowCombinedSharedClass
+          ? buildCombinedClassTag(activeGroupId, Boolean(allowOptionalParallel))
+          : allowOptionalParallel
+            ? "OPTIONAL"
+            : null;
+
+      const existingGroupRows =
+        applyToCombinedGroup && combinedGroupId
+          ? await prisma.timetable.findMany({
+              where: {
+                isActive: true,
+                classSectionId: { startsWith: `${COMBINED_CLASS_PREFIX}${combinedGroupId}` },
+              },
+            })
+          : [];
+      const excludeIds = Array.from(
+        new Set([
+          ...(id ? [id] : []),
+          ...existingGroupRows.map((r) => r.id),
+        ])
+      );
+
+      // Fetch course metadata for subject validation across cohorts
+      const cohortCourses = await prisma.course.findMany({
+        where: { id: { in: Array.from(new Set(uniqueCohorts.map((c) => c.courseId))) } },
+        select: { id: true, title: true, code: true, departmentId: true },
+      });
+      const courseMap = new Map(cohortCourses.map((c) => [c.id, c]));
+
+      const programsList = await prisma.program.findMany({
+        where: { id: { in: uniqueCohorts.map((c) => c.programId) } },
+        select: { id: true, departmentId: true, educationLevel: true },
+      });
+      const programMap = new Map(programsList.map((p) => [p.id, p]));
+
+      // Validate all cohorts against unrelated teacher / cohort slots
+      for (const cohort of uniqueCohorts) {
+        const cMeta = courseMap.get(cohort.courseId) || primaryCourse;
+        if (facultyId) {
+          await checkTimetableConflicts({
+            facultyId,
+            semester: cohort.semester,
+            programId: cohort.programId,
+            session: cohort.session,
+            dayOfWeek,
+            startTime,
+            endTime,
+            excludeTimetableIds: excludeIds,
+            allowCombinedSharedClass: true,
+            combinedGroupId: activeGroupId,
+            allowOptionalParallel: Boolean(allowOptionalParallel),
+            courseTitle: cMeta?.title,
+            courseCode: cMeta?.code,
+          });
+        }
+      }
+
+      const matchedRowIdsToKeep = new Set<string>();
+
+      await prisma.$transaction(async (tx) => {
+        for (const cohort of uniqueCohorts) {
+          const progMeta = programMap.get(cohort.programId);
+          const cMeta = courseMap.get(cohort.courseId);
+          const resolvedDeptId =
+            cohort.departmentId ||
+            cMeta?.departmentId ||
+            progMeta?.departmentId ||
+            (departmentId && departmentId !== "ALL" ? departmentId : null);
+
+          const existingMatch = existingGroupRows.find(
+            (r) =>
+              !matchedRowIdsToKeep.has(r.id) &&
+              r.programId === cohort.programId &&
+              r.semester === cohort.semester &&
+              r.session === cohort.session
+          );
+
+          if (existingMatch) {
+            matchedRowIdsToKeep.add(existingMatch.id);
+            await tx.timetable.update({
+              where: { id: existingMatch.id },
+              data: {
+                courseId: cohort.courseId,
+                facultyId: facultyId || null,
+                dayOfWeek,
+                startTime,
+                endTime,
+                departmentId: resolvedDeptId,
+                classSectionId: combinedTag,
+                educationLevel: progMeta?.educationLevel || "BS",
+              },
+            });
+          } else {
+            await tx.timetable.create({
+              data: {
+                session: cohort.session,
+                programId: cohort.programId,
+                departmentId: resolvedDeptId,
+                semester: cohort.semester,
+                courseId: cohort.courseId,
+                facultyId: facultyId || null,
+                dayOfWeek,
+                startTime,
+                endTime,
+                classSectionId: combinedTag,
+                educationLevel: progMeta?.educationLevel || "BS",
+                generationMode: "MANUAL",
+                status: "DRAFT",
+              },
+            });
+          }
+        }
+
+        // Deactivate any cohorts removed from an edited combined group
+        if (existingGroupRows.length > 0) {
+          const removedIds = existingGroupRows
+            .filter((r) => !matchedRowIdsToKeep.has(r.id))
+            .map((r) => r.id);
+          if (removedIds.length > 0) {
+            await tx.timetable.updateMany({
+              where: { id: { in: removedIds } },
+              data: { isActive: false },
+            });
+          }
+        }
+      });
+
+      revalidatePath("/bs/timetable-datesheet");
+      revalidatePath("/intermediate/timetable-datesheet");
+      return {
+        success: true,
+        count: uniqueCohorts.length,
+        combinedGroupId: activeGroupId,
+      };
+    }
+
+    // ─── SINGLE COHORT SAVE / EDIT ───
+    const cleanProgId =
+      programId && programId !== "ALL"
+        ? programId
+        : (await prisma.program.findFirst({ where: { isActive: true } }))?.id;
     if (!cleanProgId) return { success: false, error: "No active program found." };
+
+    const cleanSession = session || "2024-2028";
+    const cleanSem = parseInt(semester) || 1;
+    const progObj = await prisma.program.findUnique({
+      where: { id: cleanProgId },
+      select: { departmentId: true, educationLevel: true },
+    });
+
+    // If explicitly marked combined in Single Mode, inherit existing matching combined groupId on this teacher/time/subject if present
+    let effectiveGroupId: string | null = combinedGroupId || null;
+    if (allowCombinedSharedClass && facultyId && !effectiveGroupId) {
+      const siblingCandidates = await prisma.timetable.findMany({
+        where: {
+          facultyId,
+          isActive: true,
+          ...(id ? { id: { not: id } } : {}),
+        },
+        include: { course: true },
+      });
+      const incomingSubKey = normalizeSubjectKey(primaryCourse?.title, primaryCourse?.code);
+      const matchingSibling = siblingCandidates.find(
+        (t) =>
+          daysOverlap(dayOfWeek, t.dayOfWeek) &&
+          startTime < t.endTime &&
+          endTime > t.startTime &&
+          incomingSubKey &&
+          normalizeSubjectKey(t.course?.title, t.course?.code) === incomingSubKey
+      );
+      if (matchingSibling) {
+        const siblingMeta = parseCombinedClassTag(matchingSibling.classSectionId);
+        effectiveGroupId = siblingMeta.groupId || `grp-${crypto.randomUUID().slice(0, 8)}`;
+        if (!siblingMeta.groupId) {
+          await prisma.timetable.update({
+            where: { id: matchingSibling.id },
+            data: {
+              classSectionId: buildCombinedClassTag(effectiveGroupId, siblingMeta.isOptionalParallel),
+            },
+          });
+        }
+      } else {
+        effectiveGroupId = `grp-${crypto.randomUUID().slice(0, 8)}`;
+      }
+    }
 
     if (facultyId) {
       await checkTimetableConflicts({
         facultyId,
-        semester: parseInt(semester) || 1,
+        semester: cleanSem,
         programId: cleanProgId,
+        session: cleanSession,
         dayOfWeek,
         startTime,
         endTime,
-        excludeTimetableId: id || undefined
+        excludeTimetableId: id || undefined,
+        allowCombinedSharedClass: Boolean(allowCombinedSharedClass),
+        combinedGroupId: effectiveGroupId,
+        allowOptionalParallel: Boolean(allowOptionalParallel),
+        courseTitle: primaryCourse?.title,
+        courseCode: primaryCourse?.code,
       });
     }
+
+    const singleTag =
+      allowCombinedSharedClass && effectiveGroupId
+        ? buildCombinedClassTag(effectiveGroupId, Boolean(allowOptionalParallel))
+        : allowOptionalParallel
+          ? "OPTIONAL"
+          : null;
 
     if (id) {
       await prisma.timetable.update({
         where: { id },
-        data: { session: session || "2024", programId: cleanProgId, departmentId: departmentId && departmentId !== "ALL" ? departmentId : null, semester: parseInt(semester) || 1, courseId, facultyId, dayOfWeek, startTime, endTime }
-      });
-    } else {
-      await prisma.timetable.create({
         data: {
-          session: session || "2024",
+          session: cleanSession,
           programId: cleanProgId,
-          departmentId: departmentId && departmentId !== "ALL" ? departmentId : null,
-          semester: parseInt(semester) || 1,
+          departmentId:
+            departmentId && departmentId !== "ALL"
+              ? departmentId
+              : progObj?.departmentId || primaryCourse?.departmentId || null,
+          semester: cleanSem,
           courseId,
           facultyId,
           dayOfWeek,
           startTime,
           endTime,
+          classSectionId: singleTag,
+          educationLevel: progObj?.educationLevel || "BS",
+        },
+      });
+    } else {
+      await prisma.timetable.create({
+        data: {
+          session: cleanSession,
+          programId: cleanProgId,
+          departmentId:
+            departmentId && departmentId !== "ALL"
+              ? departmentId
+              : progObj?.departmentId || primaryCourse?.departmentId || null,
+          semester: cleanSem,
+          courseId,
+          facultyId,
+          dayOfWeek,
+          startTime,
+          endTime,
+          classSectionId: singleTag,
+          educationLevel: progObj?.educationLevel || "BS",
           generationMode: "MANUAL",
-          status: "DRAFT"
-        }
+          status: "DRAFT",
+        },
       });
     }
+
     revalidatePath("/bs/timetable-datesheet");
     revalidatePath("/intermediate/timetable-datesheet");
-    return { success: true };
+    return { success: true, count: 1 };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

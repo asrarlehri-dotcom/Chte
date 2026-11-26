@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   getFilterData,
   getTimetables,
@@ -23,7 +23,18 @@ import {
   deleteDutyEntry,
 } from "./actions";
 import { useSettings } from "@/lib/useSettings";
-import { Upload, Download, ClipboardList, CheckCircle2, X } from "lucide-react";
+import {
+  Upload,
+  Download,
+  ClipboardList,
+  CheckCircle2,
+  X,
+  Calendar,
+  Layers,
+  Sparkles,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { parseGenericCSV, validateTimetableBatch, validateDatesheetBatch, getTimetableSampleCSV, getDatesheetSampleCSV } from "@/lib/domainParsers";
 import {
   TIMETABLE_WEEKDAYS,
@@ -34,8 +45,15 @@ import {
   isSingleOrPresetDay,
   type TimetableWeekday,
 } from "@/lib/timetable-days";
+import {
+  buildSharedSubjectRecommendations,
+  formatCourseLabel,
+  normalizeSubjectKey,
+  parseCombinedClassTag,
+  isOptionalSubjectCourse,
+  type SharedSubjectRecommendation,
+} from "@/lib/timetable-recommendations";
 import UniversalImportModal from "@/components/UniversalImportModal";
-import { Calendar } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 import OfficialTimetableMatrixReport, { toOrdinalUpper } from "@/components/bs/OfficialTimetableMatrixReport";
 import OfficialExamCenterReport from "@/components/bs/OfficialExamCenterReport";
@@ -277,7 +295,7 @@ export default function BSTimetableDatesheetPage() {
   const [showTimetableModal, setShowTimetableModal] = useState(false);
   const [editingTimetable, setEditingTimetable] = useState<any>(null);
   const [ttProgramIdModal, setTtProgramIdModal] = useState("");
-  const [ttSessionModal, setTtSessionModal] = useState("2024");
+  const [ttSessionModal, setTtSessionModal] = useState("2024-2028");
   const [ttSemesterModal, setTtSemesterModal] = useState("1");
   const [ttDay, setTtDay] = useState("Monday");
   const [ttCustomDayMode, setTtCustomDayMode] = useState(false);
@@ -285,6 +303,89 @@ export default function BSTimetableDatesheetPage() {
   const [ttEnd, setTtEnd] = useState("10:00");
   const [ttCourseId, setTtCourseId] = useState("");
   const [ttFacultyId, setTtFacultyId] = useState("");
+  const [ttMode, setTtMode] = useState<"single" | "combined">("single");
+  const [ttAllowCombinedSingle, setTtAllowCombinedSingle] = useState(false);
+  const [ttAllowOptionalParallel, setTtAllowOptionalParallel] = useState(false);
+  const [ttCombinedGroupId, setTtCombinedGroupId] = useState<string | null>(null);
+  const [ttApplyToCombinedGroup, setTtApplyToCombinedGroup] = useState(true);
+  const [ttCombinedCohorts, setTtCombinedCohorts] = useState<
+    Array<{ programId: string; session: string; semester: string; courseId: string }>
+  >([]);
+  const [showRecommendationsPanel, setShowRecommendationsPanel] = useState(true);
+
+  const availableSessionOptions = useMemo(() => {
+    const combined = new Set<string>(sessions);
+    courses.forEach((c) => {
+      if (c?.session && typeof c.session === "string") combined.add(c.session.trim());
+    });
+    timetables.forEach((t) => {
+      if (t?.session && typeof t.session === "string") combined.add(t.session.trim());
+    });
+    return Array.from(combined).filter(Boolean);
+  }, [sessions, courses, timetables]);
+
+  const sharedRecommendations = useMemo(
+    () =>
+      buildSharedSubjectRecommendations({
+        courses,
+        programs: allPrograms,
+        faculties,
+        timetables,
+      }),
+    [courses, allPrograms, faculties, timetables]
+  );
+
+  const bsCoursesSorted = useMemo(() => {
+    const bsProgIds = new Set(allPrograms.map((p) => p.id));
+    const bsList = courses.filter((c) => !c.programId || bsProgIds.has(c.programId) || c.program?.educationLevel === "BS");
+    const matching = bsList.filter(
+      (c) =>
+        (!ttProgramIdModal || c.programId === ttProgramIdModal) &&
+        (!ttSemesterModal || Number(c.semester) === Number(ttSemesterModal))
+    );
+    const matchingIds = new Set(matching.map((c) => c.id));
+    const others = bsList.filter((c) => !matchingIds.has(c.id));
+    return { matching, others, all: bsList };
+  }, [courses, allPrograms, ttProgramIdModal, ttSemesterModal]);
+
+  const modalSelectedSubjectPeers = useMemo(() => {
+    const primary = courses.find((c) => c.id === ttCourseId);
+    if (!primary) return [];
+    const targetKey = normalizeSubjectKey(primary.title, primary.code);
+    if (!targetKey) return [];
+    const bsProgMap = new Map(allPrograms.map((p) => [p.id, p]));
+    const peers: Array<{ programId: string; programName: string; session: string; semester: string; courseId: string }> = [];
+    const seen = new Set<string>();
+    for (const c of courses) {
+      if (!c.programId || !bsProgMap.has(c.programId)) continue;
+      if (normalizeSubjectKey(c.title, c.code) !== targetKey) continue;
+      const sess = (c.session || availableSessionOptions[0] || "2024-2028").trim();
+      const sem = String(c.semester || 1);
+      const dedupeKey = `${c.programId}__${sess}__${sem}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      peers.push({
+        programId: c.programId,
+        programName: bsProgMap.get(c.programId)?.name || "BS Program",
+        session: sess,
+        semester: sem,
+        courseId: c.id,
+      });
+    }
+    return peers.sort((a, b) => a.programName.localeCompare(b.programName) || Number(a.semester) - Number(b.semester));
+  }, [courses, allPrograms, ttCourseId, availableSessionOptions]);
+
+  const resolveCourseForCohort = (programId: string, semester: string, fallbackCourseId: string) => {
+    const primary = courses.find((c) => c.id === fallbackCourseId);
+    const primaryKey = primary ? normalizeSubjectKey(primary.title, primary.code) : "";
+    const exact = courses.find(
+      (c) =>
+        c.programId === programId &&
+        String(c.semester) === String(semester) &&
+        (!primaryKey || normalizeSubjectKey(c.title, c.code) === primaryKey)
+    );
+    return exact?.id || fallbackCourseId;
+  };
 
   const [showDatesheetModal, setShowDatesheetModal] = useState(false);
   const [editingDatesheet, setEditingDatesheet] = useState<any>(null);
@@ -338,12 +439,101 @@ export default function BSTimetableDatesheetPage() {
     return { semesterLabel, programCounts };
   };
 
+  const openAddManualTimetableModal = (
+    presetMode: "single" | "combined" = "single",
+    rec?: SharedSubjectRecommendation
+  ) => {
+    const defaultSession = tSession !== "ALL" ? tSession : (availableSessionOptions[0] || "2024-2028");
+    const defaultProg = tProgramId !== "ALL" ? tProgramId : (allPrograms[0]?.id || "");
+    const defaultSem = tSemester !== "0" ? tSemester : "1";
+
+    setEditingTimetable(null);
+    setError("");
+    setTtCombinedGroupId(null);
+    setTtApplyToCombinedGroup(true);
+    setTtDay("Monday");
+    setTtCustomDayMode(false);
+    setTtStart("09:00");
+    setTtEnd("10:00");
+
+    if (rec) {
+      const firstCohort = rec.cohorts[0];
+      const primaryCid = firstCohort?.courseId || courses[0]?.id || "";
+      setTtMode("combined");
+      setTtProgramIdModal(firstCohort?.programId || defaultProg);
+      setTtSessionModal(firstCohort?.session || defaultSession);
+      setTtSemesterModal(String(firstCohort?.semester || defaultSem));
+      setTtCourseId(primaryCid);
+      setTtFacultyId(rec.suggestedFacultyId || faculties[0]?.id || "");
+      setTtAllowCombinedSingle(true);
+      setTtAllowOptionalParallel(rec.hasOptionalCourse);
+      setTtCombinedCohorts(
+        rec.cohorts.map((c) => ({
+          programId: c.programId,
+          session: c.session || defaultSession,
+          semester: String(c.semester || 1),
+          courseId: c.courseId,
+        }))
+      );
+      setShowTimetableModal(true);
+      return;
+    }
+
+    const matchingCourse =
+      courses.find(
+        (c) =>
+          c.programId === defaultProg &&
+          String(c.semester) === String(defaultSem)
+      ) || courses[0];
+
+    setTtMode(presetMode);
+    setTtProgramIdModal(defaultProg);
+    setTtSessionModal(defaultSession);
+    setTtSemesterModal(defaultSem);
+    setTtCourseId(matchingCourse?.id || "");
+    setTtFacultyId(matchingCourse?.facultyId || faculties[0]?.id || "");
+    setTtAllowCombinedSingle(presetMode === "combined");
+    setTtAllowOptionalParallel(matchingCourse ? isOptionalSubjectCourse(matchingCourse) : false);
+
+    if (presetMode === "combined") {
+      const initRows = allPrograms.slice(0, Math.min(4, allPrograms.length)).map((p) => ({
+        programId: p.id,
+        session: defaultSession,
+        semester: defaultSem,
+        courseId: resolveCourseForCohort(p.id, defaultSem, matchingCourse?.id || ""),
+      }));
+      setTtCombinedCohorts(
+        initRows.length > 0
+          ? initRows
+          : [{ programId: defaultProg, session: defaultSession, semester: defaultSem, courseId: matchingCourse?.id || "" }]
+      );
+    } else {
+      setTtCombinedCohorts([
+        {
+          programId: defaultProg,
+          session: defaultSession,
+          semester: defaultSem,
+          courseId: matchingCourse?.id || "",
+        },
+      ]);
+    }
+    setShowTimetableModal(true);
+  };
+
   // Helper to open Timetable Edit modal cleanly from Matrix or List view
   const openEditTimetableSlot = (t: any) => {
+    const combMeta = parseCombinedClassTag(t.classSectionId);
+    const defaultSession = t.session || (availableSessionOptions[0] || "2024-2028");
+    const siblings = combMeta.groupId
+      ? timetables.filter(
+          (row) => parseCombinedClassTag(row.classSectionId).groupId === combMeta.groupId
+        )
+      : [];
+
     setEditingTimetable(t);
     setError("");
     setTtProgramIdModal(t.programId || (allPrograms[0]?.id || ""));
-    setTtSessionModal(t.session || "2024");
+    setTtSessionModal(defaultSession);
     setTtSemesterModal(t.semester?.toString() || "1");
     setTtDay(t.dayOfWeek);
     setTtCustomDayMode(!isSingleOrPresetDay(t.dayOfWeek));
@@ -351,6 +541,33 @@ export default function BSTimetableDatesheetPage() {
     setTtEnd(t.endTime);
     setTtCourseId(t.courseId || "");
     setTtFacultyId(t.facultyId || "");
+    setTtCombinedGroupId(combMeta.groupId);
+    setTtAllowCombinedSingle(combMeta.isCombined);
+    setTtAllowOptionalParallel(combMeta.isOptionalParallel);
+
+    if (siblings.length > 1) {
+      setTtMode("combined");
+      setTtApplyToCombinedGroup(true);
+      setTtCombinedCohorts(
+        siblings.map((s) => ({
+          programId: s.programId || (allPrograms[0]?.id || ""),
+          session: s.session || defaultSession,
+          semester: String(s.semester || 1),
+          courseId: s.courseId || t.courseId || "",
+        }))
+      );
+    } else {
+      setTtMode("single");
+      setTtApplyToCombinedGroup(false);
+      setTtCombinedCohorts([
+        {
+          programId: t.programId || (allPrograms[0]?.id || ""),
+          session: defaultSession,
+          semester: String(t.semester || 1),
+          courseId: t.courseId || "",
+        },
+      ]);
+    }
     setShowTimetableModal(true);
   };
 
@@ -491,10 +708,14 @@ export default function BSTimetableDatesheetPage() {
   const handleSaveManualTT = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ttCourseId || !ttFacultyId) return alert("Please select both Course and Faculty.");
+    if (ttMode === "combined" && ttCombinedCohorts.length === 0) {
+      return alert("Please add at least one Program / Semester cohort for the combined class.");
+    }
     setError("");
+    const activeSession = ttSessionModal || availableSessionOptions[0] || "2024-2028";
     const res = await saveManualTimetable({
       id: editingTimetable?.id,
-      session: ttSessionModal || "2024",
+      session: activeSession,
       programId: ttProgramIdModal || (allPrograms[0]?.id || ""),
       departmentId: tDepartmentId !== "ALL" ? tDepartmentId : null,
       semester: ttSemesterModal || "1",
@@ -503,9 +724,18 @@ export default function BSTimetableDatesheetPage() {
       dayOfWeek: ttDay,
       startTime: ttStart,
       endTime: ttEnd,
+      allowCombinedSharedClass: ttMode === "combined" || ttAllowCombinedSingle,
+      allowOptionalParallel: ttAllowOptionalParallel,
+      combinedGroupId: ttCombinedGroupId,
+      applyToCombinedGroup: ttMode === "combined" && Boolean(ttCombinedGroupId) && ttApplyToCombinedGroup,
+      cohorts: ttMode === "combined" ? ttCombinedCohorts : undefined,
     });
     if (res.success) {
-      setSuccess("Timetable entry saved!");
+      setSuccess(
+        res.count && res.count > 1
+          ? `Combined class slot saved across ${res.count} cohorts under one teacher!`
+          : "Timetable entry saved!"
+      );
       setShowTimetableModal(false);
       setEditingTimetable(null);
       loadTimetable();
@@ -1049,22 +1279,19 @@ export default function BSTimetableDatesheetPage() {
                     <span>Auto-Generate draft</span>
                   </button>
                   <button
-                    onClick={() => {
-                      setEditingTimetable(null);
-                      setError("");
-                      setTtDay("Monday");
-                      setTtCustomDayMode(false);
-                      setTtProgramIdModal(tProgramId !== "ALL" ? tProgramId : (allPrograms[0]?.id || ""));
-                      setTtSessionModal(tSession !== "ALL" ? tSession : "2024");
-                      setTtSemesterModal(tSemester !== "0" ? tSemester : "1");
-                      setTtCourseId(courses[0]?.id || "");
-                      setTtFacultyId(faculties[0]?.id || "");
-                      setShowTimetableModal(true);
-                    }}
+                    onClick={() => openAddManualTimetableModal("single")}
                     className="px-3.5 py-2 bg-[#7c00e6] hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
                   >
                     <span>➕</span>
                     <span>Add Manual Slot</span>
+                  </button>
+                  <button
+                    onClick={() => openAddManualTimetableModal("combined")}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                    title="Assign one teacher to 4-6 programs or cross-semester/session cohorts together"
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Combine Programs / Sems</span>
                   </button>
                   <button
                     onClick={handlePublishTimetable}
@@ -1180,6 +1407,110 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               )}
 
+              {/* Smart Shared / Combined & Optional Subject Recommendations */}
+              <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-emerald-50/60 p-4 space-y-3 print:hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-black text-indigo-950 flex items-center gap-2 flex-wrap">
+                        <span>Smart Combined &amp; Optional Class Recommendations</span>
+                        {sharedRecommendations.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+                            {sharedRecommendations.length} Suggested Group{sharedRecommendations.length === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-[11px] text-slate-600">
+                        Combine common courses (e.g. Functional English across 4–6 programs), cross-semester/session cohorts (e.g. Pak Study 1st Sem + 2nd Sem), or same-semester optional subjects under 1 teacher.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openAddManualTimetableModal("combined")}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Custom Combined Class</span>
+                    </button>
+                    {sharedRecommendations.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowRecommendationsPanel((p) => !p)}
+                        className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[11px] font-bold cursor-pointer"
+                      >
+                        {showRecommendationsPanel ? "Hide Suggestions" : `Show Suggestions (${sharedRecommendations.length})`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {showRecommendationsPanel && sharedRecommendations.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                    {sharedRecommendations.slice(0, 6).map((rec) => {
+                      const catStyle =
+                        rec.category === "CROSS_SEMESTER_SESSION"
+                          ? "bg-amber-100 text-amber-900 border-amber-300"
+                          : rec.category === "OPTIONAL_ELECTIVE"
+                            ? "bg-teal-100 text-teal-900 border-teal-300"
+                            : "bg-indigo-100 text-indigo-900 border-indigo-300";
+                      return (
+                        <div
+                          key={rec.key}
+                          className="bg-white rounded-xl border border-slate-200/90 p-3 shadow-2xs flex flex-col justify-between gap-2.5"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="font-black text-xs text-slate-900 leading-snug">
+                                {rec.displayTitle}
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-black border shrink-0 ${catStyle}`}>
+                                {rec.badgeLabel}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 leading-snug">
+                              {rec.recommendationNote}
+                            </p>
+                            <div className="flex flex-wrap gap-1 pt-0.5">
+                              {rec.cohorts.slice(0, 6).map((c) => (
+                                <span
+                                  key={`${rec.key}-${c.programId}-${c.semester}-${c.session}`}
+                                  className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700"
+                                >
+                                  {c.programName} • S{c.semester} ({c.session})
+                                </span>
+                              ))}
+                              {rec.cohorts.length > 6 && (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-500">
+                                  +{rec.cohorts.length - 6} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                            <span className="text-[10.5px] font-semibold text-slate-600 truncate">
+                              👩‍🏫 {rec.suggestedFacultyName || "Assign Faculty in Modal"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openAddManualTimetableModal("combined", rec)}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold shrink-0 cursor-pointer"
+                            >
+                              Combine ({rec.cohorts.length})
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {loading ? (
                 <p className="text-center py-12 text-gray-400">Loading Timetable Entries...</p>
               ) : timetables.length === 0 ? (
@@ -1238,39 +1569,56 @@ export default function BSTimetableDatesheetPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {timetables.map((t) => (
-                            <tr key={t.id} className="border-b hover:bg-gray-50">
-                              <td className="p-3 font-bold text-blue-900">{t.dayOfWeek}</td>
-                              <td className="p-3 font-mono font-bold text-gray-700">{t.startTime} - {t.endTime}</td>
-                              <td className="p-3 font-bold text-gray-900">
-                                {t.course?.title} {t.course?.code && <span className="text-xs text-gray-500 font-mono">({t.course.code})</span>}
-                              </td>
-                              <td className="p-3 font-semibold text-indigo-900">{t.faculty?.user?.name || "TBA"}</td>
-                              <td className="p-3 text-xs text-gray-600 font-semibold">{t.program?.name} - Sem {t.semester} ({t.session})</td>
-                              <td className="p-3">
-                                <span className={`px-2.5 py-1 text-xs rounded-full font-bold ${t.status === 'PUBLISHED' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`}>
-                                  {t.status}
-                                </span>
-                              </td>
-                              <td className="p-3 print:hidden flex gap-2 items-center">
-                                <button
-                                  onClick={() => openEditTimetableSlot(t)}
-                                  className="text-blue-600 text-xs font-bold hover:underline"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    await deleteTimetableEntry(t.id);
-                                    loadTimetable();
-                                  }}
-                                  className="text-red-500 text-xs font-semibold hover:underline"
-                                >
-                                  Delete
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {timetables.map((t) => {
+                            const combMeta = parseCombinedClassTag(t.classSectionId);
+                            return (
+                              <tr key={t.id} className="border-b hover:bg-gray-50">
+                                <td className="p-3 font-bold text-blue-900">{t.dayOfWeek}</td>
+                                <td className="p-3 font-mono font-bold text-gray-700">{t.startTime} - {t.endTime}</td>
+                                <td className="p-3 font-bold text-gray-900">
+                                  <span>{formatCourseLabel(t.course?.title, t.course?.code)}</span>
+                                </td>
+                                <td className="p-3 font-semibold text-indigo-900">{t.faculty?.user?.name || "TBA"}</td>
+                                <td className="p-3 text-xs text-gray-600 font-semibold">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span>{t.program?.name} - Sem {t.semester} ({t.session})</span>
+                                    {combMeta.isCombined && (
+                                      <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-black">
+                                        Joint / Combined
+                                      </span>
+                                    )}
+                                    {combMeta.isOptionalParallel && (
+                                      <span className="px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 border border-teal-200 text-[10px] font-black">
+                                        Optional
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2.5 py-1 text-xs rounded-full font-bold ${t.status === 'PUBLISHED' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`}>
+                                    {t.status}
+                                  </span>
+                                </td>
+                                <td className="p-3 print:hidden flex gap-2 items-center">
+                                  <button
+                                    onClick={() => openEditTimetableSlot(t)}
+                                    className="text-blue-600 text-xs font-bold hover:underline"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      await deleteTimetableEntry(t.id);
+                                      loadTimetable();
+                                    }}
+                                    className="text-red-500 text-xs font-semibold hover:underline"
+                                  >
+                                    Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -2920,19 +3268,72 @@ export default function BSTimetableDatesheetPage() {
         </div>
       </div>
 
-      {/* ---------------- MODAL 1: MANUAL TIMETABLE ENTRY ---------------- */}
+      {/* ---------------- MODAL 1: MANUAL TIMETABLE ENTRY (SINGLE & COMBINED / MULTI-COHORT) ---------------- */}
       {showTimetableModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xl max-w-md w-full mx-4 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn overflow-y-auto">
+          <div className={`bg-white p-6 rounded-2xl border border-gray-100 shadow-xl w-full max-h-[92vh] overflow-y-auto space-y-4 ${ttMode === "combined" ? "max-w-2xl" : "max-w-lg"}`}>
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">
-                {editingTimetable ? "✏️ Edit Timetable Slot" : "➕ Add Manual Timetable Slot"}
-              </h3>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">
+                  {editingTimetable
+                    ? ttMode === "combined"
+                      ? "✏️ Edit Combined / Joint Timetable Slot"
+                      : "✏️ Edit Timetable Slot"
+                    : ttMode === "combined"
+                      ? "🔗 Schedule Combined / Joint Class"
+                      : "➕ Add Manual Timetable Slot"}
+                </h3>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Schedule a single class or combine multiple Programs, Sessions &amp; Semesters under one teacher.
+                </p>
+              </div>
               <button
                 onClick={() => setShowTimetableModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold"
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold cursor-pointer"
               >
                 &times;
+              </button>
+            </div>
+
+            {/* Mode Switcher */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setTtMode("single")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${ttMode === "single"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+                  }`}
+              >
+                📘 Single Program / Sem
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTtMode("combined");
+                  if (ttCombinedCohorts.length === 0) {
+                    const sess = ttSessionModal || availableSessionOptions[0] || "2024-2028";
+                    const prog = ttProgramIdModal || allPrograms[0]?.id || "";
+                    const sem = ttSemesterModal || "1";
+                    setTtCombinedCohorts(
+                      modalSelectedSubjectPeers.length >= 2
+                        ? modalSelectedSubjectPeers.map((p) => ({
+                            programId: p.programId,
+                            session: p.session,
+                            semester: p.semester,
+                            courseId: p.courseId,
+                          }))
+                        : [{ programId: prog, session: sess, semester: sem, courseId: ttCourseId }]
+                    );
+                  }
+                }}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${ttMode === "combined"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+                  }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Combined Class (4–6 Progs / Cross-Sem)</span>
               </button>
             </div>
 
@@ -2943,79 +3344,81 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Program</label>
-                  <select
-                    value={ttProgramIdModal}
-                    onChange={(e) => setTtProgramIdModal(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  >
-                    {allPrograms.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+              {ttMode === "single" && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Program</label>
+                    <select
+                      value={ttProgramIdModal}
+                      onChange={(e) => setTtProgramIdModal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
+                    >
+                      {allPrograms.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Academic Session</label>
+                    <select
+                      value={ttSessionModal}
+                      onChange={(e) => setTtSessionModal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
+                    >
+                      {availableSessionOptions.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Semester</label>
+                    <select
+                      value={ttSemesterModal}
+                      onChange={(e) => setTtSemesterModal(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                        <option key={s} value={s.toString()}>Semester {s}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Academic Session</label>
-                  <select
-                    value={ttSessionModal}
-                    onChange={(e) => setTtSessionModal(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  >
-                    {sessions.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Semester</label>
-                  <select
-                    value={ttSemesterModal}
-                    onChange={(e) => setTtSemesterModal(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
-                      <option key={s} value={s.toString()}>Semester {s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Day of Week</label>
-                  <select
-                    value={ttCustomDayMode || !isSingleOrPresetDay(ttDay) ? "__CUSTOM__" : ttDay}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "__CUSTOM__") {
-                        setTtCustomDayMode(true);
-                        if (expandTimetableDays(ttDay).length <= 1) {
-                          setTtDay("Mon, Tue, Thu");
-                        }
-                      } else {
-                        setTtCustomDayMode(false);
-                        setTtDay(val);
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                  Day of Week {ttMode === "combined" ? "(Shared Schedule)" : ""}
+                </label>
+                <select
+                  value={ttCustomDayMode || !isSingleOrPresetDay(ttDay) ? "__CUSTOM__" : ttDay}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "__CUSTOM__") {
+                      setTtCustomDayMode(true);
+                      if (expandTimetableDays(ttDay).length <= 1) {
+                        setTtDay("Mon, Tue, Thu");
                       }
-                    }}
-                    className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
-                  >
-                    <optgroup label="Single Day">
-                      {TIMETABLE_WEEKDAYS.map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Day Groups (First / Last Days)">
-                      {TIMETABLE_DAY_PRESETS.map(p => (
-                        <option key={p.value} value={p.value}>{p.label}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Custom Multiple Days">
-                      <option value="__CUSTOM__">Custom Days (e.g. Mon, Tue, Thu)</option>
-                    </optgroup>
-                  </select>
-                </div>
+                    } else {
+                      setTtCustomDayMode(false);
+                      setTtDay(val);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white"
+                >
+                  <optgroup label="Single Day">
+                    {TIMETABLE_WEEKDAYS.map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Day Groups (First / Last Days)">
+                    {TIMETABLE_DAY_PRESETS.map(p => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Custom Multiple Days">
+                    <option value="__CUSTOM__">Custom Days (e.g. Mon, Tue, Thu)</option>
+                  </optgroup>
+                </select>
               </div>
 
               {(ttCustomDayMode || !isSingleOrPresetDay(ttDay)) && (
@@ -3083,47 +3486,356 @@ export default function BSTimetableDatesheetPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Course / Subject</label>
-                <select
-                  value={ttCourseId}
-                  onChange={(e) => setTtCourseId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-xs bg-white font-bold"
-                >
-                  <option value="">-- Select Course --</option>
-                  {courses.map(c => (
-                    <option key={c.id} value={c.id}>{c.title} ({c.code})</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Course / Subject</label>
+                  <select
+                    value={ttCourseId}
+                    onChange={(e) => {
+                      const nextCid = e.target.value;
+                      setTtCourseId(nextCid);
+                      const chosen = courses.find((c) => c.id === nextCid);
+                      if (chosen) {
+                        setTtAllowOptionalParallel(isOptionalSubjectCourse(chosen));
+                        if (ttMode === "combined") {
+                          setTtCombinedCohorts((prev) =>
+                            prev.map((row) => ({
+                              ...row,
+                              courseId: resolveCourseForCohort(row.programId, row.semester, nextCid),
+                            }))
+                          );
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg text-xs bg-white font-bold"
+                  >
+                    <option value="">-- Select Course --</option>
+                    {bsCoursesSorted.matching.length > 0 && (
+                      <optgroup label="Selected Program & Semester Courses">
+                        {bsCoursesSorted.matching.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {formatCourseLabel(c.title, c.code)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label={bsCoursesSorted.matching.length > 0 ? "All Other BS / Shared Courses" : "All BS Courses"}>
+                      {bsCoursesSorted.others.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {formatCourseLabel(c.title, c.code)}{c.program?.name ? ` — ${c.program.name} (S${c.semester})` : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Faculty Member</label>
+                  <select
+                    value={ttFacultyId}
+                    onChange={(e) => setTtFacultyId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-xs bg-white font-bold"
+                  >
+                    <option value="">-- Select Faculty --</option>
+                    {faculties.map(f => (
+                      <option key={f.id} value={f.id}>{f.user?.name} ({f.designation || "Faculty"})</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Faculty Member</label>
-                <select
-                  value={ttFacultyId}
-                  onChange={(e) => setTtFacultyId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-xs bg-white font-bold"
-                >
-                  <option value="">-- Select Faculty --</option>
-                  {faculties.map(f => (
-                    <option key={f.id} value={f.id}>{f.user?.name} ({f.designation || "Faculty"})</option>
-                  ))}
-                </select>
+              {/* Smart inline peer detection inside Modal */}
+              {modalSelectedSubjectPeers.length > 1 && (
+                <div className="p-3 rounded-xl bg-amber-50/90 border border-amber-200 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-amber-950">
+                      💡 Recommendation: {modalSelectedSubjectPeers.length} cohorts take this subject across programs / semesters / sessions
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTtMode("combined");
+                        setTtAllowCombinedSingle(true);
+                        setTtCombinedCohorts(
+                          modalSelectedSubjectPeers.map((p) => ({
+                            programId: p.programId,
+                            session: p.session,
+                            semester: p.semester,
+                            courseId: p.courseId,
+                          }))
+                        );
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold cursor-pointer shrink-0"
+                    >
+                      Combine All ({modalSelectedSubjectPeers.length}) Under 1 Teacher
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {modalSelectedSubjectPeers.map((p) => (
+                      <span
+                        key={`${p.programId}-${p.semester}-${p.session}`}
+                        className="px-1.5 py-0.5 rounded bg-white border border-amber-200 text-[10px] font-semibold text-amber-900"
+                      >
+                        {p.programName} • Sem {p.semester} ({p.session})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Combined / Multi-Cohort Target List */}
+              {ttMode === "combined" && (
+                <div className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-black text-indigo-950">
+                        Participating Cohorts ({ttCombinedCohorts.length} Classes Combined Together)
+                      </h4>
+                      <p className="text-[10.5px] text-slate-600">
+                        Mix 4–6 BS programs OR different Semesters &amp; Sessions (e.g. Sem 1 2022-2026 + Sem 2 2023-2027) in this same slot.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {allPrograms.length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sess = ttSessionModal || availableSessionOptions[0] || "2024-2028";
+                            const sem = ttSemesterModal || "1";
+                            const targetProgs = allPrograms.slice(0, Math.min(6, allPrograms.length));
+                            setTtCombinedCohorts(
+                              targetProgs.map((p) => ({
+                                programId: p.id,
+                                session: sess,
+                                semester: sem,
+                                courseId: resolveCourseForCohort(p.id, sem, ttCourseId),
+                              }))
+                            );
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[11px] font-bold cursor-pointer"
+                        >
+                          Select {Math.min(6, allPrograms.length)} Programs (Sem {ttSemesterModal})
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sess = ttSessionModal || availableSessionOptions[0] || "2024-2028";
+                          const nextProg =
+                            allPrograms.find((p) => !ttCombinedCohorts.some((c) => c.programId === p.id))?.id ||
+                            allPrograms[0]?.id ||
+                            "";
+                          const sem = ttSemesterModal || "1";
+                          setTtCombinedCohorts((prev) => [
+                            ...prev,
+                            {
+                              programId: nextProg,
+                              session: sess,
+                              semester: sem,
+                              courseId: resolveCourseForCohort(nextProg, sem, ttCourseId),
+                            },
+                          ]);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Cohort Row</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick-Toggle BS Program Chips for fast 4-6 program combining */}
+                  {allPrograms.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-800 block">
+                        Quick-Add BS Programs (Uses Sem {ttSemesterModal} • {ttSessionModal || availableSessionOptions[0]}):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {allPrograms.map((p) => {
+                          const isIncluded = ttCombinedCohorts.some((c) => c.programId === p.id);
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                if (isIncluded) {
+                                  if (ttCombinedCohorts.length <= 1) return;
+                                  setTtCombinedCohorts((prev) => prev.filter((c) => c.programId !== p.id));
+                                } else {
+                                  const sess = ttSessionModal || availableSessionOptions[0] || "2024-2028";
+                                  const sem = ttSemesterModal || "1";
+                                  setTtCombinedCohorts((prev) => [
+                                    ...prev,
+                                    {
+                                      programId: p.id,
+                                      session: sess,
+                                      semester: sem,
+                                      courseId: resolveCourseForCohort(p.id, sem, ttCourseId),
+                                    },
+                                  ]);
+                                }
+                              }}
+                              className={`px-2 py-1 rounded-lg text-[10.5px] font-bold border transition-all cursor-pointer ${isIncluded
+                                ? "bg-indigo-600 text-white border-indigo-600"
+                                : "bg-white text-slate-700 border-slate-200 hover:bg-indigo-50"
+                                }`}
+                            >
+                              {isIncluded ? "✓ " : "+ "}
+                              {p.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Per-Cohort Program / Session / Semester / Course Table */}
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    {ttCombinedCohorts.map((row, idx) => (
+                      <div
+                        key={`cohort-${idx}`}
+                        className="grid grid-cols-12 gap-1.5 items-center bg-white p-2 rounded-lg border border-indigo-100 shadow-2xs"
+                      >
+                        <div className="col-span-5">
+                          <select
+                            value={row.programId}
+                            onChange={(e) => {
+                              const nextProg = e.target.value;
+                              setTtCombinedCohorts((prev) =>
+                                prev.map((item, i) =>
+                                  i === idx
+                                    ? {
+                                        ...item,
+                                        programId: nextProg,
+                                        courseId: resolveCourseForCohort(nextProg, item.semester, ttCourseId),
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            className="w-full px-2 py-1.5 border rounded text-[11px] font-bold bg-white"
+                          >
+                            {allPrograms.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-3">
+                          <select
+                            value={row.session}
+                            onChange={(e) => {
+                              const nextSess = e.target.value;
+                              setTtCombinedCohorts((prev) =>
+                                prev.map((item, i) => (i === idx ? { ...item, session: nextSess } : item))
+                              );
+                            }}
+                            className="w-full px-2 py-1.5 border rounded text-[11px] font-bold bg-white"
+                          >
+                            {availableSessionOptions.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-3">
+                          <select
+                            value={row.semester}
+                            onChange={(e) => {
+                              const nextSem = e.target.value;
+                              setTtCombinedCohorts((prev) =>
+                                prev.map((item, i) =>
+                                  i === idx
+                                    ? {
+                                        ...item,
+                                        semester: nextSem,
+                                        courseId: resolveCourseForCohort(item.programId, nextSem, ttCourseId),
+                                      }
+                                    : item
+                                )
+                              );
+                            }}
+                            className="w-full px-2 py-1.5 border rounded text-[11px] font-bold bg-white"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                              <option key={s} value={String(s)}>
+                                Sem {s}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-1 flex justify-end">
+                          <button
+                            type="button"
+                            disabled={ttCombinedCohorts.length <= 1}
+                            onClick={() =>
+                              setTtCombinedCohorts((prev) => prev.filter((_, i) => i !== idx))
+                            }
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded disabled:opacity-30 cursor-pointer"
+                            title="Remove cohort"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {editingTimetable && ttCombinedGroupId && (
+                    <label className="flex items-center gap-2 text-[11px] font-bold text-indigo-900 pt-1">
+                      <input
+                        type="checkbox"
+                        checked={ttApplyToCombinedGroup}
+                        onChange={(e) => setTtApplyToCombinedGroup(e.target.checked)}
+                        className="rounded accent-indigo-600"
+                      />
+                      <span>Update all participating cohorts in this Combined Group together</span>
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {/* Flexibility Toggles for Single & Combined Classes */}
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-[11px]">
+                {ttMode === "single" && (
+                  <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ttAllowCombinedSingle}
+                      onChange={(e) => setTtAllowCombinedSingle(e.target.checked)}
+                      className="rounded accent-indigo-600"
+                    />
+                    <span>Joint / Combined Class — allow same teacher to share this subject time slot across multiple programs/semesters</span>
+                  </label>
+                )}
+                <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={ttAllowOptionalParallel}
+                    onChange={(e) => setTtAllowOptionalParallel(e.target.checked)}
+                    className="rounded accent-teal-600"
+                  />
+                  <span>Optional / Elective Parallel Subject — allow scheduling at the same time as another elective in the same semester</span>
+                </label>
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t">
                 <button
                   type="button"
                   onClick={() => setShowTimetableModal(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg"
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow cursor-pointer"
                 >
-                  Save Entry
+                  {ttMode === "combined"
+                    ? `Save Combined Slot (${ttCombinedCohorts.length})`
+                    : "Save Entry"}
                 </button>
               </div>
             </form>

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { DAY_ABBREV, expandTimetableDays, type TimetableWeekday } from "@/lib/timetable-days";
+import { parseCombinedClassTag } from "@/lib/timetable-recommendations";
 
 const FIRST_HALF_DAYS: readonly TimetableWeekday[] = ["Monday", "Tuesday", "Wednesday"];
 const LAST_HALF_DAYS: readonly TimetableWeekday[] = ["Thursday", "Friday", "Saturday"];
@@ -50,6 +51,7 @@ export interface TimetableMatrixSlot {
   programId?: string | null;
   courseId?: string | null;
   facultyId?: string | null;
+  classSectionId?: string | null;
   program?: { id?: string; name?: string | null } | null;
   course?: { title?: string | null; code?: string | null } | null;
   faculty?: { user?: { name?: string | null } | null } | null;
@@ -92,14 +94,29 @@ export default function OfficialTimetableMatrixReport({
   }
   const periods = Array.from(periodMap.values()).sort((a, b) => a.start.localeCompare(b.start));
 
-  // Group rows cleanly by Program (and Semester if All Semesters selected)
-  const showSemInRow = selectedSemester === "0";
+  // Collect combined/joint class cohorts by group ID
+  const combinedPeersByGroupId = new Map<string, string[]>();
+  for (const t of timetables) {
+    const meta = parseCombinedClassTag(t.classSectionId);
+    if (meta.groupId) {
+      const label = `${t.program?.name || "BS"} (Sem ${t.semester || 1}${t.session ? ` • ${t.session}` : ""})`;
+      const existingList = combinedPeersByGroupId.get(meta.groupId) || [];
+      if (!existingList.includes(label)) existingList.push(label);
+      combinedPeersByGroupId.set(meta.groupId, existingList);
+    }
+  }
+
+  // Group rows cleanly by Program (and Semester / Session when distinct batches exist)
+  const distinctSessions = new Set(timetables.map((t) => (t.session || "").trim()).filter(Boolean));
+  const showSessionInRow = selectedSession === "ALL" && distinctSessions.size > 1;
+  const showSemInRow = selectedSemester === "0" || showSessionInRow;
   const rowMap = new Map<
     string,
     {
       rowKey: string;
       programName: string;
       semester: number;
+      session: string;
       slots: TimetableMatrixSlot[];
     }
   >();
@@ -107,12 +124,18 @@ export default function OfficialTimetableMatrixReport({
   for (const t of timetables) {
     const pName = t.program?.name || "General BS";
     const sem = t.semester || 1;
-    const rowKey = showSemInRow ? `${t.programId || pName}__sem${sem}` : `${t.programId || pName}`;
+    const sess = (t.session || "").trim();
+    const rowKey = showSessionInRow
+      ? `${t.programId || pName}__sem${sem}__${sess}`
+      : showSemInRow
+        ? `${t.programId || pName}__sem${sem}`
+        : `${t.programId || pName}`;
     if (!rowMap.has(rowKey)) {
       rowMap.set(rowKey, {
         rowKey,
         programName: pName,
         semester: sem,
+        session: sess,
         slots: [],
       });
     }
@@ -121,8 +144,60 @@ export default function OfficialTimetableMatrixReport({
 
   const rows = Array.from(rowMap.values()).sort((a, b) => {
     const cmp = a.programName.localeCompare(b.programName);
-    return cmp !== 0 ? cmp : a.semester - b.semester;
+    if (cmp !== 0) return cmp;
+    if (a.semester !== b.semester) return a.semester - b.semester;
+    return a.session.localeCompare(b.session);
   });
+
+  const renderSlotEntriesCell = (entries: Array<{ slot: TimetableMatrixSlot; dayHint: string }>) => {
+    if (entries.length === 0) {
+      return <span className="text-slate-300 print:hidden text-[10px]">—</span>;
+    }
+    return (
+      <div className="space-y-1.5">
+        {entries.map(({ slot, dayHint }) => {
+          const combMeta = parseCombinedClassTag(slot.classSectionId);
+          const peers = combMeta.groupId ? combinedPeersByGroupId.get(combMeta.groupId) || [] : [];
+          return (
+            <div
+              key={slot.id}
+              onClick={() => onEditSlot?.(slot)}
+              className={`${onEditSlot ? "cursor-pointer hover:bg-blue-50/70 rounded p-0.5 -m-0.5 transition-colors print:p-0 print:m-0" : ""}`}
+              title={
+                peers.length > 1
+                  ? `Combined Class (${peers.join(" + ")})${onEditSlot ? " — Click to edit" : ""}`
+                  : onEditSlot
+                    ? "Click to edit this timetable slot"
+                    : undefined
+              }
+            >
+              <div className="font-bold uppercase text-[10.5px] leading-snug text-black">
+                {slot.course?.title || "Subject"}
+                {dayHint && (
+                  <span className="ml-1 font-sans text-[9px] font-bold px-1 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 rounded print:bg-white print:border-black print:text-black">
+                    {dayHint}
+                  </span>
+                )}
+                {combMeta.isCombined && (
+                  <span className="ml-1 font-sans text-[8.5px] font-bold px-1 py-0.2 bg-purple-100 text-purple-900 border border-purple-300 rounded print:bg-white print:border-black print:text-black">
+                    {peers.length > 1 ? `Joint (${peers.length})` : "Joint"}
+                  </span>
+                )}
+                {combMeta.isOptionalParallel && (
+                  <span className="ml-1 font-sans text-[8.5px] font-bold px-1 py-0.2 bg-teal-100 text-teal-900 border border-teal-300 rounded print:bg-white print:border-black print:text-black">
+                    Opt
+                  </span>
+                )}
+              </div>
+              <div className="text-[10.5px] text-slate-800 mt-0.5 font-medium">
+                {slot.faculty?.user?.name || "TBA"}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const semNum = parseInt(selectedSemester, 10);
   const semTitle =
@@ -239,6 +314,7 @@ export default function OfficialTimetableMatrixReport({
                   {showSemInRow && (
                     <div className="not-italic text-[10px] font-bold text-slate-600 mt-0.5">
                       Semester {row.semester}
+                      {showSessionInRow && row.session ? ` • ${row.session}` : ""}
                     </div>
                   )}
                 </td>
@@ -251,32 +327,7 @@ export default function OfficialTimetableMatrixReport({
                       key={`${row.rowKey}-L-${p.start}-${p.end}`}
                       className="border border-black px-2 py-1.5 align-top min-w-[115px]"
                     >
-                      {entries.length > 0 ? (
-                        <div className="space-y-1.5">
-                          {entries.map(({ slot, dayHint }) => (
-                            <div
-                              key={slot.id}
-                              onClick={() => onEditSlot?.(slot)}
-                              className={`${onEditSlot ? "cursor-pointer hover:bg-blue-50/70 rounded p-0.5 -m-0.5 transition-colors print:p-0 print:m-0" : ""}`}
-                              title={onEditSlot ? "Click to edit this timetable slot" : undefined}
-                            >
-                              <div className="font-bold uppercase text-[10.5px] leading-snug text-black">
-                                {slot.course?.title || "Subject"}
-                                {dayHint && (
-                                  <span className="ml-1 font-sans text-[9px] font-bold px-1 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 rounded print:bg-white print:border-black print:text-black">
-                                    {dayHint}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10.5px] text-slate-800 mt-0.5 font-medium">
-                                {slot.faculty?.user?.name || "TBA"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 print:hidden text-[10px]">—</span>
-                      )}
+                      {renderSlotEntriesCell(entries)}
                     </td>
                   );
                 })}
@@ -290,32 +341,7 @@ export default function OfficialTimetableMatrixReport({
                       className={`border border-black px-2 py-1.5 align-top min-w-[115px] ${idx === 0 ? "border-l-2 border-l-black" : ""
                         }`}
                     >
-                      {entries.length > 0 ? (
-                        <div className="space-y-1.5">
-                          {entries.map(({ slot, dayHint }) => (
-                            <div
-                              key={slot.id}
-                              onClick={() => onEditSlot?.(slot)}
-                              className={`${onEditSlot ? "cursor-pointer hover:bg-blue-50/70 rounded p-0.5 -m-0.5 transition-colors print:p-0 print:m-0" : ""}`}
-                              title={onEditSlot ? "Click to edit this timetable slot" : undefined}
-                            >
-                              <div className="font-bold uppercase text-[10.5px] leading-snug text-black">
-                                {slot.course?.title || "Subject"}
-                                {dayHint && (
-                                  <span className="ml-1 font-sans text-[9px] font-bold px-1 py-0.2 bg-amber-100 text-amber-900 border border-amber-300 rounded print:bg-white print:border-black print:text-black">
-                                    {dayHint}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10.5px] text-slate-800 mt-0.5 font-medium">
-                                {slot.faculty?.user?.name || "TBA"}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 print:hidden text-[10px]">—</span>
-                      )}
+                      {renderSlotEntriesCell(entries)}
                     </td>
                   );
                 })}
