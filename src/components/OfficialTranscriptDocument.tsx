@@ -299,146 +299,190 @@ export default function OfficialTranscriptDocument({
     }
   }
 
-  // Render a column of semesters sharing a single top header and identical column widths
+  // Render a column of semesters with a shared top header box, unboxed semester headings, and aligned course tables
+  const renderColGroup = () => (
+    <colgroup>
+      <col style={{ width: "20px" }} />
+      <col style={{ width: "auto" }} />
+      <col style={{ width: "22px" }} />
+      <col style={{ width: "30px" }} />
+      <col style={{ width: "30px" }} />
+      <col style={{ width: "28px" }} />
+      <col style={{ width: "34px" }} />
+    </colgroup>
+  );
+
   const renderSemestersColumn = (semesters: number[]) => {
     return (
-      <table className="w-full border-collapse border border-black text-black text-[8px] leading-tight table-fixed bg-white">
-        <colgroup>
-          <col style={{ width: "24px" }} />
-          <col style={{ width: "auto" }} />
-          <col style={{ width: "26px" }} />
-          <col style={{ width: "32px" }} />
-          <col style={{ width: "32px" }} />
-          <col style={{ width: "30px" }} />
-          <col style={{ width: "32px" }} />
-        </colgroup>
-        <thead>
-          <tr className="bg-gray-100 border-b border-black text-[8px] font-black uppercase tracking-tight text-center">
-            <th className="border-r border-black py-0.5 px-0.5">S.No</th>
-            <th className="border-r border-black py-0.5 px-1 text-left">Course Code</th>
-            <th className="border-r border-black py-0.5 px-0.5 leading-none">Cr.</th>
-            <th className="border-r border-black py-0.5 px-0.5 leading-none">Max</th>
-            <th className="border-r border-black py-0.5 px-0.5 leading-none">Obt</th>
-            <th className="border-r border-black py-0.5 px-0.5">Grade</th>
-            <th className="py-0.5 px-0.5 leading-none">GP</th>
-          </tr>
-        </thead>
-        <tbody>
-          {semesters.map((sem, sIdx) => {
-            const semData = semesterDataMap[sem];
-            if (!semData) return null;
-            return (
-              <React.Fragment key={sem}>
-                {/* Semester Heading - Unboxed (no borders enclosing it) */}
-                <tr className="border-0">
-                  <td
-                    colSpan={7}
-                    className="py-1 px-1 text-center uppercase tracking-widest text-[9px] font-black text-black bg-transparent border-0"
-                    style={{ borderTop: "none", borderBottom: "none" }}
-                  >
-                    {semData.semName}
-                  </td>
-                </tr>
+      <div className="space-y-1">
+        {/* Column Header Box */}
+        <table className="w-full border-collapse border border-black text-black text-[7.5px] leading-tight table-fixed bg-gray-100">
+          {renderColGroup()}
+          <thead>
+            <tr className="bg-gray-100 text-[7px] font-black uppercase tracking-tight text-center">
+              <th className="border-r border-black py-1 px-0.5 align-middle">
+                <div className="min-h-[70px] py-1 flex items-center justify-center">
+                  <span className="transcript-vertical-th">Serial Number</span>
+                </div>
+              </th>
+              <th className="border-r border-black py-1 px-1.5 text-left align-middle text-[8px]">
+                Course Code &amp; Title
+              </th>
+              <th className="border-r border-black py-1 px-0.5 align-middle">
+                <div className="min-h-[70px] py-1 flex items-center justify-center">
+                  <span className="transcript-vertical-th">Credit Hours</span>
+                </div>
+              </th>
+              <th className="border-r border-black py-1 px-0.5 align-middle">
+                <div className="min-h-[70px] py-1 flex items-center justify-center">
+                  <span className="transcript-vertical-th">Maximum Marks</span>
+                </div>
+              </th>
+              <th className="border-r border-black py-1 px-0.5 align-middle">
+                <div className="min-h-[70px] py-1 flex items-center justify-center">
+                  <span className="transcript-vertical-th">Obtained Marks</span>
+                </div>
+              </th>
+              <th className="border-r border-black py-1 px-0.5 align-middle">
+                <div className="min-h-[70px] py-1 flex items-center justify-center">
+                  <span className="transcript-vertical-th">Grade</span>
+                </div>
+              </th>
+              <th className="py-1 px-0.5 align-middle">
+                <div className="min-h-[70px] py-1 flex items-center justify-center">
+                  <span className="transcript-vertical-th">Grade Points</span>
+                </div>
+              </th>
+            </tr>
+          </thead>
+        </table>
 
-                {/* Course Rows */}
-                {semData.items.length === 0 ? (
-                  <tr className="border-b border-black/40">
-                    <td colSpan={7} className="text-center py-1 text-gray-400 italic text-[7.5px]">
-                      No examination papers recorded
+        {/* Individual Semester Sections: Unboxed Semester Label + Bordered Course & Summary Table */}
+        {semesters.map((sem) => {
+          const semData = semesterDataMap[sem];
+          if (!semData) return null;
+          return (
+            <div key={sem} className="space-y-0.5">
+              {/* Unboxed Semester Heading (Not enclosed in any table/cell border) */}
+              <div className="pt-0.5 text-center uppercase tracking-widest text-[8.5px] font-black text-black leading-tight">
+                {semData.semName}
+              </div>
+
+              <table className="w-full border-collapse border border-black text-black text-[8px] leading-tight table-fixed bg-white">
+                {renderColGroup()}
+                <tbody>
+                  {/* Course Rows */}
+                  {semData.items.length === 0 ? (
+                    <tr className="border-b border-black/40 h-[18.5px]">
+                      <td colSpan={7} className="text-center py-0.5 text-gray-400 italic text-[7.5px]">
+                        No examination papers recorded
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {semData.items.map((row) => (
+                        <tr
+                          key={row.sr}
+                          className="border-b border-black/30 text-center hover:bg-gray-50/50 h-[18.5px]"
+                        >
+                          <td className="border-r border-black/30 py-[1px] px-0.5">{row.sr}</td>
+                          <td
+                            className="border-r border-black/30 py-[1px] px-1 text-left font-mono font-semibold truncate"
+                            title={row.title ? `${row.code} - ${row.title}` : row.code}
+                          >
+                            <div className="truncate leading-tight text-[7.5px]">
+                              <span>{row.code}</span>
+                              {row.title && row.title !== row.code && (
+                                <span className="text-[6.5px] text-gray-600 block truncate font-sans font-normal leading-none">
+                                  {row.title}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="border-r border-black/30 py-[1px] px-0.5 font-medium">
+                            {row.creditHours}
+                          </td>
+                          <td className="border-r border-black/30 py-[1px] px-0.5">
+                            {row.totalMarks}
+                          </td>
+                          <td
+                            className={`border-r border-black/30 py-[1px] px-0.5 font-bold ${row.isAbsent ? "text-red-600" : ""
+                              }`}
+                          >
+                            {row.obtainedMarks}
+                          </td>
+                          <td
+                            className={`border-r border-black/30 py-[1px] px-0.5 font-bold ${row.grade === "F" ? "text-red-600" : ""
+                              }`}
+                          >
+                            {row.grade}
+                          </td>
+                          <td className="py-[1px] px-0.5 font-medium">{row.gradePoint}</td>
+                        </tr>
+                      ))}
+
+                      {/* Empty padding rows so parallel semesters (e.g. 5 vs 6 papers) align exactly */}
+                      {Array.from({ length: semesterPaddingMap[sem] || 0 }).map((_, padIdx) => (
+                        <tr
+                          key={`pad-${sem}-${padIdx}`}
+                          className="border-b border-black/30 text-center h-[18.5px]"
+                        >
+                          <td className="border-r border-black/30 py-[1px] px-0.5">&nbsp;</td>
+                          <td className="border-r border-black/30 py-[1px] px-1 text-left">
+                            <div className="truncate leading-tight text-[7.5px]">
+                              <span>&nbsp;</span>
+                              <span className="text-[6.5px] block truncate font-sans leading-none">&nbsp;</span>
+                            </div>
+                          </td>
+                          <td className="border-r border-black/30 py-[1px] px-0.5 font-medium">&nbsp;</td>
+                          <td className="border-r border-black/30 py-[1px] px-0.5">&nbsp;</td>
+                          <td className="border-r border-black/30 py-[1px] px-0.5 font-bold">&nbsp;</td>
+                          <td className="border-r border-black/30 py-[1px] px-0.5 font-bold">&nbsp;</td>
+                          <td className="py-[1px] px-0.5 font-medium">&nbsp;</td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
+
+                  {/* GPA & Semester Marks Summary Row (No "Tot:" label; totals aligned under Credit Hours / Max / Obt) */}
+                  <tr className="border-t border-black font-bold bg-gray-50 text-[7.5px] h-[17px]">
+                    <td colSpan={2} className="border-r border-black/40 py-0.5 px-1 text-left">
+                      &nbsp;
+                    </td>
+                    <td className="border-r border-black/40 py-0.5 px-0.5 text-center font-black">
+                      {semData.semCredits}
+                    </td>
+                    <td className="border-r border-black/40 py-0.5 px-0.5 text-center font-black text-black">
+                      {semData.semMax}
+                    </td>
+                    <td className="border-r border-black/40 py-0.5 px-0.5 text-center font-black text-black">
+                      {semData.semObt}
+                    </td>
+                    <td colSpan={2} className="py-0.5 px-1 text-center font-black text-black bg-slate-100 whitespace-nowrap">
+                      GPA: {semData.sgpa}
                     </td>
                   </tr>
-                ) : (
-                  <>
-                    {semData.items.map((row) => (
-                      <tr
-                        key={row.sr}
-                        className="border-b border-black/30 text-center hover:bg-gray-50/50 h-[21px]"
-                      >
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5">{row.sr}</td>
-                        <td
-                          className="border-r border-black/30 py-[1.5px] px-1 text-left font-mono font-semibold truncate"
-                          title={row.title ? `${row.code} - ${row.title}` : row.code}
-                        >
-                          <div className="truncate leading-tight">
-                            <span>{row.code}</span>
-                            {row.title && row.title !== row.code && (
-                              <span className="text-[6.5px] text-gray-600 block truncate font-sans font-normal leading-none">
-                                {row.title}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5 font-medium">
-                          {row.creditHours}
-                        </td>
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5">
-                          {row.totalMarks}
-                        </td>
-                        <td
-                          className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${row.isAbsent ? "text-red-600" : ""
-                            }`}
-                        >
-                          {row.obtainedMarks}
-                        </td>
-                        <td
-                          className={`border-r border-black/30 py-[1.5px] px-0.5 font-bold ${row.grade === "F" ? "text-red-600" : ""
-                            }`}
-                        >
-                          {row.grade}
-                        </td>
-                        <td className="py-[1.5px] px-0.5 font-medium">{row.gradePoint}</td>
-                      </tr>
-                    ))}
-
-                    {/* Empty padding rows so parallel semesters (e.g. 5 vs 6 papers) align exactly */}
-                    {Array.from({ length: semesterPaddingMap[sem] || 0 }).map((_, padIdx) => (
-                      <tr
-                        key={`pad-${sem}-${padIdx}`}
-                        className="border-b border-black/30 text-center h-[21px]"
-                      >
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5">&nbsp;</td>
-                        <td className="border-r border-black/30 py-[1.5px] px-1 text-left">
-                          <div className="truncate leading-tight">
-                            <span>&nbsp;</span>
-                            <span className="text-[6.5px] block truncate font-sans leading-none">&nbsp;</span>
-                          </div>
-                        </td>
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5 font-medium">&nbsp;</td>
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5">&nbsp;</td>
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5 font-bold">&nbsp;</td>
-                        <td className="border-r border-black/30 py-[1.5px] px-0.5 font-bold">&nbsp;</td>
-                        <td className="py-[1.5px] px-0.5 font-medium">&nbsp;</td>
-                      </tr>
-                    ))}
-                  </>
-                )}
-
-                {/* GPA & Semester Summary Row */}
-                <tr className="border-b-2 border-black font-bold bg-gray-50 text-[7.5px] h-[20px]">
-                  <td colSpan={2} className="border-r border-black/40 py-0.5 px-1 text-left truncate text-gray-800">
-                    Tot: <span className="font-black text-black">{semData.semObt}/{semData.semMax}</span>
-                  </td>
-                  <td className="border-r border-black/40 py-0.5 px-0.5 text-center font-black">
-                    {semData.semCredits}
-                  </td>
-                  <td colSpan={2} className="border-r border-black/40 py-0.5 px-1 text-right text-gray-700">
-                    GPA:
-                  </td>
-                  <td colSpan={2} className="py-0.5 px-1 text-center font-black text-black text-[8px] bg-slate-100">
-                    {semData.sgpa}
-                  </td>
-                </tr>
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+      </div>
     );
   };
 
   return (
-    <div className="official-transcript-root bg-white text-black p-3 sm:p-5 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:max-w-none text-[9.5px] leading-tight">
+    <div className="official-transcript-root bg-white text-black p-3 sm:p-4 mx-auto max-w-[850px] font-sans border-2 border-black shadow-lg print:border-none print:shadow-none print:p-0 print:m-0 print:w-full print:max-w-none text-[9.5px] leading-tight">
       <style>{`
+        .transcript-vertical-th {
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          white-space: nowrap;
+          display: inline-block;
+          line-height: 1.05;
+          text-align: center;
+          vertical-align: middle;
+        }
         @media print {
           @page {
             size: letter portrait;
@@ -471,19 +515,19 @@ export default function OfficialTranscriptDocument({
       `}</style>
 
       {/* ─── 1. TOP SERIAL NUMBER ─── */}
-      <div className="flex justify-between items-center text-[9.5px] font-serif tracking-normal text-black mb-1">
+      <div className="flex justify-between items-center text-[9.5px] font-serif tracking-normal text-black mb-0.5">
         <span className="font-mono text-[8px] text-gray-500">HEC / UOB STANDARDIZED TRANSCRIPT</span>
         <span className="font-bold">No. {serialNoStr}</span>
       </div>
 
       {/* ─── 2. MAIN HEADER (CONCERNED COLLEGE LOGO & NAME) ─── */}
-      <div className="text-center space-y-0.5 mb-1.5">
+      <div className="text-center space-y-0.5 mb-1">
         {activeCollegeLogo && (
           <div className="flex justify-center mb-0.5">
             <img
               src={activeCollegeLogo}
               alt="College Logo"
-              className="w-12 h-12 object-contain"
+              className="w-10 h-10 object-contain"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 if (!target.src.includes("/logo.png")) {
@@ -493,7 +537,7 @@ export default function OfficialTranscriptDocument({
             />
           </div>
         )}
-        <h1 className="font-serif text-xl sm:text-[22px] font-black tracking-tight text-black uppercase leading-none">
+        <h1 className="font-serif text-xl sm:text-[21px] font-black tracking-tight text-black uppercase leading-none">
           {activeCollegeName}
         </h1>
         {activeCollegeAddress && (
@@ -562,12 +606,12 @@ export default function OfficialTranscriptDocument({
       </div>
 
       {/* ─── 4. PROGRAM TITLE BAR ─── */}
-      <div className="border border-black bg-gray-100/70 py-0.5 my-1 text-center text-[9.5px] font-black tracking-wider uppercase text-black">
-        {programName} (4 YEAR'S DEGREE PROGRAM)
+      <div className="border border-black bg-gray-100/70 py-0.5 my-0.5 text-center text-[9.5px] font-black tracking-wider uppercase text-black">
+        {programName} (4 YEAR&apos;S DEGREE PROGRAM)
       </div>
 
       {/* ─── 5. TWO-COLUMN SEMESTERS GRID ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-2 mb-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-x-2 mb-1">
         {/* Left Column: Odd Semesters (1, 3, 5, 7) */}
         <div>
           {renderSemestersColumn(oddSemesters)}
@@ -580,7 +624,7 @@ export default function OfficialTranscriptDocument({
       </div>
 
       {/* ─── 6. CUMULATIVE MARKS SUMMARY ROW ─── */}
-      <div className="border border-black bg-gray-50/80 py-1 px-3 mb-1.5 flex items-center justify-between flex-wrap gap-2 text-[9px] text-black font-medium">
+      <div className="border border-black bg-gray-50/80 py-0.5 px-3 mb-1 flex items-center justify-between flex-wrap gap-2 text-[9px] text-black font-medium">
         <div>
           Obtained Marks: <strong className="underline ml-1 text-black font-black">{grandTotalObtained}</strong>
         </div>
@@ -619,7 +663,7 @@ export default function OfficialTranscriptDocument({
 
           {/* Clean Official Stamp Area */}
           <div className="pt-0.5">
-            <div className="w-24 h-10 border border-dashed border-gray-400 rounded flex items-center justify-center text-center">
+            <div className="w-24 h-8 border border-dashed border-gray-400 rounded flex items-center justify-center text-center">
               <span className="text-[7px] font-semibold text-gray-400 uppercase tracking-widest">[ College Stamp ]</span>
             </div>
           </div>
@@ -628,7 +672,7 @@ export default function OfficialTranscriptDocument({
         {/* Right Signature Column */}
         <div className="text-center space-y-0.5">
           {/* Controller Signature Blank Area */}
-          <div className="h-6"></div>
+          <div className="h-5"></div>
 
           <div className="border-t border-black pt-1">
             <p className="font-bold text-[9.5px] leading-tight text-black">
