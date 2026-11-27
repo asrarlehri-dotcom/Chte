@@ -173,13 +173,13 @@ function LoginForm() {
       <header className="px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md relative z-10">
         <Link href="/" className="flex items-center gap-3 group">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-all ${
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-all ${
               loginMode === "CHTE"
                 ? "bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-emerald-500/20"
                 : "bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-blue-500/20"
             }`}
           >
-            <ShieldCheck className="w-5 h-5 text-white" />
+            <ShieldCheck className="w-7 h-7 text-white" />
           </div>
           <div>
             <div className="text-xs font-black text-white tracking-wider uppercase">
@@ -243,9 +243,9 @@ function LoginForm() {
           {/* Header Card based on Mode */}
           {loginMode === "CHTE" ? (
             /* 1. HEMIS Official Mode Header */
-            <div className="text-center space-y-2 p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600/20 text-emerald-400 mx-auto flex items-center justify-center shadow-inner">
-                <ShieldCheck className="w-6 h-6" />
+            <div className="text-center space-y-2.5 p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/20">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-600/20 text-emerald-400 mx-auto flex items-center justify-center shadow-inner">
+                <ShieldCheck className="w-9 h-9" />
               </div>
               <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/30">
                 HEMIS Central Platform
@@ -295,15 +295,16 @@ function LoginForm() {
 
               {/* Dynamic College Branding Card */}
               {selectedCollege && (
-                <div className="p-3 rounded-2xl bg-blue-950/30 border border-blue-500/20 flex items-center gap-3 transition-all">
+                <div className="p-3.5 rounded-2xl bg-blue-950/30 border border-blue-500/20 flex items-center gap-3.5 transition-all">
                   {selectedCollege.logoUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={selectedCollege.logoUrl}
                       alt="Logo"
-                      className="w-10 h-10 object-contain rounded-xl bg-slate-900 p-1 border border-blue-500/30 flex-shrink-0"
+                      className="w-16 h-16 object-contain rounded-2xl bg-slate-900 p-1.5 border border-blue-500/30 flex-shrink-0 shadow-md"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-xs shadow-md flex-shrink-0">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-base shadow-md flex-shrink-0">
                       {selectedCollege.code.substring(0, 3)}
                     </div>
                   )}
@@ -490,7 +491,7 @@ function LoginForm() {
       {/* Footer */}
       <footer className="px-6 py-4 border-t border-slate-900 bg-slate-950/80 backdrop-blur-md relative z-10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 max-w-full">
         <span>© {new Date().getFullYear()} Higher Education Management Information System (HEMIS) Balochistan. All Rights Reserved.</span>
-        <IALWebsiteFooterTag variant="slate-dark" />
+        <IALWebsiteFooterTag variant="slate-dark" size="lg" />
       </footer>
     </div>
   );

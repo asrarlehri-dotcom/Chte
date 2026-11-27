@@ -6,17 +6,26 @@ export const IAL_CONTACT_EMAIL = "asrarlehri@gmail.com";
 
 export interface IALWebsiteFooterTagProps {
   variant?: "emerald-dark" | "slate-dark" | "light";
+  size?: "sm" | "md" | "lg";
   className?: string;
 }
 
 export function IALWebsiteFooterTag({
   variant = "emerald-dark",
+  size = "sm",
   className = "",
 }: IALWebsiteFooterTagProps) {
   const isLight = variant === "light";
   const badgeClasses = isLight
     ? "bg-white border-slate-200 shadow-2xs"
     : "bg-white/95 border-white/25 shadow-sm";
+  const logoSizeClasses =
+    size === "lg"
+      ? "h-12 sm:h-14 w-auto object-contain block"
+      : size === "md"
+        ? "h-8 sm:h-10 w-auto object-contain block"
+        : "h-6 sm:h-7 w-auto object-contain block";
+  const badgePaddingClasses = size === "lg" ? "px-2.5 py-1.5 rounded-lg" : "px-1.5 py-0.5 rounded-md";
   const textClasses =
     variant === "emerald-dark"
       ? "text-emerald-200/95"
@@ -32,15 +41,15 @@ export function IALWebsiteFooterTag({
         : "text-slate-700 hover:text-slate-900 underline underline-offset-2";
 
   return (
-    <div className={`inline-flex flex-wrap items-center justify-center gap-2 ${className}`}>
+    <div className={`inline-flex flex-wrap items-center justify-center gap-2.5 ${className}`}>
       <span
-        className={`inline-flex items-center justify-center rounded-md border px-1.5 py-0.5 shrink-0 ${badgeClasses}`}
+        className={`inline-flex items-center justify-center border shrink-0 ${badgePaddingClasses} ${badgeClasses}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={IAL_LOGO_SRC}
           alt={IAL_TAGLINE}
-          className="h-6 sm:h-7 w-auto object-contain block"
+          className={logoSizeClasses}
         />
       </span>
       <span className={`text-[11px] font-semibold leading-tight flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 ${textClasses}`}>
