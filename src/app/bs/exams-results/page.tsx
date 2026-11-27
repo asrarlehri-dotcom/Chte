@@ -25,6 +25,7 @@ import {
   BookOpen
 } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 export default function ExamsResultsPage() {
   const [activeTab, setActiveTab] = useState("paper_attendance");
@@ -3075,6 +3076,7 @@ function MeritScholarshipsTab() {
           </table>
         </div>
       </div>
+      <IALPrintFooter printOnly className="mt-4" />
     </div>
   );
 }
@@ -4682,6 +4684,8 @@ function StatusAcademicActionsTab() {
                         <div className="font-bold text-gray-800">Controller of Examinations / Principal</div>
                       </div>
                     </div>
+
+                    <IALPrintFooter className="mt-4 pt-2" />
                   </div>
                 ) : (
                   /* Official Academic Transcript */
@@ -4861,6 +4865,8 @@ function StatusAcademicActionsTab() {
                         <div>{collegeAddress || "Sariab Road, Quetta."}</div>
                       </div>
                     </div>
+
+                    <IALPrintFooter className="mt-4 pt-2" />
                   </div>
                 ) : (
                   /* Official Academic Transcript up to Semester 4 */
@@ -5067,6 +5073,8 @@ function StatusAcademicActionsTab() {
                       <div>4. Accounts Branch & Student Personal Dossier File.</div>
                     </div>
                   </div>
+
+                  <IALPrintFooter className="mt-4 pt-2" />
                 </div>
               </div>
             </div>

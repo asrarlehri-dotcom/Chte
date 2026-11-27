@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useSettings } from "@/lib/useSettings";
 import { ShieldCheck } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 type StudentData = {
   id: string;
@@ -670,6 +671,8 @@ function StudentActionsContent() {
               </div>
             </div>
 
+            <IALPrintFooter className="mt-4 pt-2" />
+
             <div className="flex justify-end gap-3 pt-4 border-t print:hidden">
               <button
                 onClick={() => window.print()}
@@ -723,6 +726,8 @@ function StudentActionsContent() {
                 <div className="font-bold text-gray-800">Controller of Examinations / Principal</div>
               </div>
             </div>
+
+            <IALPrintFooter className="mt-4 pt-2" />
 
             <div className="flex justify-end gap-3 pt-4 border-t print:hidden">
               <button

@@ -57,6 +57,7 @@ import UniversalImportModal from "@/components/UniversalImportModal";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
 import OfficialTimetableMatrixReport, { toOrdinalUpper } from "@/components/bs/OfficialTimetableMatrixReport";
 import OfficialExamCenterReport from "@/components/bs/OfficialExamCenterReport";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 function downloadCSV(filename: string, headers: string[], rows: (string | number)[][]) {
   const csvContent = [
@@ -1529,6 +1530,7 @@ export default function BSTimetableDatesheetPage() {
                       </table>
                     </div>
                   </div>
+                  <IALPrintFooter printOnly className="mt-3" />
                 </>
               )}
             </div>
@@ -1947,6 +1949,7 @@ export default function BSTimetableDatesheetPage() {
                       </table>
                     </div>
                   </div>
+                  <IALPrintFooter printOnly className="mt-3" />
                 </>
               )}
             </div>
@@ -2911,6 +2914,7 @@ export default function BSTimetableDatesheetPage() {
                       </table>
                     </div>
                   </div>
+                  <IALPrintFooter printOnly className="mt-3" />
                 </div>
               )}
             </div>

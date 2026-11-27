@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { IALWebsiteFooterTag } from "@/components/common/IALBranding";
 import {
   Building2,
   GraduationCap,
@@ -1238,10 +1239,11 @@ export default function ChteHomePage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#0b3d2b] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-emerald-300/80">
-          <div>
+        <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-[#0b3d2b] flex flex-col lg:flex-row items-center justify-between gap-4 text-[11px] text-emerald-300/80">
+          <div className="text-center lg:text-left">
             © {new Date().getFullYear()} Higher Education Management Information System (HEMIS) Balochistan. All Rights Reserved.
           </div>
+          <IALWebsiteFooterTag variant="emerald-dark" />
           <div className="flex gap-4">
             <Link href="/login?mode=chte" className="hover:text-white">
               HEMIS Admin

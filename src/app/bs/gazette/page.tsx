@@ -8,6 +8,7 @@ import OfficialDMCDocument from "@/components/OfficialDMCDocument";
 import { sortStudentsByRoll } from "@/lib/domainParsers";
 import { Award, Palette } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 import GazetteBannerStudioModal from "@/components/bs/GazetteBannerStudioModal";
 import {
   GazetteBannerConfigMap,
@@ -1697,6 +1698,7 @@ export default function GazetteCompilerPage() {
                     Principal Signature
                   </div>
                 </div>
+                <IALPrintFooter printOnly compact className="mx-4 pb-2" />
               </div>
             </div>
           );

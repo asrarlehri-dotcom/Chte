@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 export default async function PrintAdmissionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -273,6 +274,8 @@ export default async function PrintAdmissionPage({ params }: { params: Promise<{
               <p className="text-[10px] font-black tracking-widest text-slate-600 uppercase">Parent/Guardian Signature</p>
             </div>
           </div>
+
+          <IALPrintFooter className="mt-8 pt-2" />
         </div>
       </div>
       

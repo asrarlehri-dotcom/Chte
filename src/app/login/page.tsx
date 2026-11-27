@@ -4,6 +4,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { IALWebsiteFooterTag } from "@/components/common/IALBranding";
 import {
   Building2,
   ShieldCheck,
@@ -487,8 +488,9 @@ function LoginForm() {
       </main>
 
       {/* Footer */}
-      <footer className="px-6 py-4 border-t border-slate-900 bg-slate-950/80 backdrop-blur-md relative z-10 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} Higher Education Management Information System (HEMIS) Balochistan. All Rights Reserved.
+      <footer className="px-6 py-4 border-t border-slate-900 bg-slate-950/80 backdrop-blur-md relative z-10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 max-w-full">
+        <span>© {new Date().getFullYear()} Higher Education Management Information System (HEMIS) Balochistan. All Rights Reserved.</span>
+        <IALWebsiteFooterTag variant="slate-dark" />
       </footer>
     </div>
   );

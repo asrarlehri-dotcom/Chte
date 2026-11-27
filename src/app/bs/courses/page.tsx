@@ -11,6 +11,7 @@ import {
 import { parseGenericCSV, validateCourseBatch, getCourseSampleCSV } from "@/lib/domainParsers";
 import UniversalImportModal from "@/components/UniversalImportModal";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 // Types
 export type CourseType =
@@ -1573,6 +1574,7 @@ export default function SyllabusCourseManagementPage() {
             })}
           </div>
         )}
+        <IALPrintFooter printOnly className="mt-4" />
       </main>
 
       {/* ─────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { IALWebsiteFooterTag } from "@/components/common/IALBranding";
 import { getCompleteDashboardData } from "../shared-actions";
 import {
   Users,
@@ -1063,10 +1064,11 @@ export default function DashboardPage() {
       )}
 
       {/* ── FOOTER ── */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs font-medium text-slate-400 pt-4 border-t border-slate-200/60">
+      <div className="flex flex-col lg:flex-row justify-between items-center gap-3 text-xs font-medium text-slate-400 pt-4 border-t border-slate-200/60">
         <div>
           © {new Date().getFullYear()} {userCollegeName || "Higher & Technical Education Department Balochistan"}. All rights reserved.
         </div>
+        <IALWebsiteFooterTag variant="light" />
         <div>
           Unified Colleges Cloud ERP | Government of Balochistan
         </div>

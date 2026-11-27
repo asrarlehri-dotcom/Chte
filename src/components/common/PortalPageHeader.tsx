@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useId } from "react";
 import { usePathname } from "next/navigation";
+import { IALWebsiteFooterTag } from "@/components/common/IALBranding";
 import {
   compileFillToStyle,
   FillConfig,
@@ -449,8 +450,14 @@ export function PortalPageHeader({
   );
 }
 
-// Bottom matching decorative wave for page footers (as seen in Dashboard & Exams screenshots)
-export function PortalBottomWave({ waveColor = "#047857" }: { waveColor?: string | FillConfig }) {
+// Bottom matching decorative wave & branding bar for portal page footers
+export function PortalBottomWave({
+  waveColor = "#047857",
+  theme = "light",
+}: {
+  waveColor?: string | FillConfig;
+  theme?: "light" | "dark";
+}) {
   const uid = useId().replace(/:/g, "");
   const routePath = usePathname();
   const [activeColor, setActiveColor] = useState<string | FillConfig>(waveColor);
@@ -497,42 +504,56 @@ export function PortalBottomWave({ waveColor = "#047857" }: { waveColor?: string
     return () => window.removeEventListener("college-theme-change", handleTheme);
   }, [routePath]);
 
-  if (!visible || waveOpacity <= 0) return null;
-
   const parsed = parseWaveStops(activeColor, "#047857");
+  const isDark = theme === "dark";
+  const showFooterCredit = routePath !== "/dashboard";
 
   return (
-    <div
-      className="w-full h-10 overflow-hidden pointer-events-none relative mt-8 flex justify-end print:hidden transition-opacity duration-200"
-      style={{ opacity: Math.max(0, Math.min(100, waveOpacity)) / 100 }}
-    >
-      <svg
-        className="h-full w-96 max-w-full"
-        viewBox="0 0 400 40"
-        preserveAspectRatio="none"
-        fill="none"
-      >
-        <defs>
-          <linearGradient id={`bottomWave1-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            {parsed.stops.map((st, idx) => (
-              <stop key={idx} offset={`${st.position}%`} stopColor={st.color} stopOpacity="0.82" />
-            ))}
-          </linearGradient>
-          <linearGradient id={`bottomWave2-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            {parsed.stops.map((st, idx) => (
-              <stop key={idx} offset={`${st.position}%`} stopColor={st.color} stopOpacity="0.35" />
-            ))}
-          </linearGradient>
-        </defs>
-        <path
-          d="M 0 40 C 140 40, 240 8, 400 0 L 400 40 Z"
-          fill={`url(#bottomWave1-${uid})`}
-        />
-        <path
-          d="M 60 40 C 180 40, 280 14, 400 6 L 400 40 Z"
-          fill={`url(#bottomWave2-${uid})`}
-        />
-      </svg>
+    <div className="w-full mt-8 print:hidden">
+      {showFooterCredit && (
+        <div
+          className={`px-4 md:px-2 pt-3 pb-2 border-t flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+            isDark ? "border-slate-800/80 text-slate-400" : "border-slate-200/80 text-slate-500"
+          }`}
+        >
+          <span>© {new Date().getFullYear()} Higher Education Management Information System (HEMIS) Balochistan</span>
+          <IALWebsiteFooterTag variant={isDark ? "slate-dark" : "light"} />
+        </div>
+      )}
+      {visible && waveOpacity > 0 && (
+        <div
+          className="w-full h-10 overflow-hidden pointer-events-none relative flex justify-end transition-opacity duration-200"
+          style={{ opacity: Math.max(0, Math.min(100, waveOpacity)) / 100 }}
+        >
+          <svg
+            className="h-full w-96 max-w-full"
+            viewBox="0 0 400 40"
+            preserveAspectRatio="none"
+            fill="none"
+          >
+            <defs>
+              <linearGradient id={`bottomWave1-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                {parsed.stops.map((st, idx) => (
+                  <stop key={idx} offset={`${st.position}%`} stopColor={st.color} stopOpacity="0.82" />
+                ))}
+              </linearGradient>
+              <linearGradient id={`bottomWave2-${uid}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                {parsed.stops.map((st, idx) => (
+                  <stop key={idx} offset={`${st.position}%`} stopColor={st.color} stopOpacity="0.35" />
+                ))}
+              </linearGradient>
+            </defs>
+            <path
+              d="M 0 40 C 140 40, 240 8, 400 0 L 400 40 Z"
+              fill={`url(#bottomWave1-${uid})`}
+            />
+            <path
+              d="M 60 40 C 180 40, 280 14, 400 6 L 400 40 Z"
+              fill={`url(#bottomWave2-${uid})`}
+            />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }

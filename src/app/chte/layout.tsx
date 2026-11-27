@@ -10,7 +10,7 @@ export default function ChteLayout({ children }: { children: React.ReactNode }) 
         <PortalTopBar />
         <main className="flex-1 overflow-y-auto custom-scrollbar print:p-0 print:overflow-visible">
           {children}
-          <PortalBottomWave />
+          <PortalBottomWave theme="dark" />
         </main>
       </div>
     </div>

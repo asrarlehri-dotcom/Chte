@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 export interface CenterProgramCount {
   name: string;
@@ -448,6 +449,8 @@ export default function OfficialExamCenterReport({
           </div>
         </div>
       </div>
+
+      <IALPrintFooter className="mt-4 pt-2" />
     </div>
   );
 }

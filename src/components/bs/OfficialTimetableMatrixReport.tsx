@@ -3,6 +3,7 @@
 import React from "react";
 import { DAY_ABBREV, expandTimetableDays, type TimetableWeekday } from "@/lib/timetable-days";
 import { parseCombinedClassTag } from "@/lib/timetable-recommendations";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 const FIRST_HALF_DAYS: readonly TimetableWeekday[] = ["Monday", "Tuesday", "Wednesday"];
 const LAST_HALF_DAYS: readonly TimetableWeekday[] = ["Thursday", "Friday", "Saturday"];
@@ -372,6 +373,8 @@ export default function OfficialTimetableMatrixReport({
           </div>
         </div>
       </div>
+
+      <IALPrintFooter className="mt-4 pt-2" />
     </div>
   );
 }

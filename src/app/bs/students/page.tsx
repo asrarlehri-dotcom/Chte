@@ -19,6 +19,7 @@ import {
   ClipboardList
 } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 type StudentRecord = {
   id: string;
@@ -763,6 +764,8 @@ export default function BSStudentsPage() {
             </table>
           </div>
         )}
+
+        <IALPrintFooter printOnly className="px-4 pb-2" />
 
         {/* Table Footer & Pagination */}
         <div className="p-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4 text-xs text-gray-600">

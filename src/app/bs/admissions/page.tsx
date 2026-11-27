@@ -26,6 +26,7 @@ import {
 import { parseCSVToRows, getSampleCSV, validateAdmissionsBatch } from "@/lib/admissionParser";
 import ImportValidationModal from "@/components/ImportValidationModal";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 type Admission = {
   id: string;
@@ -1005,6 +1006,8 @@ export default function BsAdmissionsPage() {
             </table>
           </div>
         )}
+
+        <IALPrintFooter printOnly className="px-4 pb-2" />
 
         {/* Table Footer & Pagination */}
         <div className="p-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4 text-xs text-gray-600">

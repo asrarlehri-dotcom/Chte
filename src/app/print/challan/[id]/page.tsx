@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 type Challan = {
   id: string;
@@ -276,6 +277,8 @@ export default function PrintChallanPage() {
           </div>
         ))}
       </div>
+
+      <IALPrintFooter compact className="mt-1.5 pt-1 w-full" />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { UserCheck } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 import {
   ALL_BPS_SCALES,
   ALL_BALOCHISTAN_DISTRICTS,
@@ -1470,6 +1471,7 @@ export default function BSFacultyPage() {
             </table>
           </div>
         )}
+        <IALPrintFooter printOnly className="px-4 pb-2" />
       </div>
 
       {/* ─────────────────────────────────────────────────────────────────────────────
@@ -2503,6 +2505,8 @@ export default function BSFacultyPage() {
                     <div className="text-sm font-semibold">{triReportData.station}</div>
                   </div>
                 </div>
+
+                <IALPrintFooter className="mt-6 pt-2" />
               </div>
             </div>
           </div>
@@ -2619,6 +2623,8 @@ export default function BSFacultyPage() {
                     <div className="text-sm font-semibold">{relievingReportData.station}</div>
                   </div>
                 </div>
+
+                <IALPrintFooter className="mt-6 pt-2" />
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { FillConfig, getRepresentativeColor, isLightColor } from "@/lib/theme-fill-compiler";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 import {
   Search,
   Printer,
@@ -1049,6 +1050,8 @@ export default function StudentResultSearch({
             <div className="text-[10px] text-slate-400 text-center mt-6">
               * Note: This is an online verified provisional examination slip generated via the CHTE Balochistan Academic ERP. Errors & omissions accepted.
             </div>
+
+            <IALPrintFooter className="mt-4 pt-2" />
           </div>
         </div>
       )}

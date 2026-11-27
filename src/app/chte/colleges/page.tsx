@@ -27,6 +27,7 @@ import {
   CreditCard
 } from "lucide-react";
 import { PortalPageHeader } from "@/components/common/PortalPageHeader";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 interface CollegeItem {
   id: string;
@@ -812,6 +813,8 @@ export default function ChteCollegesPage() {
                     </span>
                   </div>
                 </div>
+
+                <IALPrintFooter compact className="border-slate-700/80 print:border-slate-400" />
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between gap-3 pt-2 print:hidden">

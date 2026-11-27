@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { IALWebsiteFooterTag } from "@/components/common/IALBranding";
 import { compileFillToStyle, compileFillToTextStyle, getRepresentativeColor } from "@/lib/theme-fill-compiler";
 import {
   PhotoFitMode,
@@ -1328,11 +1329,12 @@ export default function CollegePortalHomePage() {
 
       {/* ── 10. FOOTER ── */}
       <footer className="bg-[#030914] text-slate-400 text-xs py-8 px-4 sm:px-8 border-t border-white/10">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
+          <div className="text-center lg:text-left">
             © {new Date().getFullYear()} {college.name} • Government of Balochistan. All rights reserved.
           </div>
-          <div className="flex items-center gap-4">
+          <IALWebsiteFooterTag variant="slate-dark" />
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <Link href={collegeHomeUrl} className="hover:text-white transition-colors">
               Campus Home
             </Link>

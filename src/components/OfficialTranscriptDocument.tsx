@@ -2,6 +2,7 @@
 
 import React from "react";
 import { getGPValue, getGrade, calculateStudentCGPA } from "@/lib/cgpa";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 export type TranscriptStudentData = {
   id?: string;
@@ -687,6 +688,8 @@ export default function OfficialTranscriptDocument({
           </div>
         </div>
       </div>
+
+      <IALPrintFooter compact className="mt-1 pt-1" />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import React from "react";
 import { getGPValue, getGrade, calculateStudentCGPA } from "@/lib/cgpa";
 import { TranscriptStudentData } from "@/components/OfficialTranscriptDocument";
+import { IALPrintFooter } from "@/components/common/IALBranding";
 
 export interface OfficialDMCDocumentProps {
   student: TranscriptStudentData;
@@ -455,6 +456,8 @@ export default function OfficialDMCDocument({
           </div>
         </div>
       </div>
+
+      <IALPrintFooter compact />
     </div>
   );
 }
